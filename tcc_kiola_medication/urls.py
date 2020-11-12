@@ -9,7 +9,7 @@ from django.conf.urls import include, url
 
 from . import views
 
-from .views import CompoundAPIView, CompoundRudView,  PrescriptionRudView
+from .views import CompoundAPIView, CompoundRudView,  PrescriptionRudView, MedObservationProfileAPIView
 
 urlpatterns = [
     
@@ -21,6 +21,8 @@ urlpatterns = [
     url(r"compoundSource/", views.addCompoundSource),
 
     url(r"allCompounds/", CompoundAPIView.as_view(), name='post-listcreate'),
+    url(r"med_obs_profiles/", MedObservationProfileAPIView.as_view(), name='med_obs_profiles'),
+
     url(r'singleCompound/(?P<pk>\d+)/$', CompoundRudView.as_view(), name='post-rud'),
 
 

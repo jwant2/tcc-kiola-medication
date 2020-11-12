@@ -56,6 +56,10 @@ import dateutil.parser
 import rest_framework.pagination
 from rest_framework.pagination import PageNumberPagination
 from .utils import PaginationHandlerMixin
+from rest_framework.renderers import JSONRenderer
+from kiola.kiola_med import models as med_models
+from kiola.kiola_med import const as med_const
+from kiola.utils import exceptions
 
 #
 from rest_framework.authentication import SessionAuthentication, BaseAuthentication
@@ -222,6 +226,44 @@ class CompoundAPIView(APIView, PaginationHandlerMixin):
             serializer = self.serializer_class(qs, many=True)
         return Response(serializer.data, status=status.HTTP_200_OK)
 
+class MedObservationProfileAPIView(APIView):
+
+    authentication_classes = [KiolaAuthentication,]
+    render_classes = [JSONRenderer,]
+
+    @requires_api_login
+    def get(self, request, subject_uid=None,uid=None, *args, **kwargs):
+        try:
+            if subject_uid is None:
+                subject = senses.Subject.objects.get(login=request.user)
+            else:
+                subject = senses.Subject.objects.get(uuid=subject_uid)
+        except senses.Subject.DoesNotExist:
+            raise exceptions.Forbidden("Unknown subject")
+        active_ppr = med_models.PrescriptionProfileRelation.objects.filter(active=True, root_profile__subject=subject).first()
+        if active_ppr:
+            root_profile = active_ppr.root_profile
+            data = {
+                "enabled_profile": [
+                    {"id": root_profile.name}
+                ]
+            }
+            children = root_profile.children.all()
+            if len(children) > 0:
+                data['enabled_profile'][0]['children'] = []
+                for child in children:
+                    print('child', child)
+                    print('type', type(child))
+
+                    data['enabled_profile'][0]['children'].append({
+                        "id": child.name
+                    })
+        else:
+            data = {
+                "enabled_profile": []
+            }
+
+        return Response(data, status=status.HTTP_200_OK)
 
 class CompoundRudView(generics.RetrieveUpdateDestroyAPIView): # DetailView CreateView FormView
     lookup_field            = 'pk' 

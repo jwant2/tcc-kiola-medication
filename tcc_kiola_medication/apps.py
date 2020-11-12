@@ -19,7 +19,7 @@ class SiteAppConf(AppConf):
         except BaseException:
             dirs = [] + list(settings.TEMPLATES[0]["DIRS"])
         dirs.insert(1, os.path.dirname(__file__) + "/templates/")
-        print('dirs', dirs)
+
         return dirs
 
     def configure_template_dirs(self, value):
