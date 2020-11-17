@@ -1,12 +1,12 @@
 from rest_framework import serializers
 
-from .models import MedCompound
+# from .models import MedCompound
 from kiola.kiola_med.models import *
-
-class MedCompoundSerializer(serializers.ModelSerializer):
-    class Meta:
-        model = MedCompound
-        fields = ['pk','name','dosage_form']
+from . import models
+# class MedCompoundSerializer(serializers.ModelSerializer):
+#     class Meta:
+#         model = MedCompound
+#         fields = ['pk','name','dosage_form']
 
 class CompoundaSerializer(serializers.ModelSerializer):
     class Meta:
@@ -31,11 +31,11 @@ class PrescriptionSerializer(serializers.ModelSerializer):
         model =  Prescription
         fields = ['taking_reason','taking_hint','displayable_taking','compound_id','subject_id']
 
-class MedCompoundSerializerTest(serializers.Serializer):
-    name = serializers.CharField(read_only=True)
-    def create(self, validated_data):
+# class MedCompoundSerializerTest(serializers.Serializer):
+#     name = serializers.CharField(read_only=True)
+#     def create(self, validated_data):
 
-        return MedCompound.objects.create(**validated_data)
+#         return MedCompound.objects.create(**validated_data)
 
     # def update(self, instance, validated_data):
     #     """
@@ -48,3 +48,10 @@ class MedCompoundSerializerTest(serializers.Serializer):
     #     instance.style = validated_data.get('style', instance.style)
     #     instance.save()
     #     return instance
+
+class PatientAdverseReactionSerializer(serializers.ModelSerializer):
+    reaction_type_name = serializers.CharField(source='reaction_type.name')
+    
+    class Meta:
+        model =  models.PatientAdverseReaction
+        fields = ['uid','substance','reaction_type_name', 'reactions', 'created', 'updated']

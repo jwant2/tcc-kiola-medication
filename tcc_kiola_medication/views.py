@@ -15,6 +15,7 @@ from rest_framework import viewsets, generics, mixins
 
 
 from .serializers import CompoundSerializer, CompoundaSerializer, PrescriptionSerializer
+from .serializers import PatientAdverseReactionSerializer
 #from .models import MedCompound
 
 from kiola.kiola_med.models import *
@@ -61,6 +62,7 @@ from kiola.kiola_med import models as med_models
 from kiola.kiola_med import const as med_const
 from kiola.utils import exceptions
 
+from . import models
 #
 from rest_framework.authentication import SessionAuthentication, BaseAuthentication
 from rest_framework.permissions import IsAuthenticated
@@ -215,8 +217,6 @@ class CompoundAPIView(APIView, PaginationHandlerMixin):
         qs = Compound.objects.all()
 
         page = self.paginate_queryset(qs)
-        # print('count', page.count())
-        print('query', len(page))
 
         if page is not None:
             serializer = self.get_paginated_response(self.serializer_class(page,
@@ -252,8 +252,6 @@ class MedObservationProfileAPIView(APIView):
             if len(children) > 0:
                 data['enabled_profile'][0]['children'] = []
                 for child in children:
-                    print('child', child)
-                    print('type', type(child))
 
                     data['enabled_profile'][0]['children'].append({
                         "id": child.name
@@ -315,16 +313,16 @@ class PrescriptionListView(kiola_views.KiolaSubjectListView):
         sid = self.kwargs.get('sid')
         subject = senses.Subject.objects.get(uuid=sid)
         
-        qs = models.Prescription.objects.select_related('compound', 'status')\
+        qs = med_models.Prescription.objects.select_related('compound', 'status')\
                                         .filter(subject=subject,
                                                 status__name=const.PRESCRIPTION_STATUS__ACTIVE)\
                                         .prefetch_related(Prefetch('prescriptionevent_set',
-                                                                   queryset=models.PrescriptionEvent.objects.filter(etype__name__in=[const.EVENT_TYPE__PRESCRIBED,
+                                                                   queryset=med_models.PrescriptionEvent.objects.filter(etype__name__in=[const.EVENT_TYPE__PRESCRIBED,
                                                                                                                             const.EVENT_TYPE__END, ])\
                                                                                                             .select_related("etype")\
                                                                                                             .order_by("timepoint")),
                                                           Prefetch('prescriptionevent_set',
-                                                                   queryset=models.PrescriptionEvent.objects.filter(etype__name__in=[const.EVENT_TYPE__ADDED, ])\
+                                                                   queryset=med_models.PrescriptionEvent.objects.filter(etype__name__in=[const.EVENT_TYPE__ADDED, ])\
                                                                                                             .select_related("etype")\
                                                                                                             .order_by("timepoint"),
                                                                     to_attr="added_on"),
@@ -339,17 +337,17 @@ class PrescriptionListView(kiola_views.KiolaSubjectListView):
         context = super(PrescriptionListView, self).get_context_data(**kwargs)
         sid = self.kwargs.get('sid')
         subject = senses.Subject.objects.get(uuid=sid)
-        qs = models.Prescription.objects.select_related('compound', 'status')\
+        qs = med_models.Prescription.objects.select_related('compound', 'status')\
                                         .filter(subject=subject,
                                                 status__name=const.PRESCRIPTION_STATUS__INACTIVE)\
                                         .prefetch_related(Prefetch('prescriptionevent_set',
-                                                                    queryset=models.PrescriptionEvent.objects.filter(etype__name__in=[const.EVENT_TYPE__ADDED,
+                                                                    queryset=med_models.PrescriptionEvent.objects.filter(etype__name__in=[const.EVENT_TYPE__ADDED,
                                                                                                                                       const.EVENT_TYPE__CANCELED,
                                                                                                                                       const.EVENT_TYPE__REPLACED])\
                                                                                                       .select_related("etype")\
                                                                                                       .order_by("timepoint")),
                                                           Prefetch('prescriptionevent_set',
-                                                                   queryset=models.PrescriptionEvent.objects.filter(etype__name__in=[const.EVENT_TYPE__PRESCRIBED,
+                                                                   queryset=med_models.PrescriptionEvent.objects.filter(etype__name__in=[const.EVENT_TYPE__PRESCRIBED,
                                                                                                                                      const.EVENT_TYPE__END,
                                                                                                                                      ])\
                                                                                                             .select_related("etype")\
@@ -366,7 +364,7 @@ class PrescriptionListView(kiola_views.KiolaSubjectListView):
                              "hidden":const.PRESCRIPTION_STATUS__HIDDEN}
         context["enddatekey"] = const.EVENT_TYPE__END
         context["prescription_profiles_active"] = settings.KIOLA_PRESCRIPTION_PROFILES_ENABLED
-        pprelation = models.PrescriptionProfileRelation.objects.filter(active=True,
+        pprelation = med_models.PrescriptionProfileRelation.objects.filter(active=True,
                                                           root_profile__subject=subject)
         context["active_profile_relation"] = pprelation
         if len(pprelation) > 0:
@@ -477,3 +475,76 @@ class PrescriptionListAPI(resource.Resource):
         return HttpResponse("Post successful")
 
 
+class AdverseReactionAPIView(APIView):
+
+    authentication_classes = [KiolaAuthentication,]
+    render_classes = [JSONRenderer,]
+    serializer_class = PatientAdverseReactionSerializer
+
+    @requires_api_login
+    def get(self, request, subject_uid=None,uid=None, *args, **kwargs):
+        try:
+            if subject_uid is None:
+                subject = senses.Subject.objects.get(login=request.user)
+            else:
+                subject = senses.Subject.objects.get(uuid=subject_uid)
+        except senses.Subject.DoesNotExist:
+            raise exceptions.Forbidden("Unknown subject")
+
+        qs = models.PatientAdverseReaction.objects.filter(subject=subject, active=True)
+        serializer = self.serializer_class(qs, many=True)
+
+        return Response(serializer.data, status=status.HTTP_200_OK)
+
+    @requires_api_login
+    def post(self, request, subject_uid=None,uid=None, *args, **kwargs):
+        try:
+            if subject_uid is None:
+                subject = senses.Subject.objects.get(login=request.user)
+            else:
+                subject = senses.Subject.objects.get(uuid=subject_uid)
+        except senses.Subject.DoesNotExist:
+            raise exceptions.Forbidden("Unknown subject")
+        
+        data = request.data
+        substance_value = data.get('substance', "")
+        reaction_type_value = data.get('reaction_type', "")
+        reactions_value = data.get('reactions', "")
+        uid_value = data.get('uid', None)
+        active_value = data.get('active', None)
+
+        if substance_value == "" or reactions_value == "" or (active_value is not None and type(active_value) != type(True)):
+            raise exceptions.BadRequest("Invalid data %s " % data)
+        
+        if active_value is None:
+            active_value = True
+
+        try:
+            reaction_type = models.PatientAdverseReaction.objects.get(name=reaction_type_value)
+        except:
+            raise exceptions.BadRequest("Invalid value %s in reaction_type" % reaction_type_value)
+        
+        if uid_value:
+            try:
+                adverse_reaction = models.PatientAdverseReaction.objects.get(uid=uid_value, active=True)
+            except:
+                raise exceptions.BadRequest("Adverse Reaction with uid %s does not exist or has been deleted" % uid_value)
+
+            adverse_reaction.substance = substance_value
+            adverse_reaction.reaction_type = reaction_type
+            adverse_reaction.reactions = reactions_value
+            adverse_reaction.active = active_value
+            adverse_reaction.save()
+
+        else:
+            adverse_reaction = models.PatientAdverseReaction.objects.create(
+                    subject=subject,
+                    substance=substance_value, 
+                    reaction_type=reaction_type,
+                    reactions=reactions_value,
+                    active=active_value,
+                    )
+
+
+        serializer = self.serializer_class([adverse_reaction], many=True)
+        return Response(serializer.data, status=status.HTTP_200_OK)

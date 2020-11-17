@@ -38,6 +38,7 @@ urlpatterns = [
 
     #TODO:
     #Adverse reactions API - don't have the data/where is it?
+    url(r'adverse_reaction/$', views.AdverseReactionAPIView.as_view(), name="adverse_reaction"),
 
     #MEDS TESTING:
     url(r'prescr/$', views.PrescriptionListView.as_view(), name="prescription_list"),
