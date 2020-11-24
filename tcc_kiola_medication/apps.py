@@ -41,3 +41,9 @@ class SiteAppConf(AppConf):
 class TccKiolaMedicationConfig(AppConfig):
     name = 'tcc_kiola_medication'
     verbose_name = "TCC Kiola Medications"
+
+    # def ready(self):
+    #     from kiola.kiola_med import models as med_models
+    #     from . import models
+
+    #     med_models.Prescription.objects = models.TccPrescriptionManager()
