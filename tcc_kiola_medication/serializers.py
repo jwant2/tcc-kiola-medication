@@ -64,7 +64,7 @@ class MedicationAdverseReactionSerializer(serializers.ModelSerializer):
     
     class Meta:
         model =  models.MedicationAdverseReaction
-        fields = ['uid', 'compound', "compoundId", 'reactionType', 'reactions', 'editor', 'created', 'updated', 'active']
+        fields = ['pk', 'uid', 'compound', "compoundId", 'reactionType', 'reactions', 'editor', 'created', 'updated', 'active']
 
 class MedPrescriptionSerializer(serializers.ModelSerializer):
     id = serializers.CharField(source='pk')

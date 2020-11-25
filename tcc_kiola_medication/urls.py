@@ -47,10 +47,12 @@ urlpatterns = [
     # url(r"prescriptions/$", views.PrescriptionAPIView.as_view(), name="prescriptions-add"),
     # url(r"prescriptions/(?P<pk>\d+)/$", views.PrescriptionAPIView.as_view(), name="prescriptions-update"),
     url(r"prescriptions/$", views.PrescriptionAPIView.as_view(), name="prescriptions"),
-
+    url(r"prescriptions/(?P<pk>\d+)/$", views.PrescriptionAPIView.as_view(), name="prescriptions"),
     url(r"user-pref/$", views.UserPreferenceConfigAPIView.as_view(), name="user-preference"),
     url(r"scheduleitem/$", views.TakingSchemaAPIView.as_view(), name="takings"),
+    url(r"scheduleitem/(?P<pk>\d+)/$", views.TakingSchemaAPIView.as_view(), name="takings"),
     url(r"medreaction/$", views.MedicationAdverseReactionAPIView.as_view(), name="med_adverse_reactions"),
+    url(r"medreaction/(?P<pk>\d+)/$", views.MedicationAdverseReactionAPIView.as_view(), name="med_adverse_reactions"),
     
 ]
 

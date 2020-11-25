@@ -481,7 +481,7 @@ class AdverseReactionAPIView(APIView):
     serializer_class = tcc_serializers.PatientAdverseReactionSerializer
 
     @requires_api_login
-    def get(self, request, subject_uid=None,uid=None, *args, **kwargs):
+    def get(self, request, subject_uid=None, pk=None, *args, **kwargs):
         try:
             if subject_uid is None:
                 subject = senses.Subject.objects.get(login=request.user)
@@ -490,13 +490,22 @@ class AdverseReactionAPIView(APIView):
         except senses.Subject.DoesNotExist:
             raise exceptions.Forbidden("Unknown subject")
 
-        qs = models.PatientAdverseReaction.objects.filter(subject=subject, active=True)
-        serializer = self.serializer_class(qs, many=True)
+        reaction_id = pk
+        if reaction_id:
+            try:
+                reaction_item = models.PatientAdverseReaction.objects.get(pk=reaction_id)
+            except Exception as err:
+                print(err)
+                raise exceptions.BadRequest("PatientAdverseReaction with pk '%s' does not exist" % reaction_id)
+            serializer = self.serializer_class(reaction_item)
+        else:
+            qs = models.PatientAdverseReaction.objects.filter(subject=subject, active=True)
+            serializer = self.serializer_class(qs, many=True)
 
         return Response(serializer.data, status=status.HTTP_200_OK)
 
     @requires_api_login
-    def post(self, request, subject_uid=None,uid=None, *args, **kwargs):
+    def post(self, request, subject_uid=None, pk=None, *args, **kwargs):
         try:
             if subject_uid is None:
                 subject = senses.Subject.objects.get(login=request.user)
@@ -509,7 +518,8 @@ class AdverseReactionAPIView(APIView):
         substance_value = data.get('substance', "")
         reaction_type_value = data.get('reaction_type', "")
         reactions_value = data.get('reactions', "")
-        uid_value = data.get('uid', None)
+        # reaction_id = data.get('uid', None)
+        reaction_id = pk
         active_value = data.get('active', None)
 
         if substance_value == "" or reactions_value == "" or (active_value is not None and type(active_value) != type(True)):
@@ -523,11 +533,11 @@ class AdverseReactionAPIView(APIView):
         except:
             raise exceptions.BadRequest("Invalid value %s in reaction_type" % reaction_type_value)
         
-        if uid_value:
+        if reaction_id:
             try:
-                adverse_reaction = models.PatientAdverseReaction.objects.get(uid=uid_value, active=True)
+                adverse_reaction = models.PatientAdverseReaction.objects.get(pk=reaction_id, active=True)
             except:
-                raise exceptions.BadRequest("Adverse Reaction with uid %s does not exist or has been deleted" % uid_value)
+                raise exceptions.BadRequest("Adverse Reaction with pk %s does not exist or has been deleted" % reaction_id)
 
             adverse_reaction.substance = substance_value
             adverse_reaction.reaction_type = reaction_type
@@ -563,7 +573,7 @@ class PrescriptionAPIView(APIView):
     serializer_class = tcc_serializers.MedPrescriptionSerializer
 
     @requires_api_login
-    def get(self, request, subject_uid=None,uid=None, *args, **kwargs):
+    def get(self, request, subject_uid=None, pk=None, *args, **kwargs):
 
         try:
             if subject_uid is None:
@@ -573,7 +583,8 @@ class PrescriptionAPIView(APIView):
         except senses.Subject.DoesNotExist:
             raise exceptions.Forbidden("Unknown subject")
 
-        prescr_id = request.GET.get('id', None)
+        # prescr_id = request.GET.get('id', None)
+        prescr_id = pk
         if prescr_id:
             try:
                 prescr = med_models.Prescription.objects.select_related(
@@ -649,7 +660,7 @@ class PrescriptionAPIView(APIView):
 
 
     @requires_api_login
-    def post(self, request, subject_uid=None, *args, **kwargs):
+    def post(self, request, subject_uid=None, pk=None, *args, **kwargs):
 
         try:
             if subject_uid is None:
@@ -660,7 +671,8 @@ class PrescriptionAPIView(APIView):
             raise exceptions.Forbidden("Unknown subject")
         
         data = request.data
-        prescr_id = data.get('id', None)
+        # prescr_id = data.get('id', None)
+        prescr_id = pk
         compound_name = data.get('compoundName', None)
         taking_reason = data.get('taking_reason', "")
         taking_hint = data.get('taking_hint', "")
@@ -761,7 +773,7 @@ class MedicationAdverseReactionAPIView(APIView):
     serializer_class = tcc_serializers.MedicationAdverseReactionSerializer
 
     @requires_api_login
-    def get(self, request, subject_uid=None, *args, **kwargs):
+    def get(self, request, subject_uid=None, pk=None, *args, **kwargs):
         try:
             if subject_uid is None:
                 subject = senses.Subject.objects.get(login=request.user)
@@ -770,7 +782,8 @@ class MedicationAdverseReactionAPIView(APIView):
         except senses.Subject.DoesNotExist:
             raise exceptions.Forbidden("Unknown subject")
 
-        reaction_id = request.GET.get('id', None)
+        # reaction_id = request.GET.get('id', None)
+        reaction_id = pk
         if reaction_id:
             try:
                 reaction_item = models.MedicationAdverseReaction.objects.get(pk=reaction_id)
@@ -793,7 +806,7 @@ class MedicationAdverseReactionAPIView(APIView):
 
 
     @requires_api_login
-    def post(self, request, subject_uid=None, *args, **kwargs):  
+    def post(self, request, subject_uid=None, pk=None, *args, **kwargs):  
         try:
             if subject_uid is None:
                 subject = senses.Subject.objects.get(login=request.user)
@@ -803,7 +816,8 @@ class MedicationAdverseReactionAPIView(APIView):
             raise exceptions.Forbidden("Unknown subject")
 
         data = request.data
-        reaction_id = data.get('uid', None)
+        # reaction_id = data.get('uid', None)
+        reaction_id = pk
         prescr_id = data.get('medicationId', None)
         reaction_type_name = data.get('reactionType', None)
         reactions = data.get('reactions', None)
@@ -827,7 +841,7 @@ class MedicationAdverseReactionAPIView(APIView):
 
         if reaction_id:
             try:
-                reaction_item = models.MedicationAdverseReaction.objects.get(uid=reaction_id)
+                reaction_item = models.MedicationAdverseReaction.objects.get(pk=reaction_id)
                 reaction_item.compound = compound
                 reaction_item.reaction_type = reaction_type
                 reaction_item.reactions = reactions
@@ -835,7 +849,7 @@ class MedicationAdverseReactionAPIView(APIView):
                 reaction_item.save()
             except Exception as err:
                 print(err)
-                raise exceptions.BadRequest("MedicationAdverseReaction with uid '%s' does not exist" % reaction_id)
+                raise exceptions.BadRequest("MedicationAdverseReaction with pk '%s' does not exist" % reaction_id)
 
         else:
             reaction_item, created = models.MedicationAdverseReaction.objects.get_or_create(
@@ -863,10 +877,13 @@ class TakingSchemaAPIView(APIView):
         except senses.Subject.DoesNotExist:
             raise exceptions.Forbidden("Unknown subject")
 
-        taking_id = request.GET.get('id', None)
+        # taking_id = request.GET.get('id', None)
+        taking_id = pk
         if taking_id:
             try:
-                taking_item = models.ScheduledTaking.objects.get(pk=taking_id)
+                taking_item = models.ScheduledTaking.objects.annotate(prescr_id=
+                    F('takingschema__prescriptionschema__prescription')
+                ).get(pk=taking_id)
             except Exception as err:
                 print(err)
                 raise exceptions.BadRequest("ScheduledTaking with pk '%s' does not exist" % taking_id)
@@ -887,11 +904,12 @@ class TakingSchemaAPIView(APIView):
         return Response(serializer.data, status=status.HTTP_200_OK)
 
     @requires_api_login
-    def post(self, request, subject_uid=None, *args, **kwargs):
+    def post(self, request, subject_uid=None, pk=None, *args, **kwargs):
 
 
         data = request.data
-        taking_id = data.get('id', "")
+        # taking_id = data.get('id', "")
+        taking_id = pk
         prescr_id = data.get('medicationId', "")
         schedule = data.get('schedule', None)
         schedule_type = schedule.get('type', None)
@@ -932,7 +950,7 @@ class TakingSchemaAPIView(APIView):
 
         
         prescr_schema = prescr.prescriptionschema_set.all().first()
-        takings = prescr_schema.taking_schema.takings.all()
+        takings = prescr_schema.taking_schema.takings.all().values_list('pk', flat=True)
         print('takings', takings)
         should_new_takingschema = False
         with reversionrevisions.create_revision():
@@ -950,17 +968,17 @@ class TakingSchemaAPIView(APIView):
 
         taking_unit, created = med_models.TakingUnit.objects.get_or_create(name=unit)
         if taking:
-            if taking not in takings:
+            if taking.pk not in takings:
                 raise exceptions.BadRequest("Taking with id '%s' does not match the gvien prescription (%s)" % (taking_id, prescr_id))
-            taking.timepoint=timepoint,
-            taking.taking_time=time,
-            taking.start_date=datetime.strptime(start_date.split("T")[0], "%Y-%m-%d"),
-            taking.editor=request.user,
-            taking.unit=taking_unit,
-            taking.strength=strength,
-            taking.dosage=dose,
-            taking.reminder=reminder,
-            taking.clinic_scheduled=False,
+            taking.timepoint=timepoint
+            taking.taking_time=time
+            taking.start_date=datetime.strptime(start_date.split("T")[0], "%Y-%m-%d")
+            taking.editor=request.user
+            taking.unit=taking_unit
+            taking.strength=strength
+            taking.dosage=dose
+            taking.reminder=reminder
+            taking.clinic_scheduled=False
             taking.frequency=models.TakingFrequency.objects.get(name=frequency)
             taking.save() 
 
@@ -1062,7 +1080,7 @@ class UserPreferenceConfigAPIView(APIView):
         med_pref_data = data.get('data', None)
         config_data = {}
         for item in med_pref_data:
-            config_data[f'{const.USER_PREFERENCE_CONFIG_PREFIX}{item["type"]}'] = item
+            config_data[f'{const.USER_PREFERENCE_CONFIG_PREFIX}{item["type"].lower()}'] = item
         result = models.UserPreferenceConfig.objects.set_value(const.USER_PREFERENCE_KEY__MEDICATION_TIMES, config_data, request.user)
         return Response({"msg": "Success"}, status=status.HTTP_200_OK)
 
@@ -1077,7 +1095,7 @@ class UserPreferenceConfigAPIView(APIView):
         med_pref_data = data.get('data', None)
         config_data = models.UserPreferenceConfig.objects.get_value(const.USER_PREFERENCE_KEY__MEDICATION_TIMES, request.user)
         for item in med_pref_data:
-            config_data[f'{const.USER_PREFERENCE_CONFIG_PREFIX}{item["type"]}'] = item
+            config_data[f'{const.USER_PREFERENCE_CONFIG_PREFIX}{item["type"].lower()}'] = item
         result = models.UserPreferenceConfig.objects.set_value(const.USER_PREFERENCE_KEY__MEDICATION_TIMES, config_data, request.user)
         return Response({"msg": "Success"}, status=status.HTTP_200_OK)
 
