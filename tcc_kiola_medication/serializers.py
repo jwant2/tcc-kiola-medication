@@ -25,32 +25,33 @@ class PrescriptionSerializer(serializers.ModelSerializer):
         fields = ['taking_reason','taking_hint','displayable_taking','compound_id','subject_id']
 
 class PatientAdverseReactionSerializer(serializers.ModelSerializer):
-    reaction_type_name = serializers.CharField(source='reaction_type.name')
+    reactionType = serializers.CharField(source='reaction_type.name')
     
     class Meta:
         model =  models.PatientAdverseReaction
-        fields = ['uid','substance','reaction_type_name', 'reactions', 'created', 'updated']
+        fields = ['pk', 'uid','substance','reactionType', 'reactions', 'created', 'updated', 'active']
 
 class MedicationAdverseReactionSerializer(serializers.ModelSerializer):
     reactionType = serializers.CharField(source='reaction_type.name')
-    compoundId = serializers.CharField(source='compound.name')
+    compoundName = serializers.CharField(source='compound.name')
+    compoundId = serializers.CharField(source='compound.pk')
     editor = serializers.CharField(source='editor.username')
     
     class Meta:
         model =  models.MedicationAdverseReaction
-        fields = ['pk', 'uid', 'compound', "compoundId", 'reactionType', 'reactions', 'editor', 'created', 'updated', 'active']
+        fields = ['pk', 'uid', 'compoundId', "compoundName", 'reactionType', 'reactions', 'editor', 'created', 'updated', 'active']
 
 class MedPrescriptionSerializer(serializers.ModelSerializer):
     id = serializers.CharField(source='pk')
     compoundName = serializers.CharField(source='compound.name')
-    medicationId = serializers.CharField(source='compound.pk')
+    compoundId = serializers.CharField(source='compound.pk')
     dosage_form = serializers.CharField(source='compound.dosage_form')
     activeComponents = serializers.SerializerMethodField()
-    adverse_reactions = serializers.SerializerMethodField()
+    medicationAdverseReactions = serializers.SerializerMethodField()
     schedules = serializers.SerializerMethodField()
     prescrEvent = serializers.SerializerMethodField()
 
-    def get_adverse_reactions(self, obj):
+    def get_medicationAdverseReactions(self, obj):
         try:
             return obj.adverse_reactions
         except:
@@ -87,11 +88,11 @@ class MedPrescriptionSerializer(serializers.ModelSerializer):
                     'taking_reason',
                     'taking_hint',
                     'displayable_taking',
-                    'medicationId',
+                    'compoundId',
                     'compoundName',
                     'dosage_form',
                     'activeComponents',
-                    'adverse_reactions',
+                    'medicationAdverseReactions',
                     'schedules',
                     'prescrEvent',
                  ]
@@ -100,9 +101,9 @@ class MedPrescriptionSerializer(serializers.ModelSerializer):
 class ScheduledTakingSerializer(serializers.ModelSerializer):
     medicationId = serializers.CharField(source='prescr_id')
     frequency = serializers.CharField(source='frequency.name')
-    unit = serializers.CharField(source='unit.name')
+    formulation = serializers.CharField(source='unit.name')
     schedule = serializers.SerializerMethodField()
-
+    startTime = serializers.CharField(source='start_date')
     def get_schedule(self, obj):
         if obj.timepoint.name == "custom":
             return {
@@ -122,10 +123,10 @@ class ScheduledTakingSerializer(serializers.ModelSerializer):
         fields = [
             "id",
             "medicationId",
-            "start_date",
+            "startTime",
             "strength",
             "dosage",
-            "unit",
+            "formulation",
             "frequency",
             "reminder",
             "clinic_scheduled",

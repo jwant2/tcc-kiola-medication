@@ -9,7 +9,6 @@ from django.conf.urls import include, url
 
 from . import views
 
-from .views import CompoundAPIView, CompoundRudView, PrescriptionAPIView, PrescriptionRudView
 
 urlpatterns = [
     
@@ -30,20 +29,21 @@ urlpatterns = [
 
     #Adverse reactions API - don't have the data/where is it?
     url(r'adverse_reaction/$', views.AdverseReactionAPIView.as_view(), name="adverse_reaction"),
+    url(r'adverse_reaction/(?P<pk>\d+)/$', views.AdverseReactionAPIView.as_view(), name="signle-adverse_reaction"),
     url(r"med_obs_profiles/", views.MedObservationProfileAPIView.as_view(), name='med_obs_profiles'),
 
-    url(r"compounds/$", CompoundAPIView.as_view(), name='compounds'),
-    url(r"compounds/(?P<pk>\d+)/$", CompoundAPIView.as_view(), name='compounds'),
-    url(r"compounds/search/$", views.CompoundSearchAPIView.as_view(), name='compound_search'),
+    url(r"compound/$", views.CompoundAPIView.as_view(), name='compound'),
+    url(r"compound/(?P<pk>\d+)/$", views.CompoundAPIView.as_view(), name='single-compound'),
+    url(r"compound/search/$", views.CompoundSearchAPIView.as_view(), name='compound_search'),
 
     # url(r"prescriptions/$", views.PrescriptionAPIView.as_view(), name="prescriptions-add"),
     # url(r"prescriptions/(?P<pk>\d+)/$", views.PrescriptionAPIView.as_view(), name="prescriptions-update"),
-    url(r"prescriptions/$", views.PrescriptionAPIView.as_view(), name="prescriptions"),
-    url(r"prescriptions/(?P<pk>\d+)/$", views.PrescriptionAPIView.as_view(), name="prescriptions"),
+    url(r"prescription/$", views.PrescriptionAPIView.as_view(), name="prescription"),
+    url(r"prescription/(?P<pk>\d+)/$", views.PrescriptionAPIView.as_view(), name="single-prescription"),
     url(r"user-pref/$", views.UserPreferenceConfigAPIView.as_view(), name="user-preference"),
-    url(r"scheduleitem/$", views.TakingSchemaAPIView.as_view(), name="takings"),
-    url(r"scheduleitem/(?P<pk>\d+)/$", views.TakingSchemaAPIView.as_view(), name="takings"),
-    url(r"medreaction/$", views.MedicationAdverseReactionAPIView.as_view(), name="med_adverse_reactions"),
-    url(r"medreaction/(?P<pk>\d+)/$", views.MedicationAdverseReactionAPIView.as_view(), name="med_adverse_reactions"),
+    url(r"scheduleitem/$", views.TakingSchemaAPIView.as_view(), name="taking"),
+    url(r"scheduleitem/(?P<pk>\d+)/$", views.TakingSchemaAPIView.as_view(), name="single-taking"),
+    url(r"medreaction/$", views.MedicationAdverseReactionAPIView.as_view(), name="med_adverse_reaction"),
+    url(r"medreaction/(?P<pk>\d+)/$", views.MedicationAdverseReactionAPIView.as_view(), name="single-med_adverse_reaction"),
 ]
 

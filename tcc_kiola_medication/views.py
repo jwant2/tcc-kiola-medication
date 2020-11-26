@@ -69,18 +69,8 @@ from drf_yasg.utils import swagger_auto_schema, swagger_serializer_method
 from drf_yasg import openapi
 
 
-def index(request):
-    return HttpResponse("Hello, world. You're at the medicationsModule index.")
 
-def addCompoundSource(request):
-    name = "Prince of Wales"
-    CompoundSource.objects.get_or_create(name=name,
-                                  version="1.0",
-                                  language=ISOLanguage.objects.get(alpha2='en'),
-                                  country=ISOCountry.objects.get(alpha2="AU"),
-                                  group="POW"
-                                )
-    return HttpResponse("Hello, world. You're at compoundSource.")
+
 
 
 from django.db import transaction
@@ -173,38 +163,6 @@ def medication_upload(request):
     return render(request, template, context)
 
 
-class prescriptions(APIView):
-    authentication_classes = [KiolaAuthentication,]
-    @requires_api_login
-    def get (self,request,format=None):
-        an_apiview = [
-            'Uses HTTPS methods',
-            'Mapped manually to URLs'
-        ]
-        return Response({'message':'Hello!','an_apiview':an_apiview})
-
-
-class compounds(APIView):
-
-    @authentication.requires_api_login
-    def get (self,request,format=None):
-
-        an_apiview = [
-            'Uses HTTPS methods',
-            'Mapped manually to URLs'
-        ]
-
-        return Response({'message':'Hello!','an_apiview':an_apiview})
-
-
-#working auth with text httpresponse:
-# class CompoundAPIView(APIView):
-
-#     authentication_classes = [KiolaAuthentication,]
-#     @requires_api_login
-#     def get(self, request, **kwargs):
-        # return HttpResponse("Request was successful.")
-
 class BasicPagination(PageNumberPagination):
     page_size_query_param = 'limit'
 
@@ -214,7 +172,26 @@ class CompoundAPIView(APIView, PaginationHandlerMixin):
     serializer_class = tcc_serializers.CompoundSerializer
     authentication_classes = [KiolaAuthentication,]
 
-    @swagger_auto_schema(tags=['Compound'])
+    @swagger_auto_schema(
+        tags=['Compound'], 
+        operation_description="GET /meds/compound/",
+        operation_summary="Query Compound resources",
+        responses={
+            '200': openapi.Schema(
+                type=openapi.TYPE_OBJECT,
+                properties={
+                    "pk": openapi.Schema(type=openapi.TYPE_NUMBER, description='pk of  compound'),
+                    "uid": openapi.Schema(type=openapi.TYPE_STRING, description='uid of  compound / medication product'),
+                    "name": openapi.Schema(type=openapi.TYPE_STRING, description='name of  compound / medication product'),
+                    "source": openapi.Schema(type=openapi.TYPE_STRING, description='name of  compound source'),
+                    "indications": openapi.Schema(type=openapi.TYPE_ARRAY, items=openapi.Schema(type=openapi.TYPE_STRING), description='indications of compound '),
+                    "activeComponents": openapi.Schema(type=openapi.TYPE_STRING, description='activeComponents of  compound '),
+                    "dosage_form": openapi.Schema(type=openapi.TYPE_STRING, description='dosage_form of  compound '),
+                    "dosage_form_ref": openapi.Schema(type=openapi.TYPE_STRING, description='dosage_form_ref of  compound '),
+            }),
+            '400': "Bad Request"
+        }
+    )
     @requires_api_login
     def get(self, request, subject_uid=None, pk=None, *args, **kwargs):
         
@@ -243,7 +220,35 @@ class MedObservationProfileAPIView(APIView):
     authentication_classes = [KiolaAuthentication,]
     render_classes = [JSONRenderer,]
 
-    @swagger_auto_schema(tags=['MedicationObservationProfile'])
+    @swagger_auto_schema(
+        tags=['MedicationObservationProfile'], 
+        operation_description="GET /meds/med_obs_profiles/",
+        operation_summary="Query Medication observation profiles",
+        responses={
+            '200': openapi.Schema(
+                  type=openapi.TYPE_ARRAY,
+                  items=openapi.Schema(
+                      type=openapi.TYPE_OBJECT,
+                          properties={
+                              "id": openapi.Schema(type=openapi.TYPE_NUMBER, description='Root observation profile Id'),
+
+                              "children": openapi.Schema(
+                                    type=openapi.TYPE_ARRAY,
+                                    items=openapi.Schema(
+                                        type=openapi.TYPE_OBJECT,
+                                        properties={
+                                            'id': openapi.Schema(type=openapi.TYPE_NUMBER, description='Prescription related observation profile Id'),
+                                        },
+                                        description='Prescription related observation profile'),
+                                    description='Prescription related observation profiles'),
+
+                          }
+                  ),
+                  description='Root observation profiles'
+              ),
+            '400': "Bad Request"
+        }
+    )
     @requires_api_login
     def get(self, request, subject_uid=None,uid=None, *args, **kwargs):
         try:
@@ -256,236 +261,23 @@ class MedObservationProfileAPIView(APIView):
         active_ppr = med_models.PrescriptionProfileRelation.objects.filter(active=True, root_profile__subject=subject).first()
         if active_ppr:
             root_profile = active_ppr.root_profile
-            data = {
-                "enabled_profile": [
+            data = [
                     {"id": root_profile.name}
                 ]
-            }
+            
             children = root_profile.children.all()
             if len(children) > 0:
-                data['enabled_profile'][0]['children'] = []
+                data[0]['children'] = []
                 for child in children:
 
-                    data['enabled_profile'][0]['children'].append({
+                    data[0]['children'].append({
                         "id": child.name
                     })
         else:
-            data = {
-                "enabled_profile": []
-            }
+            data = []
 
         return Response(data, status=status.HTTP_200_OK)
 
-class CompoundRudView(generics.RetrieveUpdateDestroyAPIView): # DetailView CreateView FormView
-    lookup_field            = 'pk' 
-    serializer_class        = tcc_serializers.CompoundaSerializer
-
-    
-
-    @authentication.requires_api_login
-    def get_queryset(self):
-        return Compound.objects.all()
-
-    @authentication.requires_api_login
-    def get_serializer_context(self, *args, **kwargs):
-        return {"request": self.request}
-
-
-class PrescriptionRudView(generics.RetrieveUpdateDestroyAPIView): # DetailView CreateView FormView
-    lookup_field            = 'subject_id' 
-    serializer_class        = tcc_serializers.PrescriptionSerializer
-
-    
-
-    @authentication.requires_api_login
-    def get_queryset(self):
-        qs = Prescription.objects.all()
-        query = self.request.GET.get("q")
-        if query is not None:
-            qs = qs.filter(
-                    Q(title__icontains=query)|
-                    Q(content__icontains=query)
-                    ).distinct()
-        return qs
-
-    @authentication.requires_api_login
-    def get_serializer_context(self, *args, **kwargs):
-        return {"request": self.request}
-
-
-
-#MEDS TESTING:
-class PrescriptionListView(kiola_views.KiolaSubjectListView):
-    #title = _("Prescriptions")
-    # template_name = 'lists/prescription_list.html'
-    # addurl_name = 'med:prescription_add'
-    # context_object_name = 'active_prescriptions'
-
-    def get_queryset(self):
-        
-        sid = self.kwargs.get('sid')
-        subject = senses.Subject.objects.get(uuid=sid)
-        
-        qs = med_models.Prescription.objects.select_related('compound', 'status')\
-                                        .filter(subject=subject,
-                                                status__name=const.PRESCRIPTION_STATUS__ACTIVE)\
-                                        .prefetch_related(Prefetch('prescriptionevent_set',
-                                                                   queryset=med_models.PrescriptionEvent.objects.filter(etype__name__in=[const.EVENT_TYPE__PRESCRIBED,
-                                                                                                                            const.EVENT_TYPE__END, ])\
-                                                                                                            .select_related("etype")\
-                                                                                                            .order_by("timepoint")),
-                                                          Prefetch('prescriptionevent_set',
-                                                                   queryset=med_models.PrescriptionEvent.objects.filter(etype__name__in=[const.EVENT_TYPE__ADDED, ])\
-                                                                                                            .select_related("etype")\
-                                                                                                            .order_by("timepoint"),
-                                                                    to_attr="added_on"),
-                                                          'compound__indications',
-                                                          'compound__active_components')\
-                                        .order_by('compound__name',
-                                                  'status')
-
-        return qs
-
-    def get_context_data(self, **kwargs):
-        context = super(PrescriptionListView, self).get_context_data(**kwargs)
-        sid = self.kwargs.get('sid')
-        subject = senses.Subject.objects.get(uuid=sid)
-        qs = med_models.Prescription.objects.select_related('compound', 'status')\
-                                        .filter(subject=subject,
-                                                status__name=const.PRESCRIPTION_STATUS__INACTIVE)\
-                                        .prefetch_related(Prefetch('prescriptionevent_set',
-                                                                    queryset=med_models.PrescriptionEvent.objects.filter(etype__name__in=[const.EVENT_TYPE__ADDED,
-                                                                                                                                      const.EVENT_TYPE__CANCELED,
-                                                                                                                                      const.EVENT_TYPE__REPLACED])\
-                                                                                                      .select_related("etype")\
-                                                                                                      .order_by("timepoint")),
-                                                          Prefetch('prescriptionevent_set',
-                                                                   queryset=med_models.PrescriptionEvent.objects.filter(etype__name__in=[const.EVENT_TYPE__PRESCRIBED,
-                                                                                                                                     const.EVENT_TYPE__END,
-                                                                                                                                     ])\
-                                                                                                            .select_related("etype")\
-                                                                                                            .order_by("timepoint"),
-                                                                    to_attr="prescribed_info"),
-
-                                                          'compound__indications',
-                                                          'compound__active_components'
-                                                                           )\
-                                        .order_by('compound__name',
-                                                  'status')
-        context["inactive_prescriptions"] = qs
-        context["status"] = {"inactive":const.PRESCRIPTION_STATUS__INACTIVE,
-                             "hidden":const.PRESCRIPTION_STATUS__HIDDEN}
-        context["enddatekey"] = const.EVENT_TYPE__END
-        context["prescription_profiles_active"] = settings.KIOLA_PRESCRIPTION_PROFILES_ENABLED
-        pprelation = med_models.PrescriptionProfileRelation.objects.filter(active=True,
-                                                          root_profile__subject=subject)
-        context["active_profile_relation"] = pprelation
-        if len(pprelation) > 0:
-            context["active_profile_ids"] = pprelation[0].prescriptions.all().values_list("pk", flat=True)
-        return context
-
-
-
-
-
-
-
-##FROM MEDS:
-class PrescriptionListAPI(resource.Resource):
-    authentication_classes = (KiolaAuthentication, SessionAuthentication)
-    permission_classes = (IsAuthenticated,)
-
-    @authentication.requires_api_login
-    # @api.returns(status_codes={ codes.OK : "OK" , },
-    #          content_types=[kiola_const.MIME_TYPE__TEXT_HTML, ])
-    def get(self, request, **kwargs):
-
-        subject = senses.Subject.objects.get(login=request.user)
-       
-        qs = Prescription.objects.select_related('compound',
-            'status').filter(subject=subject,
-                             status__name=const.PRESCRIPTION_STATUS__ACTIVE).order_by('status',
-                                        'compound__name').prefetch_related('prescriptionevent_set',
-                                                                           'prescriptionevent_set__etype',
-                                                                           'compound__indications',
-                                                                           'compound__active_components'
-                                                                           )
-
-        qs = Prescription.objects.select_related('compound', 'status')\
-                                        .filter(subject=subject,
-                                                status__name=const.PRESCRIPTION_STATUS__ACTIVE)\
-                                        .prefetch_related(Prefetch('prescriptionevent_set',
-                                                                   queryset=PrescriptionEvent.objects.filter(etype__name__in=[const.EVENT_TYPE__PRESCRIBED,
-                                                                                                                                     const.EVENT_TYPE__END, ])\
-                                                                                                            .select_related("etype")\
-                                                                                                            .order_by("timepoint")),
-                                                          Prefetch('prescriptionevent_set',
-                                                                   queryset=PrescriptionEvent.objects.filter(etype__name__in=[const.EVENT_TYPE__ADDED, ])\
-                                                                                                            .select_related("etype")\
-                                                                                                            .order_by("timepoint"),
-                                                                    to_attr="added_on"),
-                                                          'compound__indications',
-                                                          'compound__active_components')\
-                                        .order_by('compound__name',
-                                                  'status')
-        qs_json = serializers.serialize('json', qs)
-        return HttpResponse(qs_json, content_type='application/json')
-
-    @authentication.requires_api_login
-    @requires(accepts=["application/json", ])
-    def post(self, request, **kwargs):
-        
-        data = json.loads(request.body.decode("utf-8"))
-
-        #adapter = Compound.objects.get_adapter(CompoundSource.objects.get(name="Prince of Dales").id)
-        #compound, created = adapter.get_or_create(data["compound_id"])
-        compound = Compound.objects.filter(uid=data["compound_id"]).filter(source_id=CompoundSource.objects.get(name="Prince of Wales").id)[0]
-        
-        subject = senses.Subject.objects.get(login=request.user)
-
-
-        if data["taking__text"] not in ["", None]:
-            taking = utils.TakingSchemaText(data["taking__text"])
-        else:
-            taking = utils.TakingSchemaStandard(str(data["taking__morning"] or 0),
-                                                str(data["taking__noon"] or 0),
-                                                str(data["taking__evening"]or 0),
-                                                str(data["taking__night"] or 0),
-                                                TakingUnit.objects.get(pk=data["taking__unit"]))
-        subject=subject
-        compound=compound
-        reason=data.get("taking__reason", None)
-        hint=data.get("taking__hint", None)
-        taking=taking
-        start=dateutil.parser.parse(data["ev__prescription_startdate"])
-        end=dateutil.parser.parse(data.get("ev__prescription_enddate", None))
-
-        #Permissions working here with reversionrevisions, but need to add more than just to Prescription model:
-        # with reversionrevisions.create_revision():
-        #     reversionrevisions.set_user(get_system_user())
-            
-        #     Prescription.objects.create(compound=compound,
-        #                            status=PrescriptionStatus.objects.get(name=const.PRESCRIPTION_STATUS__ACTIVE),
-        #                            subject=subject,
-        #                            taking_reason=reason,
-        #                            taking_hint=hint)
-
-
-
-        with reversionrevisions.create_revision():
-            reversionrevisions.set_user(get_system_user())
-            
-            prescription, replaced = Prescription.objects.prescribe(subject=subject,
-                                                                       prescriber=request.user,
-                                                                       compound=compound,
-                                                                       reason=data.get("taking__reason", None),
-                                                                       hint=data.get("taking__hint", None),
-                                                                       taking=taking,
-                                                                       start=dateutil.parser.parse(data["ev__prescription_startdate"]),
-                                                                    
-                                                                       end=dateutil.parser.parse(data.get("ev__prescription_enddate", None)))
-        
-        return HttpResponse("Post successful")
 
 
 class AdverseReactionAPIView(APIView):
@@ -494,7 +286,29 @@ class AdverseReactionAPIView(APIView):
     render_classes = [JSONRenderer,]
     serializer_class = tcc_serializers.PatientAdverseReactionSerializer
 
-    @swagger_auto_schema(tags=['PatientAdverseReaction'])
+    @swagger_auto_schema(
+        tags=['PatientAdverseReaction'], 
+        operation_description="GET /meds/adverse_reaction/{id}/",
+        operation_summary="Query PatientAdverseReaction",
+        responses={
+            '200': openapi.Schema(
+                type=openapi.TYPE_ARRAY,
+                items=openapi.Schema(
+                type=openapi.TYPE_OBJECT,
+                    properties={
+                        "pk": openapi.Schema(type=openapi.TYPE_NUMBER, description='PatientAdverseReaction Id'),
+                        "uid": openapi.Schema(type=openapi.TYPE_NUMBER, description='PatientAdverseReaction Uid'),
+                        "substance": openapi.Schema(type=openapi.TYPE_NUMBER, description='substance for AdverseReaction'),
+                        "reactionType": openapi.Schema(type=openapi.TYPE_STRING, description='Type of adverse reaction - Allergy/Side Effect/Intolerance/Idiosyncratic/Unknown'),
+                        "reactions": openapi.Schema(type=openapi.TYPE_STRING, description='reaction details'),
+                        "created": openapi.Schema(type=openapi.TYPE_STRING, description='created time of this reaction item  '),
+                        "updated": openapi.Schema(type=openapi.TYPE_STRING, description='updated time of this reaction item '),
+                        "active": openapi.Schema(type=openapi.TYPE_STRING, description='Status of this reaction item - false indicates deleted'),
+
+            })),
+            '400': "Bad Request"
+        }
+    )
     @requires_api_login
     def get(self, request, subject_uid=None, pk=None, *args, **kwargs):
         try:
@@ -519,7 +333,38 @@ class AdverseReactionAPIView(APIView):
 
         return Response(serializer.data, status=status.HTTP_200_OK)
 
-    @swagger_auto_schema(tags=['PatientAdverseReaction'])
+    @swagger_auto_schema(
+        tags=['PatientAdverseReaction'], 
+        operation_description="GET /meds/adverse_reaction/{id}/",
+        operation_summary="Create/update PatientAdverseReaction",
+        request_body=openapi.Schema(
+                type=openapi.TYPE_OBJECT,
+                properties={
+                    "substance": openapi.Schema(type=openapi.TYPE_NUMBER, description='substance for AdverseReaction'),
+                    "reactionType": openapi.Schema(type=openapi.TYPE_STRING, description='Type of adverse reaction - Allergy/Side Effect/Intolerance/Idiosyncratic/Unknown'),
+                    "reactions": openapi.Schema(type=openapi.TYPE_STRING, description='reaction details'),
+                    "active": openapi.Schema(type=openapi.TYPE_STRING, description='Status of this reaction item - false indicates deleted'),
+                },
+        ),
+        responses={
+            '200': openapi.Schema(
+                type=openapi.TYPE_ARRAY,
+                items=openapi.Schema(
+                type=openapi.TYPE_OBJECT,
+                    properties={
+                        "pk": openapi.Schema(type=openapi.TYPE_NUMBER, description='PatientAdverseReaction Id'),
+                        "uid": openapi.Schema(type=openapi.TYPE_NUMBER, description='PatientAdverseReaction Uid'),
+                        "substance": openapi.Schema(type=openapi.TYPE_NUMBER, description='substance for AdverseReaction'),
+                        "reactionType": openapi.Schema(type=openapi.TYPE_STRING, description='Type of adverse reaction - Allergy/Side Effect/Intolerance/Idiosyncratic/Unknown'),
+                        "reactions": openapi.Schema(type=openapi.TYPE_STRING, description='reaction details'),
+                        "created": openapi.Schema(type=openapi.TYPE_STRING, description='created time of this reaction item  '),
+                        "updated": openapi.Schema(type=openapi.TYPE_STRING, description='updated time of this reaction item '),
+                        "active": openapi.Schema(type=openapi.TYPE_STRING, description='Status of this reaction item - false indicates deleted'),
+
+            })),
+            '400': "Bad Request"
+        }
+    )
     @requires_api_login
     def post(self, request, subject_uid=None, pk=None, *args, **kwargs):
         try:
@@ -532,7 +377,7 @@ class AdverseReactionAPIView(APIView):
         
         data = request.data
         substance_value = data.get('substance', "")
-        reaction_type_value = data.get('reaction_type', "")
+        reaction_type_value = data.get('reactionType', "")
         reactions_value = data.get('reactions', "")
         # reaction_id = data.get('uid', None)
         reaction_id = pk
@@ -545,9 +390,9 @@ class AdverseReactionAPIView(APIView):
             active_value = True
 
         try:
-            reaction_type = models.PatientAdverseReaction.objects.get(name=reaction_type_value)
+            reaction_type = models.AdverseReactionType.objects.get(name=reaction_type_value)
         except:
-            raise exceptions.BadRequest("Invalid value %s in reaction_type" % reaction_type_value)
+            raise exceptions.BadRequest("Invalid value %s for reaction_type" % reaction_type_value)
         
         if reaction_id:
             try:
@@ -581,7 +426,6 @@ class AdverseReactionAPIView(APIView):
 #     render_classes = [JSONRenderer,]
 #     serializer_class = tcc_serializers.MedPrescriptionSerializer
 
-
 class PrescriptionAPIView(APIView):
 
     authentication_classes = [KiolaAuthentication,]
@@ -589,7 +433,49 @@ class PrescriptionAPIView(APIView):
     serializer_class = tcc_serializers.MedPrescriptionSerializer
 
 
-    @swagger_auto_schema(tags=['Prescription'])
+
+    @swagger_auto_schema(
+        tags=['Prescription'], 
+        operation_description="GET /meds/prescription/{id}/",
+        operation_summary="Query prescription",
+        responses={
+            '200': openapi.Schema(
+                type=openapi.TYPE_ARRAY,
+                items=openapi.Schema(
+                type=openapi.TYPE_OBJECT,
+                    properties={
+                        "id": openapi.Schema(type=openapi.TYPE_NUMBER, description='Prescription Id'),
+                        "taking_reason": openapi.Schema(type=openapi.TYPE_NUMBER, description='Taking reason for prescription'),
+                        "taking_hint": openapi.Schema(type=openapi.TYPE_STRING, description='Taking hint for prescription'),
+                        "compoundName": openapi.Schema(type=openapi.TYPE_STRING, description='Compound name of prescrioption'),
+                        "compoundId": openapi.Schema(type=openapi.TYPE_STRING, description='Compound Id of prescrioption'),
+                        "dosage_form": openapi.Schema(type=openapi.TYPE_STRING, description='dosage form of compound'),
+                        "activeComponents": openapi.Schema(type=openapi.TYPE_ARRAY,
+                              items=openapi.Schema(type=openapi.TYPE_STRING, description='name of activeComponent'),
+                              description='activeComponent name'),
+                        "medicationAdverseReactions": openapi.Schema(type=openapi.TYPE_STRING, description='medicationAdverseReactions of compound'),
+                        "schedules": openapi.Schema(
+                              type=openapi.TYPE_ARRAY,
+                              items=openapi.Schema(
+                                  type=openapi.TYPE_OBJECT,
+                                  properties={
+                                      'id': openapi.Schema(type=openapi.TYPE_NUMBER, description='Taking Id'),
+                                      'display': openapi.Schema(type=openapi.TYPE_STRING, description='Taking details'),
+                                  },
+                                  description='Taking item'),
+                              description='Takings of prescription'),
+                        "prescrEvent": openapi.Schema(
+                              type=openapi.TYPE_OBJECT,
+                              properties={
+                                  'start': openapi.Schema(type=openapi.TYPE_STRING, description='Start time string of prescription'),
+                                  'end': openapi.Schema(type=openapi.TYPE_STRING, description='End time string of prescription'),
+                              },
+                              description='Prescription Events'),
+
+            })),
+            '400': "Bad Request"
+        }
+    )
     @requires_api_login
     def get(self, request, subject_uid=None, pk=None, *args, **kwargs):
 
@@ -639,7 +525,7 @@ class PrescriptionAPIView(APIView):
             except Exception as err:
                 print(err)
                 raise exceptions.BadRequest("Prescription with pk '%s' does not exist or is inactive" % prescr_id)
-            serializer = self.serializer_class(prescr)
+            serializer = self.serializer_class([prescr], many=True)
 
         else:
 
@@ -676,9 +562,59 @@ class PrescriptionAPIView(APIView):
 
         return Response(serializer.data, status=status.HTTP_200_OK)
 
-    @swagger_auto_schema(tags=['Prescription'])
+
+    @swagger_auto_schema(
+        tags=['Prescription'], 
+        operation_description="POST /meds/prescription/{id}/",
+        operation_summary="Create/update prescription",
+        request_body=openapi.Schema(
+                type=openapi.TYPE_OBJECT,
+                properties={
+                    "compoundName": openapi.Schema(type=openapi.TYPE_STRING, description='Compound Nane'),
+                    "taking_reason": openapi.Schema(type=openapi.TYPE_STRING, description='Reason of taking compound'),
+                    "taking_hint": openapi.Schema(type=openapi.TYPE_STRING, description='Hint of taking compound'),
+                    "medicationAdverseReactions": openapi.Schema(type=openapi.TYPE_STRING, description='medicationAdverseReactions - seperated by comma'),
+                    "medicationType": openapi.Schema(type=openapi.TYPE_STRING, description='medicationType - PRN/Regular'),
+                }
+        ),
+        responses={
+            '200': openapi.Schema(
+                type=openapi.TYPE_OBJECT,
+                    properties={
+                        "id": openapi.Schema(type=openapi.TYPE_NUMBER, description='Prescription Id'),
+                        "taking_reason": openapi.Schema(type=openapi.TYPE_NUMBER, description='Taking reason for prescription'),
+                        "taking_hint": openapi.Schema(type=openapi.TYPE_STRING, description='Taking hint for prescription'),
+                        "compoundName": openapi.Schema(type=openapi.TYPE_STRING, description='Compound name of prescrioption'),
+                        "compoundId": openapi.Schema(type=openapi.TYPE_STRING, description='Compound Id of prescrioption'),
+                        "dosage_form": openapi.Schema(type=openapi.TYPE_STRING, description='dosage form of compound'),
+                        "activeComponents": openapi.Schema(type=openapi.TYPE_ARRAY,
+                              items=openapi.Schema(type=openapi.TYPE_STRING, description='name of activeComponent'),
+                              description='activeComponent name'),
+                        "medicationAdverseReactions": openapi.Schema(type=openapi.TYPE_STRING, description='medicationAdverseReactions of compound'),
+                        "schedules": openapi.Schema(
+                              type=openapi.TYPE_ARRAY,
+                              items=openapi.Schema(
+                                  type=openapi.TYPE_OBJECT,
+                                  properties={
+                                      'id': openapi.Schema(type=openapi.TYPE_NUMBER, description='Taking Id'),
+                                      'display': openapi.Schema(type=openapi.TYPE_STRING, description='Taking details'),
+                                  },
+                                  description='Taking item'),
+                              description='Takings of prescription'),
+                        "prescrEvent": openapi.Schema(
+                              type=openapi.TYPE_OBJECT,
+                              properties={
+                                  'start': openapi.Schema(type=openapi.TYPE_STRING, description='Start time string of prescription'),
+                                  'end': openapi.Schema(type=openapi.TYPE_STRING, description='End time string of prescription'),
+                              },
+                              description='Prescription Events'),
+
+            }),
+            '400': "Bad Request"
+        }
+    )
     @requires_api_login
-    def post(self, request, subject_uid=None, pk=None, *args, **kwargs):
+    def post(self, request, subject_uid=None, pk=None, *args, **kwargs):  
 
         try:
             if subject_uid is None:
@@ -764,7 +700,7 @@ class PrescriptionAPIView(APIView):
 
 
 
-        serializer = self.serializer_class(prescr)
+        serializer = self.serializer_class([prescr], many=True)
 
         return Response(serializer.data, status=status.HTTP_200_OK)
 
@@ -790,7 +726,31 @@ class MedicationAdverseReactionAPIView(APIView):
     render_classes = [JSONRenderer,]
     serializer_class = tcc_serializers.MedicationAdverseReactionSerializer
 
-    @swagger_auto_schema(tags=['MedicationAdverseReaction'])
+    @swagger_auto_schema(
+        tags=['MedicationAdverseReaction'], 
+        operation_description="GET /meds/medreaction/{id}/",
+        operation_summary="Query MedicationAdverseReaction",
+        responses={
+            '200': openapi.Schema(
+                type=openapi.TYPE_ARRAY,
+                items=openapi.Schema(
+                type=openapi.TYPE_OBJECT,
+                    properties={
+                        "pk": openapi.Schema(type=openapi.TYPE_NUMBER, description='Medication Adverse Reaction Id'),
+                        "uid": openapi.Schema(type=openapi.TYPE_NUMBER, description='Medication Adverse Reaction Uid'),
+                        "compoundId": openapi.Schema(type=openapi.TYPE_STRING, description='Compound ID of this Adverse reaction item'),
+                        "compoundName": openapi.Schema(type=openapi.TYPE_STRING, description='dosage of taking'),
+                        "reactionType": openapi.Schema(type=openapi.TYPE_STRING, description='Type of adverse reaction - Allergy/Side Effect/Intolerance/Idiosyncratic/Unknown'),
+                        "reactions": openapi.Schema(type=openapi.TYPE_STRING, description='reaction details'),
+                        "editor": openapi.Schema(type=openapi.TYPE_STRING, description='editor of this reaction item '),
+                        "created": openapi.Schema(type=openapi.TYPE_STRING, description='created time of this reaction item  '),
+                        "updated": openapi.Schema(type=openapi.TYPE_STRING, description='updated time of this reaction item '),
+                        "active": openapi.Schema(type=openapi.TYPE_STRING, description='Status of this reaction item - false indicates deleted'),
+
+            })),
+            '400': "Bad Request"
+        }
+    )
     @requires_api_login
     def get(self, request, subject_uid=None, pk=None, *args, **kwargs):
         try:
@@ -809,7 +769,7 @@ class MedicationAdverseReactionAPIView(APIView):
             except Exception as err:
                 print(err)
                 raise exceptions.BadRequest("MedicationAdverseReaction with pk '%s' does not exist" % reaction_id)
-            serializer = self.serializer_class(reaction_item)
+            serializer = self.serializer_class([reaction_item], many=True)
 
         else:
             qs = models.MedicationAdverseReaction.objects.filter(
@@ -824,7 +784,38 @@ class MedicationAdverseReactionAPIView(APIView):
         return Response(serializer.data, status=status.HTTP_200_OK)
 
 
-    @swagger_auto_schema(tags=['MedicationAdverseReaction'])
+    @swagger_auto_schema(
+        tags=['MedicationAdverseReaction'], 
+        operation_description="POST /meds/medreaction/{id}/",
+        operation_summary="Create/update MedicationAdverseReaction",
+        request_body=openapi.Schema(
+                type=openapi.TYPE_OBJECT,
+                properties={
+                    "medicationId": openapi.Schema(type=openapi.TYPE_NUMBER, description='Prescription Id'),
+                    "reactionType": openapi.Schema(type=openapi.TYPE_STRING, description='Type of adverse reaction - Allergy/Side Effect/Intolerance/Idiosyncratic/Unknown'),
+                    "reactions": openapi.Schema(type=openapi.TYPE_STRING, description='reaction details'),
+                    "active": openapi.Schema(type=openapi.TYPE_STRING, description='Status of this reaction item - false indicates deleted'),
+                },
+                description='Schedule item of taking '
+        ),
+        responses={
+            '200': openapi.Schema(
+                type=openapi.TYPE_OBJECT,
+                properties={
+                    "pk": openapi.Schema(type=openapi.TYPE_NUMBER, description='Medication Adverse Reaction Id'),
+                    "uid": openapi.Schema(type=openapi.TYPE_NUMBER, description='Medication Adverse Reaction Uid'),
+                    "compoundId": openapi.Schema(type=openapi.TYPE_STRING, description='Compound ID of this Adverse reaction item'),
+                    "compoundName": openapi.Schema(type=openapi.TYPE_STRING, description='dosage of taking'),
+                    "reactionType": openapi.Schema(type=openapi.TYPE_STRING, description='Type of adverse reaction - Allergy/Side Effect/Intolerance/Idiosyncratic/Unknown'),
+                    "reactions": openapi.Schema(type=openapi.TYPE_STRING, description='reaction details'),
+                    "editor": openapi.Schema(type=openapi.TYPE_STRING, description='editor of this reaction item '),
+                    "created": openapi.Schema(type=openapi.TYPE_STRING, description='created time of this reaction item  '),
+                    "updated": openapi.Schema(type=openapi.TYPE_STRING, description='updated time of this reaction item '),
+                    "active": openapi.Schema(type=openapi.TYPE_STRING, description='Status of this reaction item - false indicates deleted'),
+            }),
+            '400': "Bad Request"
+        }
+    )
     @requires_api_login
     def post(self, request, subject_uid=None, pk=None, *args, **kwargs):  
         try:
@@ -875,7 +866,7 @@ class MedicationAdverseReactionAPIView(APIView):
             reaction_item, created = models.MedicationAdverseReaction.objects.get_or_create(
                 compound=compound, reaction_type=reaction_type, reactions=reactions, editor=request.user)
 
-        serializer = self.serializer_class(reaction_item)
+        serializer = self.serializer_class([reaction_item], many=True)
 
         return Response(serializer.data, status=status.HTTP_200_OK)
         
@@ -886,7 +877,37 @@ class TakingSchemaAPIView(APIView):
     render_classes = [JSONRenderer,]
     serializer_class = tcc_serializers.ScheduledTakingSerializer
 
-    @swagger_auto_schema(tags=['TakingSchema'])
+    @swagger_auto_schema(
+        tags=['Scheduled Items'], 
+        operation_description="GET /meds/scheduleitem/{id}/",
+        operation_summary="Query ScheduledItem",
+        responses={
+            '200': openapi.Schema(
+                type=openapi.TYPE_ARRAY,
+                items=openapi.Schema(
+                type=openapi.TYPE_OBJECT,
+                    properties={
+                        "id": openapi.Schema(type=openapi.TYPE_NUMBER, description='Taking Id'),
+                        "medicationId": openapi.Schema(type=openapi.TYPE_NUMBER, description='Prescription Id'),
+                        "strength": openapi.Schema(type=openapi.TYPE_STRING, description='strength of compound / medication product'),
+                        "dosage": openapi.Schema(type=openapi.TYPE_STRING, description='dosage of taking'),
+                        "formulation": openapi.Schema(type=openapi.TYPE_STRING, description='formulation of compound'),
+                        "startTime": openapi.Schema(type=openapi.TYPE_STRING, description='startTime of taking'),
+                        "frequency": openapi.Schema(type=openapi.TYPE_STRING, description='frequency of taking - daily/weekly/fornightly/monthly/custom '),
+                        "reminder": openapi.Schema(type=openapi.TYPE_BOOLEAN, description='should set reminder for taking '),
+                        "clinic_scheduled": openapi.Schema(type=openapi.TYPE_BOOLEAN, description='whether the last editor of this taking is a clinician '),
+                        "schedule": openapi.Schema(
+                            type=openapi.TYPE_OBJECT,
+                            properties={
+                                "type": openapi.Schema(type=openapi.TYPE_STRING, description='schedule type - solar or custom '),
+                                "time": openapi.Schema(type=openapi.TYPE_BOOLEAN, description='schedule time - morning/noon/afternoon/night or custom time string '),
+                            },
+                            description='schedule time of taking '
+                        ),
+            })),
+            '400': "Bad Request"
+        }
+    )
     @requires_api_login
     def get(self, request, subject_uid=None, pk=None, *args, **kwargs):
 
@@ -908,7 +929,7 @@ class TakingSchemaAPIView(APIView):
             except Exception as err:
                 print(err)
                 raise exceptions.BadRequest("ScheduledTaking with pk '%s' does not exist" % taking_id)
-            serializer = self.serializer_class(taking_item)
+            serializer = self.serializer_class([taking_item], many=True)
 
         else:
             taking_qs = (
@@ -926,9 +947,54 @@ class TakingSchemaAPIView(APIView):
 
 
     @swagger_auto_schema(
-        tags=['TakingSchema'], 
-        operation_description="PUT /meds/scheduleitem/{id}/",
-        operation_summary="Update TakingSchema"
+        tags=['Scheduled Items'], 
+        operation_description="POST /meds/scheduleitem/{id}/",
+        operation_summary="Create/update ScheduledItem",
+        request_body=openapi.Schema(
+                type=openapi.TYPE_OBJECT,
+                properties={
+                    "medicationId": openapi.Schema(type=openapi.TYPE_NUMBER, description='Prescription Id'),
+                    "strength": openapi.Schema(type=openapi.TYPE_STRING, description='strength of compound / medication product'),
+                    "dosage": openapi.Schema(type=openapi.TYPE_STRING, description='dosage of taking'),
+                    "formulation": openapi.Schema(type=openapi.TYPE_STRING, description='formulation of compound'),
+                    "startTime": openapi.Schema(type=openapi.TYPE_STRING, description='startTime of taking'),
+                    "frequency": openapi.Schema(type=openapi.TYPE_STRING, description='frequency of taking - daily/weekly/fornightly/monthly/custom '),
+                    "reminder": openapi.Schema(type=openapi.TYPE_BOOLEAN, description='should set reminder for taking '),
+                    "schedule": openapi.Schema(
+                        type=openapi.TYPE_OBJECT,
+                        properties={
+                            "type": openapi.Schema(type=openapi.TYPE_STRING, description='schedule type - solar or custom '),
+                            "time": openapi.Schema(type=openapi.TYPE_BOOLEAN, description='schedule time - morning/noon/afternoon/night or custom time string '),
+                        },
+                        description='schedule time of taking '
+                    ),
+                },
+                description='Schedule item of taking '
+        ),
+        responses={
+            '200': openapi.Schema(
+                type=openapi.TYPE_OBJECT,
+                properties={
+                    "id": openapi.Schema(type=openapi.TYPE_NUMBER, description='Taking Id'),
+                    "medicationId": openapi.Schema(type=openapi.TYPE_NUMBER, description='Prescription Id'),
+                    "strength": openapi.Schema(type=openapi.TYPE_STRING, description='strength of compound / medication product'),
+                    "dosage": openapi.Schema(type=openapi.TYPE_STRING, description='dosage of taking'),
+                    "formulation": openapi.Schema(type=openapi.TYPE_STRING, description='formulation of compound'),
+                    "startTime": openapi.Schema(type=openapi.TYPE_STRING, description='startTime of taking'),
+                    "frequency": openapi.Schema(type=openapi.TYPE_STRING, description='frequency of taking - daily/weekly/fornightly/monthly/custom '),
+                    "reminder": openapi.Schema(type=openapi.TYPE_BOOLEAN, description='should set reminder for taking '),
+                    "clinic_scheduled": openapi.Schema(type=openapi.TYPE_BOOLEAN, description='whether the last editor of this taking is a clinician '),
+                    "schedule": openapi.Schema(
+                        type=openapi.TYPE_OBJECT,
+                        properties={
+                            "type": openapi.Schema(type=openapi.TYPE_STRING, description='schedule type - solar or custom '),
+                            "time": openapi.Schema(type=openapi.TYPE_BOOLEAN, description='schedule time - morning/noon/afternoon/night or custom time string '),
+                        },
+                        description='schedule time of taking '
+                    ),
+            }),
+            '400': "Bad Request"
+        }
     )
     @requires_api_login
     def post(self, request, subject_uid=None, pk=None, *args, **kwargs):
@@ -944,7 +1010,7 @@ class TakingSchemaAPIView(APIView):
         frequency = data.get('frequency', None)
         reminder = data.get('reminder', False)
         start_date = data.get('startTime', None)
-        dose = data.get('dose', None)
+        dose = data.get('dosage', None)
         strength = data.get('strength', None)
         unit = data.get('formulation', None)
 
@@ -1046,9 +1112,9 @@ class TakingSchemaAPIView(APIView):
                 med_models.OrderedTaking.objects.create(taking=taking, schema=schema)
                 schema.save()
         
-        serializer = self.serializer_class(models.ScheduledTaking.objects.annotate(prescr_id=
+        serializer = self.serializer_class([models.ScheduledTaking.objects.annotate(prescr_id=
                     F('takingschema__prescriptionschema__prescription')
-                ).get(pk=taking.pk))
+                ).get(pk=taking.pk)], many=True)
 
         return Response(serializer.data, status=status.HTTP_200_OK)
 
@@ -1056,7 +1122,31 @@ class UserPreferenceConfigAPIView(APIView):
     authentication_classes = [KiolaAuthentication,]
     render_classes = [JSONRenderer,]
 
-    @swagger_auto_schema(tags=['UserPreferenceConfig'])
+    @swagger_auto_schema(
+        tags=['UserPreferenceConfig'], 
+        operation_description="GET /meds/user-pref/",
+        operation_summary="Query User Preference Config resources",
+        responses={
+            '200': openapi.Schema(
+                type=openapi.TYPE_ARRAY,
+                items=openapi.Schema(
+                    type=openapi.TYPE_OBJECT,
+                    properties={
+                        "indications": openapi.Schema(type=openapi.TYPE_ARRAY, 
+                            items=openapi.Schema(
+                                type=openapi.TYPE_OBJECT,
+                                properties={
+                                    "type": openapi.Schema(type=openapi.TYPE_STRING, description='timepoint morning/noon/afternoon/night'),
+                                    "time": openapi.Schema(type=openapi.TYPE_STRING, description='actual time string of the timepoint'),
+                                }, 
+                            ), 
+                        ),
+                    },
+                    description='user preference config for medication time '
+            )),
+            '400': "Bad Request"
+        }
+    )
     @requires_api_login
     def get(self, request, *args, **kwargs):
         try:
@@ -1073,10 +1163,15 @@ class UserPreferenceConfigAPIView(APIView):
         }
         return Response(config_data, status=status.HTTP_200_OK) 
 
+
     @swagger_auto_schema(
         tags=['UserPreferenceConfig'], 
         operation_description="POST /meds/user-pref/{id}/",
-        operation_summary="Create UserPreferenceConfig"
+        operation_summary="Create/replace UserPreferenceConfig",
+        responses={
+            '200': "Success",
+            '400': "Bad Request"
+        }
     )
     @requires_api_login
     def post(self, request, *args, **kwargs):
@@ -1096,7 +1191,11 @@ class UserPreferenceConfigAPIView(APIView):
     @swagger_auto_schema(
         tags=['UserPreferenceConfig'], 
         operation_description="PUT /meds/user-pref/{id}/",
-        operation_summary="Update UserPreferenceConfig"
+        operation_summary="Update UserPreferenceConfig",
+        responses={
+            '200': "Success",
+            '400': "Bad Request"
+        }
     )
     @requires_api_login
     def put(self, request, *args, **kwargs):
@@ -1124,7 +1223,7 @@ class CompoundSearchAPIView(APIView):
 
     @swagger_auto_schema(
         tags=['Compound'], 
-        operation_description="PUT /meds/compounds/search/",
+        operation_description="GET /meds/compound/search/",
         operation_summary="Search Compound resources",
         manual_parameters=[
             openapi.Parameter('compound', openapi.IN_QUERY, type=openapi.TYPE_STRING, required=False),
@@ -1132,17 +1231,20 @@ class CompoundSearchAPIView(APIView):
         ],
         responses={
             '200': openapi.Schema(
-                type=openapi.TYPE_OBJECT,
-                properties={
-                    "pk": openapi.Schema(type=openapi.TYPE_NUMBER, description='pk of  compound'),
-                    "uid": openapi.Schema(type=openapi.TYPE_STRING, description='uid of  compound / medication product'),
-                    "name": openapi.Schema(type=openapi.TYPE_STRING, description='name of  compound / medication product'),
-                    "source": openapi.Schema(type=openapi.TYPE_STRING, description='name of  compound source'),
-                    "indications": openapi.Schema(type=openapi.TYPE_ARRAY, items=openapi.Schema(type=openapi.TYPE_STRING), description='indications of compound '),
-                    "activeComponents": openapi.Schema(type=openapi.TYPE_STRING, description='activeComponents of  compound '),
-                    "dosage_form": openapi.Schema(type=openapi.TYPE_STRING, description='dosage_form of  compound '),
-                    "dosage_form_ref": openapi.Schema(type=openapi.TYPE_STRING, description='dosage_form_ref of  compound '),
-            }),
+                type=openapi.TYPE_ARRAY,
+                items=openapi.Schema(
+                    type=openapi.TYPE_OBJECT,
+                    properties={
+                        "pk": openapi.Schema(type=openapi.TYPE_NUMBER, description='pk of  compound'),
+                        "uid": openapi.Schema(type=openapi.TYPE_STRING, description='uid of  compound / medication product'),
+                        "name": openapi.Schema(type=openapi.TYPE_STRING, description='name of  compound / medication product'),
+                        "source": openapi.Schema(type=openapi.TYPE_STRING, description='name of  compound source'),
+                        "indications": openapi.Schema(type=openapi.TYPE_ARRAY, items=openapi.Schema(type=openapi.TYPE_STRING), description='indications of compound '),
+                        "activeComponents": openapi.Schema(type=openapi.TYPE_STRING, description='activeComponents of  compound '),
+                        "dosage_form": openapi.Schema(type=openapi.TYPE_STRING, description='dosage_form of  compound '),
+                        "dosage_form_ref": openapi.Schema(type=openapi.TYPE_STRING, description='dosage_form_ref of  compound '),
+                    }
+            )),
             '400': "Bad Request"
         }
     )
