@@ -64,7 +64,11 @@ from . import models, const, utils
 #
 from rest_framework.authentication import SessionAuthentication, BaseAuthentication
 from rest_framework.permissions import IsAuthenticated
-#
+
+from drf_yasg.utils import swagger_auto_schema, swagger_serializer_method
+from drf_yasg import openapi
+
+
 def index(request):
     return HttpResponse("Hello, world. You're at the medicationsModule index.")
 
@@ -209,19 +213,28 @@ class CompoundAPIView(APIView, PaginationHandlerMixin):
     pagination_class = BasicPagination
     serializer_class = tcc_serializers.CompoundSerializer
     authentication_classes = [KiolaAuthentication,]
+
+    @swagger_auto_schema(tags=['Compound'])
     @requires_api_login
-    def get(self, request, subject_uid=None,uid=None, *args, **kwargs):
+    def get(self, request, subject_uid=None, pk=None, *args, **kwargs):
         
-        qs = Compound.objects.all()
+        template = med_models.Compound.objects.select_related('source').annotate(active_components_name=F('active_components__name'))
 
-        page = self.paginate_queryset(qs)
-
-        if page is not None:
-            serializer = self.get_paginated_response(self.serializer_class(page,
- many=True).data)
+        if pk:
+            qs = template.filter(pk=pk)
+            serializer = self.serializer_class(qs, many=True)
 
         else:
-            serializer = self.serializer_class(qs, many=True)
+            qs = template.filter(source__default=True)
+
+            page = self.paginate_queryset(qs)
+
+            if page is not None:
+                serializer = self.get_paginated_response(self.serializer_class(page,
+    many=True).data)
+
+            else:
+                serializer = self.serializer_class(qs, many=True)
         return Response(serializer.data, status=status.HTTP_200_OK)
 
 
@@ -230,6 +243,7 @@ class MedObservationProfileAPIView(APIView):
     authentication_classes = [KiolaAuthentication,]
     render_classes = [JSONRenderer,]
 
+    @swagger_auto_schema(tags=['MedicationObservationProfile'])
     @requires_api_login
     def get(self, request, subject_uid=None,uid=None, *args, **kwargs):
         try:
@@ -480,6 +494,7 @@ class AdverseReactionAPIView(APIView):
     render_classes = [JSONRenderer,]
     serializer_class = tcc_serializers.PatientAdverseReactionSerializer
 
+    @swagger_auto_schema(tags=['PatientAdverseReaction'])
     @requires_api_login
     def get(self, request, subject_uid=None, pk=None, *args, **kwargs):
         try:
@@ -504,6 +519,7 @@ class AdverseReactionAPIView(APIView):
 
         return Response(serializer.data, status=status.HTTP_200_OK)
 
+    @swagger_auto_schema(tags=['PatientAdverseReaction'])
     @requires_api_login
     def post(self, request, subject_uid=None, pk=None, *args, **kwargs):
         try:
@@ -572,6 +588,8 @@ class PrescriptionAPIView(APIView):
     render_classes = [JSONRenderer,]
     serializer_class = tcc_serializers.MedPrescriptionSerializer
 
+
+    @swagger_auto_schema(tags=['Prescription'])
     @requires_api_login
     def get(self, request, subject_uid=None, pk=None, *args, **kwargs):
 
@@ -658,7 +676,7 @@ class PrescriptionAPIView(APIView):
 
         return Response(serializer.data, status=status.HTTP_200_OK)
 
-
+    @swagger_auto_schema(tags=['Prescription'])
     @requires_api_login
     def post(self, request, subject_uid=None, pk=None, *args, **kwargs):
 
@@ -772,6 +790,7 @@ class MedicationAdverseReactionAPIView(APIView):
     render_classes = [JSONRenderer,]
     serializer_class = tcc_serializers.MedicationAdverseReactionSerializer
 
+    @swagger_auto_schema(tags=['MedicationAdverseReaction'])
     @requires_api_login
     def get(self, request, subject_uid=None, pk=None, *args, **kwargs):
         try:
@@ -805,6 +824,7 @@ class MedicationAdverseReactionAPIView(APIView):
         return Response(serializer.data, status=status.HTTP_200_OK)
 
 
+    @swagger_auto_schema(tags=['MedicationAdverseReaction'])
     @requires_api_login
     def post(self, request, subject_uid=None, pk=None, *args, **kwargs):  
         try:
@@ -866,6 +886,7 @@ class TakingSchemaAPIView(APIView):
     render_classes = [JSONRenderer,]
     serializer_class = tcc_serializers.ScheduledTakingSerializer
 
+    @swagger_auto_schema(tags=['TakingSchema'])
     @requires_api_login
     def get(self, request, subject_uid=None, pk=None, *args, **kwargs):
 
@@ -903,6 +924,12 @@ class TakingSchemaAPIView(APIView):
 
         return Response(serializer.data, status=status.HTTP_200_OK)
 
+
+    @swagger_auto_schema(
+        tags=['TakingSchema'], 
+        operation_description="PUT /meds/scheduleitem/{id}/",
+        operation_summary="Update TakingSchema"
+    )
     @requires_api_login
     def post(self, request, subject_uid=None, pk=None, *args, **kwargs):
 
@@ -1022,37 +1049,14 @@ class TakingSchemaAPIView(APIView):
         serializer = self.serializer_class(models.ScheduledTaking.objects.annotate(prescr_id=
                     F('takingschema__prescriptionschema__prescription')
                 ).get(pk=taking.pk))
-        # item_dict = {
-        #     "pk": taking.pk,
-        #     "medicationId": prescr.pk,
-        #     "strength": taking.strength,
-        #     "dosage": taking.dosage,
-        #     "unit": taking.unit.name,
-        #     "startTime": force_text(taking.start_date),
-        #     "frequency": taking.frequency.name,
-        #     "clinic_scheduled": taking.clinic_scheduled,
-        #     "reminder": taking.reminder,
 
-        # }
-
-        # if taking.timepoint.name == "custom":
-        #     item_dict["schedule"] = {
-        #         "type": "custom",
-        #         "time": force_text(taking.taking_time)
-        #     }
-        # else:
-        #     item_dict["schedule"] = {
-        #         "type": "solar",
-        #         "time": taking.timepoint.name,
-        #         "actual": force_text(taking.taking_time)
-        #     }
         return Response(serializer.data, status=status.HTTP_200_OK)
-
 
 class UserPreferenceConfigAPIView(APIView):
     authentication_classes = [KiolaAuthentication,]
     render_classes = [JSONRenderer,]
 
+    @swagger_auto_schema(tags=['UserPreferenceConfig'])
     @requires_api_login
     def get(self, request, *args, **kwargs):
         try:
@@ -1069,6 +1073,11 @@ class UserPreferenceConfigAPIView(APIView):
         }
         return Response(config_data, status=status.HTTP_200_OK) 
 
+    @swagger_auto_schema(
+        tags=['UserPreferenceConfig'], 
+        operation_description="POST /meds/user-pref/{id}/",
+        operation_summary="Create UserPreferenceConfig"
+    )
     @requires_api_login
     def post(self, request, *args, **kwargs):
         try:
@@ -1084,6 +1093,11 @@ class UserPreferenceConfigAPIView(APIView):
         result = models.UserPreferenceConfig.objects.set_value(const.USER_PREFERENCE_KEY__MEDICATION_TIMES, config_data, request.user)
         return Response({"msg": "Success"}, status=status.HTTP_200_OK)
 
+    @swagger_auto_schema(
+        tags=['UserPreferenceConfig'], 
+        operation_description="PUT /meds/user-pref/{id}/",
+        operation_summary="Update UserPreferenceConfig"
+    )
     @requires_api_login
     def put(self, request, *args, **kwargs):
         try:
@@ -1099,24 +1113,67 @@ class UserPreferenceConfigAPIView(APIView):
         result = models.UserPreferenceConfig.objects.set_value(const.USER_PREFERENCE_KEY__MEDICATION_TIMES, config_data, request.user)
         return Response({"msg": "Success"}, status=status.HTTP_200_OK)
 
-class CompoundSearchAPIView(APIView, PaginationHandlerMixin):
+
+class CompoundSearchAPIView(APIView):
 
     pagination_class = BasicPagination
     serializer_class = tcc_serializers.CompoundSerializer
     authentication_classes = [KiolaAuthentication,]
+
+    max_count = 80
+
+    @swagger_auto_schema(
+        tags=['Compound'], 
+        operation_description="PUT /meds/compounds/search/",
+        operation_summary="Search Compound resources",
+        manual_parameters=[
+            openapi.Parameter('compound', openapi.IN_QUERY, type=openapi.TYPE_STRING, required=False),
+            openapi.Parameter('active_components', openapi.IN_QUERY, type=openapi.TYPE_STRING, required=False)
+        ],
+        responses={
+            '200': openapi.Schema(
+                type=openapi.TYPE_OBJECT,
+                properties={
+                    "pk": openapi.Schema(type=openapi.TYPE_NUMBER, description='pk of  compound'),
+                    "uid": openapi.Schema(type=openapi.TYPE_STRING, description='uid of  compound / medication product'),
+                    "name": openapi.Schema(type=openapi.TYPE_STRING, description='name of  compound / medication product'),
+                    "source": openapi.Schema(type=openapi.TYPE_STRING, description='name of  compound source'),
+                    "indications": openapi.Schema(type=openapi.TYPE_ARRAY, items=openapi.Schema(type=openapi.TYPE_STRING), description='indications of compound '),
+                    "activeComponents": openapi.Schema(type=openapi.TYPE_STRING, description='activeComponents of  compound '),
+                    "dosage_form": openapi.Schema(type=openapi.TYPE_STRING, description='dosage_form of  compound '),
+                    "dosage_form_ref": openapi.Schema(type=openapi.TYPE_STRING, description='dosage_form_ref of  compound '),
+            }),
+            '400': "Bad Request"
+        }
+    )
     @requires_api_login
     def get(self, request, subject_uid=None, *args, **kwargs):
         
         query = request.GET
 
-        # qs = Compound.objects.all()
+        compound_name=query.get('compound', None)
+        active_component=query.get('active_components', None)
+        template = med_models.Compound.objects.select_related('source').annotate(active_components_name=F('active_components__name'))
 
-#         page = self.paginate_queryset(qs)
 
-#         if page is not None:
-#             serializer = self.get_paginated_response(self.serializer_class(page,
-#  many=True).data)
+        if compound_name:
+            if len(compound_name) < 3:
+                msg = {'message': "Please enter at least 3 characters for better search results."}
+                return Response(msg, status=status.HTTP_200_OK)
+            qs = template.filter(source__default=True, name__icontains=compound_name)
 
-#         else:
-#             serializer = self.serializer_class(qs, many=True)
-        return Response(status=status.HTTP_200_OK)
+        elif active_component:
+            if len(active_component) < 3:
+                msg = {'message': "Please enter at least 3 characters for better search results."}
+                return Response(msg, status=status.HTTP_200_OK)
+            qs = template.filter(source__default=True, active_components__name__icontains=active_component)
+
+        else:
+            raise exceptions.BadRequest("Invalid data. Please make sure either compound or active_component is provided.")
+
+        if qs.count() > self.max_count:
+            msg = {'message': "More than %(max)s results found (%(amount)s). Please refine your search.." % {'max': self.max_count, 'amount': qs.cound()}}
+            return Response(msg, status=status.HTTP_200_OK)
+
+        serializer = self.serializer_class(qs, many=True)
+        return Response(serializer.data, status=status.HTTP_200_OK)

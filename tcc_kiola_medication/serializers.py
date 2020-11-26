@@ -4,10 +4,6 @@ import json
 from kiola.kiola_med.models import *
 from kiola.kiola_med import models as med_models
 from . import models
-# class MedCompoundSerializer(serializers.ModelSerializer):
-#     class Meta:
-#         model = MedCompound
-#         fields = ['pk','name','dosage_form']
 
 class CompoundaSerializer(serializers.ModelSerializer):
     class Meta:
@@ -15,40 +11,18 @@ class CompoundaSerializer(serializers.ModelSerializer):
         fields = ['pk','name','dosage_form']
 
 class CompoundSerializer(serializers.ModelSerializer):
+
+    activeComponents = serializers.CharField(source='active_components_name')
+    source = serializers.CharField(source='source.__str__')
+
     class Meta:
         model =  Compound
-        fields = ['uid','name', 'source','indications','active_components','dosage_form','dosage_form_ref']
-
-    # source = models.ForeignKey(CompoundSource)
-    # uid = models.CharField(max_length=100)
-    # name = models.CharField(max_length=255)
-    # active_components = models.ManyToManyField(ActiveComponent)
-    # indications = models.ManyToManyField(Indication)
-    # dosage_form = models.CharField(max_length=255, null=True)
-    # dosage_form_ref = models.CharField(max_length=10, null=True)
+        fields = ['pk', 'uid','name', 'source','indications','activeComponents','dosage_form','dosage_form_ref']
 
 class PrescriptionSerializer(serializers.ModelSerializer):
     class Meta:
         model =  Prescription
         fields = ['taking_reason','taking_hint','displayable_taking','compound_id','subject_id']
-
-# class MedCompoundSerializerTest(serializers.Serializer):
-#     name = serializers.CharField(read_only=True)
-#     def create(self, validated_data):
-
-#         return MedCompound.objects.create(**validated_data)
-
-    # def update(self, instance, validated_data):
-    #     """
-    #     Update and return an existing `Snippet` instance, given the validated data.
-    #     """
-    #     instance.title = validated_data.get('title', instance.title)
-    #     instance.code = validated_data.get('code', instance.code)
-    #     instance.linenos = validated_data.get('linenos', instance.linenos)
-    #     instance.language = validated_data.get('language', instance.language)
-    #     instance.style = validated_data.get('style', instance.style)
-    #     instance.save()
-    #     return instance
 
 class PatientAdverseReactionSerializer(serializers.ModelSerializer):
     reaction_type_name = serializers.CharField(source='reaction_type.name')
@@ -86,7 +60,7 @@ class MedPrescriptionSerializer(serializers.ModelSerializer):
         return obj.compound.active_components.all().values_list('name', flat=True)
 
     def get_schedules(self, obj):
-        # takings = obj.prescriptionschema_set.all().values_list('taking_schema__serialized_takings', flat=True)
+
         takings_ids = obj.prescriptionschema_set.all().values_list('taking_schema__takings__pk', flat=True)
         takings = models.ScheduledTaking.objects.filter(pk__in=takings_ids)
         processed = []
@@ -125,7 +99,6 @@ class MedPrescriptionSerializer(serializers.ModelSerializer):
 
 class ScheduledTakingSerializer(serializers.ModelSerializer):
     medicationId = serializers.CharField(source='prescr_id')
-    # medicationId = serializers.SerializerMethodField()
     frequency = serializers.CharField(source='frequency.name')
     unit = serializers.CharField(source='unit.name')
     schedule = serializers.SerializerMethodField()
@@ -143,21 +116,6 @@ class ScheduledTakingSerializer(serializers.ModelSerializer):
               'time': obj.timepoint.name,
               'actual': obj.taking_time
             }
-
-    # def get_medicationId(self, obj):
-        # taking = obj.annotate
- 
-    # def get_taking_time_value(self, obj):
-    #     if obj.timepoint.name == "custom":
-    #         return obj.taking_time
-    #     else:
-    #         return obj.timepoint.name
-
-    # def get_frequency_name(self, obj):
-    #     return obj.frequency.name
-
-    # def get_unit_name(self, obj):
-    #     return obj.unit.name
 
     class Meta:
         model =  models.ScheduledTaking

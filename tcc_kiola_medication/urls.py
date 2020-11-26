@@ -19,7 +19,6 @@ urlpatterns = [
     #url(r"compounds/", views.CompoundViewSet),
     url(r"compoundSource/", views.addCompoundSource),
 
-    url(r"med_obs_profiles/", MedObservationProfileAPIView.as_view(), name='med_obs_profiles'),
 
     url(r'singleCompound/(?P<pk>\d+)/$', CompoundRudView.as_view(), name='post-rud'),
 
@@ -34,25 +33,30 @@ urlpatterns = [
     ## url(r'api/v(?P<apiv>[0-9\.]+)/', include('kiola.kiola_admin.api_urls', namespace="admin_api")),
 
 
-    #TODO:
-    #Adverse reactions API - don't have the data/where is it?
-    url(r'adverse_reaction/$', views.AdverseReactionAPIView.as_view(), name="adverse_reaction"),
+
 
     #MEDS TESTING:
     url(r'prescr/$', views.PrescriptionListView.as_view(), name="prescription_list"),
 
     url(r'listPrescriptions/$', views.PrescriptionListAPI.as_view(), name="prescription_listtwo"),
 
-    url(r"compounds/$", CompoundAPIView.as_view(), name='compounds'),
-    # url(r"prescriptions/$", views.PrescriptionAPIView.as_view(), name="prescriptions-add"),
-    # url(r"prescriptions/(?P<pk>\d+)/$", views.PrescriptionAPIView.as_view(), name="prescriptions-update"),
-    url(r"prescriptions/$", views.PrescriptionAPIView.as_view(), name="prescriptions"),
-    url(r"prescriptions/(?P<pk>\d+)/$", views.PrescriptionAPIView.as_view(), name="prescriptions"),
-    url(r"user-pref/$", views.UserPreferenceConfigAPIView.as_view(), name="user-preference"),
-    url(r"scheduleitem/$", views.TakingSchemaAPIView.as_view(), name="takings"),
-    url(r"scheduleitem/(?P<pk>\d+)/$", views.TakingSchemaAPIView.as_view(), name="takings"),
-    url(r"medreaction/$", views.MedicationAdverseReactionAPIView.as_view(), name="med_adverse_reactions"),
-    url(r"medreaction/(?P<pk>\d+)/$", views.MedicationAdverseReactionAPIView.as_view(), name="med_adverse_reactions"),
+    # #Adverse reactions API - don't have the data/where is it?
+    # url(r'adverse_reaction/$', views.AdverseReactionAPIView.as_view(), name="adverse_reaction"),
+    # url(r"med_obs_profiles/", MedObservationProfileAPIView.as_view(), name='med_obs_profiles'),
+
+    # url(r"compounds/$", CompoundAPIView.as_view(), name='compounds'),
+    # url(r"compounds/(?P<pk>\d+)/$", CompoundAPIView.as_view(), name='compounds'),
+    # url(r"compounds/search/$", views.CompoundSearchAPIView.as_view(), name='compound_search'),
+
+    # # url(r"prescriptions/$", views.PrescriptionAPIView.as_view(), name="prescriptions-add"),
+    # # url(r"prescriptions/(?P<pk>\d+)/$", views.PrescriptionAPIView.as_view(), name="prescriptions-update"),
+    # url(r"prescriptions/$", views.PrescriptionAPIView.as_view(), name="prescriptions"),
+    # url(r"prescriptions/(?P<pk>\d+)/$", views.PrescriptionAPIView.as_view(), name="prescriptions"),
+    # url(r"user-pref/$", views.UserPreferenceConfigAPIView.as_view(), name="user-preference"),
+    # url(r"scheduleitem/$", views.TakingSchemaAPIView.as_view(), name="takings"),
+    # url(r"scheduleitem/(?P<pk>\d+)/$", views.TakingSchemaAPIView.as_view(), name="takings"),
+    # url(r"medreaction/$", views.MedicationAdverseReactionAPIView.as_view(), name="med_adverse_reactions"),
+    # url(r"medreaction/(?P<pk>\d+)/$", views.MedicationAdverseReactionAPIView.as_view(), name="med_adverse_reactions"),
     
 ]
 
