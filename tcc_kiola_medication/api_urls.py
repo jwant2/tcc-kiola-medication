@@ -40,6 +40,8 @@ urlpatterns = [
     # url(r"prescriptions/(?P<pk>\d+)/$", views.PrescriptionAPIView.as_view(), name="prescriptions-update"),
     url(r"prescription/$", views.PrescriptionAPIView.as_view(), name="prescription"),
     url(r"prescription/(?P<pk>\d+)/$", views.PrescriptionAPIView.as_view(), name="single-prescription"),
+    url(r"prescription/history/$", views.PrescriptionHistoryAPIView.as_view(), name="prescription-history"),
+
     url(r"user-pref/$", views.UserPreferenceConfigAPIView.as_view(), name="user-preference"),
     url(r"scheduleitem/$", views.TakingSchemaAPIView.as_view(), name="taking"),
     url(r"scheduleitem/(?P<pk>\d+)/$", views.TakingSchemaAPIView.as_view(), name="single-taking"),

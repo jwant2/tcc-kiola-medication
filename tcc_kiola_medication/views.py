@@ -288,7 +288,7 @@ class AdverseReactionAPIView(APIView):
 
     @swagger_auto_schema(
         tags=['PatientAdverseReaction'], 
-        operation_description="GET /meds/adverse_reaction/{id}/",
+        operation_description="GET /meds/adverse_reaction/",
         operation_summary="Query PatientAdverseReaction",
         responses={
             '200': openapi.Schema(
@@ -335,7 +335,7 @@ class AdverseReactionAPIView(APIView):
 
     @swagger_auto_schema(
         tags=['PatientAdverseReaction'], 
-        operation_description="GET /meds/adverse_reaction/{id}/",
+        operation_description="GET /meds/adverse_reaction/",
         operation_summary="Create/update PatientAdverseReaction",
         request_body=openapi.Schema(
                 type=openapi.TYPE_OBJECT,
@@ -436,7 +436,7 @@ class PrescriptionAPIView(APIView):
 
     @swagger_auto_schema(
         tags=['Prescription'], 
-        operation_description="GET /meds/prescription/{id}/",
+        operation_description="GET /meds/prescription/",
         operation_summary="Query prescription",
         responses={
             '200': openapi.Schema(
@@ -565,7 +565,7 @@ class PrescriptionAPIView(APIView):
 
     @swagger_auto_schema(
         tags=['Prescription'], 
-        operation_description="POST /meds/prescription/{id}/",
+        operation_description="POST /meds/prescription/",
         operation_summary="Create/update prescription",
         request_body=openapi.Schema(
                 type=openapi.TYPE_OBJECT,
@@ -720,6 +720,21 @@ def update_or_create_med_type(request, medication_type: str, compound: med_model
     prn.save()
     return prn
 
+class PrescriptionHistoryAPIView(APIView):
+
+    authentication_classes = [KiolaAuthentication,]
+    render_classes = [JSONRenderer,]
+    serializer_class = tcc_serializers.MedPrescriptionSerializer
+
+    @swagger_auto_schema(
+        tags=['Prescription'], 
+        operation_description="GET /meds/prescription/histroy/",
+        operation_summary="Query prescription history",
+    )
+    @requires_api_login
+    def get(self, request, subject_uid=None, pk=None, *args, **kwargs):
+        return Response(status=status.HTTP_200_OK)
+
 class MedicationAdverseReactionAPIView(APIView):
 
     authentication_classes = [KiolaAuthentication,]
@@ -728,7 +743,7 @@ class MedicationAdverseReactionAPIView(APIView):
 
     @swagger_auto_schema(
         tags=['MedicationAdverseReaction'], 
-        operation_description="GET /meds/medreaction/{id}/",
+        operation_description="GET /meds/medreaction/",
         operation_summary="Query MedicationAdverseReaction",
         responses={
             '200': openapi.Schema(
@@ -786,7 +801,7 @@ class MedicationAdverseReactionAPIView(APIView):
 
     @swagger_auto_schema(
         tags=['MedicationAdverseReaction'], 
-        operation_description="POST /meds/medreaction/{id}/",
+        operation_description="POST /meds/medreaction/",
         operation_summary="Create/update MedicationAdverseReaction",
         request_body=openapi.Schema(
                 type=openapi.TYPE_OBJECT,
@@ -879,7 +894,7 @@ class TakingSchemaAPIView(APIView):
 
     @swagger_auto_schema(
         tags=['Scheduled Items'], 
-        operation_description="GET /meds/scheduleitem/{id}/",
+        operation_description="GET /meds/scheduleitem/",
         operation_summary="Query ScheduledItem",
         responses={
             '200': openapi.Schema(
@@ -893,7 +908,7 @@ class TakingSchemaAPIView(APIView):
                         "dosage": openapi.Schema(type=openapi.TYPE_STRING, description='dosage of taking'),
                         "formulation": openapi.Schema(type=openapi.TYPE_STRING, description='formulation of compound'),
                         "startTime": openapi.Schema(type=openapi.TYPE_STRING, description='startTime of taking'),
-                        "frequency": openapi.Schema(type=openapi.TYPE_STRING, description='frequency of taking - daily/weekly/fornightly/monthly/custom '),
+                        "frequency": openapi.Schema(type=openapi.TYPE_STRING, description='frequency of taking - daily/weekly/fornightly/monthly/once-only '),
                         "reminder": openapi.Schema(type=openapi.TYPE_BOOLEAN, description='should set reminder for taking '),
                         "clinic_scheduled": openapi.Schema(type=openapi.TYPE_BOOLEAN, description='whether the last editor of this taking is a clinician '),
                         "schedule": openapi.Schema(
@@ -948,7 +963,7 @@ class TakingSchemaAPIView(APIView):
 
     @swagger_auto_schema(
         tags=['Scheduled Items'], 
-        operation_description="POST /meds/scheduleitem/{id}/",
+        operation_description="POST /meds/scheduleitem/",
         operation_summary="Create/update ScheduledItem",
         request_body=openapi.Schema(
                 type=openapi.TYPE_OBJECT,
@@ -958,7 +973,7 @@ class TakingSchemaAPIView(APIView):
                     "dosage": openapi.Schema(type=openapi.TYPE_STRING, description='dosage of taking'),
                     "formulation": openapi.Schema(type=openapi.TYPE_STRING, description='formulation of compound'),
                     "startTime": openapi.Schema(type=openapi.TYPE_STRING, description='startTime of taking'),
-                    "frequency": openapi.Schema(type=openapi.TYPE_STRING, description='frequency of taking - daily/weekly/fornightly/monthly/custom '),
+                    "frequency": openapi.Schema(type=openapi.TYPE_STRING, description='frequency of taking - daily/weekly/fornightly/monthly/once-only '),
                     "reminder": openapi.Schema(type=openapi.TYPE_BOOLEAN, description='should set reminder for taking '),
                     "schedule": openapi.Schema(
                         type=openapi.TYPE_OBJECT,
@@ -981,7 +996,7 @@ class TakingSchemaAPIView(APIView):
                     "dosage": openapi.Schema(type=openapi.TYPE_STRING, description='dosage of taking'),
                     "formulation": openapi.Schema(type=openapi.TYPE_STRING, description='formulation of compound'),
                     "startTime": openapi.Schema(type=openapi.TYPE_STRING, description='startTime of taking'),
-                    "frequency": openapi.Schema(type=openapi.TYPE_STRING, description='frequency of taking - daily/weekly/fornightly/monthly/custom '),
+                    "frequency": openapi.Schema(type=openapi.TYPE_STRING, description='frequency of taking - daily/weekly/fornightly/monthly/once-only '),
                     "reminder": openapi.Schema(type=openapi.TYPE_BOOLEAN, description='should set reminder for taking '),
                     "clinic_scheduled": openapi.Schema(type=openapi.TYPE_BOOLEAN, description='whether the last editor of this taking is a clinician '),
                     "schedule": openapi.Schema(
@@ -1166,7 +1181,7 @@ class UserPreferenceConfigAPIView(APIView):
 
     @swagger_auto_schema(
         tags=['UserPreferenceConfig'], 
-        operation_description="POST /meds/user-pref/{id}/",
+        operation_description="POST /meds/user-pref/",
         operation_summary="Create/replace UserPreferenceConfig",
         responses={
             '200': "Success",
@@ -1190,7 +1205,7 @@ class UserPreferenceConfigAPIView(APIView):
 
     @swagger_auto_schema(
         tags=['UserPreferenceConfig'], 
-        operation_description="PUT /meds/user-pref/{id}/",
+        operation_description="PUT /meds/user-pref/",
         operation_summary="Update UserPreferenceConfig",
         responses={
             '200': "Success",

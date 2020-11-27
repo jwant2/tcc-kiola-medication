@@ -96,7 +96,7 @@ class ScheduledTaking(med_models.BaseTaking):
     timepoint = models.ForeignKey(med_models.TakingTimepoint, on_delete=models.CASCADE)
     taking_time = models.TimeField(blank=False)
     start_date = models.DateField(blank=False)
-    dosage = models.TextField(blank=False)
+    dosage = models.CharField(max_length=100)
     strength = models.CharField(max_length=100)
     unit = models.ForeignKey(med_models.TakingUnit, on_delete=models.PROTECT)
     reminder = models.BooleanField(default=False)
