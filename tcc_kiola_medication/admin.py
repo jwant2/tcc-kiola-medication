@@ -27,3 +27,13 @@ class CompoundExtraInformationAdmin(KIOLAAdmin):
     list_display = ["compound", "name", "value"]
 
 admin.site.register(models.CompoundExtraInformation, CompoundExtraInformationAdmin)
+
+class PrescriptionExtraInformationAdmin(KIOLAAdmin):
+    list_display = ["prescription", "name", "value"]
+
+admin.site.register(models.PrescriptionExtraInformation, PrescriptionExtraInformationAdmin)
+
+class MedicationRelatedHistoryDataAddmin(KIOLAAdmin):
+    list_display = ["content_object", "data", "created"]
+
+admin.site.register(models.MedicationRelatedHistoryData, MedicationRelatedHistoryDataAddmin)

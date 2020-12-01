@@ -13,7 +13,7 @@ from . import views
 
 urlpatterns = [
     
-    # url(r"^$", views.index, name='index'),
+    url(r"^$", views.index, name='index'),
     # url(r"upload-csv-old/", views.medication_upload_old, name="medication_upload"),
     url(r"upload-csv/", views.medication_upload, name="medication_upload"),
     #url(r"compounds/", views.CompoundViewSet),

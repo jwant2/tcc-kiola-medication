@@ -30,7 +30,7 @@ urlpatterns = [
     #Adverse reactions API - don't have the data/where is it?
     url(r'adverse_reaction/$', views.AdverseReactionAPIView.as_view(), name="adverse_reaction"),
     url(r'adverse_reaction/(?P<pk>\d+)/$', views.AdverseReactionAPIView.as_view(), name="signle-adverse_reaction"),
-    url(r"med_obs_profiles/", views.MedObservationProfileAPIView.as_view(), name='med_obs_profiles'),
+    # url(r"observation_profile/", views.MedObservationProfileAPIView.as_view(), name='obs_profiles'),
 
     url(r"compound/$", views.CompoundAPIView.as_view(), name='compound'),
     url(r"compound/(?P<pk>\d+)/$", views.CompoundAPIView.as_view(), name='single-compound'),
@@ -40,9 +40,9 @@ urlpatterns = [
     # url(r"prescriptions/(?P<pk>\d+)/$", views.PrescriptionAPIView.as_view(), name="prescriptions-update"),
     url(r"prescription/$", views.PrescriptionAPIView.as_view(), name="prescription"),
     url(r"prescription/(?P<pk>\d+)/$", views.PrescriptionAPIView.as_view(), name="single-prescription"),
-    url(r"prescription/history/$", views.PrescriptionHistoryAPIView.as_view(), name="prescription-history"),
+    url(r"prescription/(?P<pk>\d+)/history/$", views.PrescriptionHistoryAPIView.as_view(), name="prescription-history"),
 
-    url(r"user-pref/$", views.UserPreferenceConfigAPIView.as_view(), name="user-preference"),
+    url(r"user_preference_config/$", views.UserPreferenceConfigAPIView.as_view(), name="user_preference_config"),
     url(r"scheduleitem/$", views.TakingSchemaAPIView.as_view(), name="taking"),
     url(r"scheduleitem/(?P<pk>\d+)/$", views.TakingSchemaAPIView.as_view(), name="single-taking"),
     url(r"medreaction/$", views.MedicationAdverseReactionAPIView.as_view(), name="med_adverse_reaction"),

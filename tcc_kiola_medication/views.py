@@ -47,7 +47,7 @@ from reversion import models as reversion
 
 from kiola.utils.commons import get_system_user
 from reversion import revisions as reversionrevisions
-
+from reversion import models as re_models
 import dateutil.parser
 
 #pagination:
@@ -68,12 +68,33 @@ from rest_framework.permissions import IsAuthenticated
 from drf_yasg.utils import swagger_auto_schema, swagger_serializer_method
 from drf_yasg import openapi
 
-
-
-
-
-
 from django.db import transaction
+
+def index(request):
+    from reversion_compare.mixins import CompareMixin
+
+    qs2 = re_models.Version.objects.get_for_object_reference(med_models.Prescription, 65).order_by('pk').annotate(date_created=F('revision__date_created'))
+
+    # print('test1,', test1)
+    mixin = CompareMixin()
+    compare_data, has_unfollowed_fields = mixin.compare(qs2[4].object, qs2[3], qs2[4])
+    print('compare_data', compare_data)
+    # print()
+    # print('raw1', qs2[3].field_dict)
+    # print('raw2', qs2[4].field_dict)
+    for item in qs2:
+        print()
+        print('raw', item.field_dict)
+        print('revision', item.revision)
+    # se1 = tcc_serializers.MedPrescriptionSerializer(qs2[3].object)
+    # se2 = tcc_serializers.MedPrescriptionSerializer(qs2[4].object)
+    # print('se1', se1.data)
+    # print('se2', se2.data)
+
+
+    # value = { k : second_dict[k] for k in set(second_dict) - set(first_dict) }
+    # print('results', results)
+    return HttpResponse()
 
 ## TODO: move to admin views
 def medication_upload(request):
@@ -514,12 +535,7 @@ class PrescriptionAPIView(APIView):
                 'compound__indications',
                 'compound__active_components') .order_by(
                 'compound__name',
-                'status') .annotate(adverse_reactions=Subquery(
-                    models.MedicationAdverseReaction.objects.filter(
-                        compound=OuterRef('compound'),
-                        active=True
-                    ).values_list('reactions', flat=True)
-                ))[0]
+                'status')[0]
 
 
             except Exception as err:
@@ -551,12 +567,7 @@ class PrescriptionAPIView(APIView):
                 'compound__indications',
                 'compound__active_components') .order_by(
                 'compound__name',
-                'status') .annotate(adverse_reactions=Subquery(
-                    models.MedicationAdverseReaction.objects.filter(
-                        compound=OuterRef('compound'),
-                        active=True
-                    ).values_list('reactions', flat=True)
-                ))
+                'status')
 
             serializer = self.serializer_class(qs, many=True)
 
@@ -624,16 +635,31 @@ class PrescriptionAPIView(APIView):
         except senses.Subject.DoesNotExist:
             raise exceptions.Forbidden("Unknown subject")
         
-        data = request.data
-        # prescr_id = data.get('id', None)
+
         prescr_id = pk
-        compound_name = data.get('compoundName', None)
-        taking_reason = data.get('taking_reason', "")
-        taking_hint = data.get('taking_hint', "")
-        med_reactions = data.get("medicationAdverseReactions", "")
-        medication_type = data.get('medicationType', None)
-        p_start = data.get('prescription_start', None)
-        p_end = data.get('prescription_end', None)
+        # prescr_id = data.get('id', None)
+
+        def process_request_data(request_data):
+            data = {
+              'compoundName': request_data.get('compoundName', None),
+              'taking_reason': request_data.get('taking_reason', ""),
+              'taking_hint': request_data.get('taking_hint', ""),
+              'medicationAdverseReactions': request_data.get("medicationAdverseReactions", ""),
+              'medicationType': request_data.get('medicationType', None),
+              'prescription_start': request_data.get('prescription_start', None),
+              'prescription_end': request_data.get('prescription_end', None),      
+            }
+            return data
+
+        processed_data = process_request_data(request.data) ## filter unnessary data fields
+        processed_data['id'] = str(prescr_id)
+        compound_name = processed_data.get('compoundName', None)
+        taking_reason = processed_data.get('taking_reason', "")
+        taking_hint = processed_data.get('taking_hint', "")
+        med_reactions = processed_data.get("medicationAdverseReactions", "")
+        medication_type = processed_data.get('medicationType', None)
+        p_start = processed_data.get('prescription_start', None)
+        p_end = processed_data.get('prescription_end', None)
 
         start_date = None
         if p_start:
@@ -660,7 +686,7 @@ class PrescriptionAPIView(APIView):
                 raise exceptions.BadRequest("Compound with name '%s' does not match the compound of the given prescription with pk '%s'" % (compound_name, prescr_id))
 
             update_or_create_med_adverse_reaction(request, med_reactions, prescr.compound)
-            update_or_create_med_type(request, medication_type, prescr.compound)
+            update_or_create_med_type(request, medication_type, prescr)
 
             with reversionrevisions.create_revision():
                 reversionrevisions.set_user(get_system_user())
@@ -685,7 +711,6 @@ class PrescriptionAPIView(APIView):
                 raise exceptions.BadRequest("Compound with name '%s' does not exist or its source is inactive" % compound_name)
 
             update_or_create_med_adverse_reaction(request, med_reactions, compound)
-            update_or_create_med_type(request, medication_type, compound)
 
             with reversionrevisions.create_revision():
                 reversionrevisions.set_user(get_system_user())
@@ -698,8 +723,14 @@ class PrescriptionAPIView(APIView):
                                                                           start=start_date,
                                                                           end=end_date)
 
+            update_or_create_med_type(request, medication_type, prescr)
 
-
+        # save change history
+        if not processed_data.get('id', None):
+            processed_data['id'] = str(prescr.pk)
+        record = models.MedicationRelatedHistoryData.objects.add_data_change_record(prescr, processed_data)
+        # prepare object for response
+        prescr = med_models.Prescription.objects.get(pk=prescr.pk, status__name=med_const.PRESCRIPTION_STATUS__ACTIVE)
         serializer = self.serializer_class([prescr], many=True)
 
         return Response(serializer.data, status=status.HTTP_200_OK)
@@ -713,9 +744,9 @@ def update_or_create_med_adverse_reaction(request, reactions_str: str, compound:
             reaction_item, created = models.MedicationAdverseReaction.objects.get_or_create(
                 compound=compound, reaction_type=reaction_type, reactions=item, editor=request.user)
 
-def update_or_create_med_type(request, medication_type: str, compound: med_models.Compound):
+def update_or_create_med_type(request, medication_type: str, prescription: med_models.Prescription):
 
-    prn, created = models.CompoundExtraInformation.objects.get_or_create(compound=compound, name=const.COMPOUND_EXTRA_INFO_NAME__MEDICATION_TYPE)
+    prn, created = models.PrescriptionExtraInformation.objects.get_or_create(prescription=prescription, name=const.COMPOUND_EXTRA_INFO_NAME__MEDICATION_TYPE)
     prn.value = medication_type
     prn.save()
     return prn
@@ -733,7 +764,45 @@ class PrescriptionHistoryAPIView(APIView):
     )
     @requires_api_login
     def get(self, request, subject_uid=None, pk=None, *args, **kwargs):
-        return Response(status=status.HTTP_200_OK)
+        try:
+            if subject_uid is None:
+                subject = senses.Subject.objects.get(login=request.user)
+            else:
+                subject = senses.Subject.objects.get(uuid=subject_uid)
+        except senses.Subject.DoesNotExist:
+            raise exceptions.Forbidden("Unknown subject")
+
+        try:
+            prescr = med_models.Prescription.objects.select_related('compound').get(pk=pk, status__name=med_const.PRESCRIPTION_STATUS__ACTIVE)
+        except Exception as err:
+            print(err)
+            raise exceptions.BadRequest("Prescription with pk '%s' does not exist or is inactive" % pk)
+
+        qs = models.MedicationRelatedHistoryData.objects.get_history_data(prescr)
+
+
+        results = []
+        for i in range(len(qs) - 1):
+            A = qs[i].data
+            B = qs[i+1].data 
+            value = {x:(A[x], B[x]) for x in B if x in A if B[x] != A[x]}
+            print('value', value)
+            if value:
+                temp = []
+                for item in value:
+                    change = value[item]
+                    data = {
+                        'field': item,
+                        'old': change[0],
+                        'new': change[1],
+                    }
+                    temp.append(data)
+                results.append({
+                    'time': force_text(qs[i+1].created),
+                    'changes': temp
+                })
+
+        return Response(results, status=status.HTTP_200_OK)
 
 class MedicationAdverseReactionAPIView(APIView):
 

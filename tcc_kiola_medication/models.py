@@ -6,6 +6,9 @@ from django.utils.encoding import force_text
 from django_auditor.auditor import PermissionModelManager
 from django.contrib.auth import get_user_model
 from django_auditor.auditor import sudo
+from django.contrib.contenttypes.models import ContentType
+from django.contrib.contenttypes.fields import GenericForeignKey
+from django.utils.translation import ugettext_lazy as _, ugettext_noop, get_language
 
 from kiola.kiola_med import models as med_models
 from kiola.kiola_senses import models as senses
@@ -96,8 +99,10 @@ class ScheduledTaking(med_models.BaseTaking):
     timepoint = models.ForeignKey(med_models.TakingTimepoint, on_delete=models.CASCADE)
     taking_time = models.TimeField(blank=False)
     start_date = models.DateField(blank=False)
+    # end_date = models.DateField(blank=False)
     dosage = models.CharField(max_length=100)
     strength = models.CharField(max_length=100)
+    # hint = models.TextField() # taking_hint
     unit = models.ForeignKey(med_models.TakingUnit, on_delete=models.PROTECT)
     reminder = models.BooleanField(default=False)
     editor = models.ForeignKey(get_user_model(), on_delete=models.CASCADE)
@@ -202,3 +207,67 @@ class CompoundExtraInformation(models.Model):
         return force_text("{} - {} for {}").format(force_text(self.name),
                                                    force_text(self.value),
                                                    force_text(self.compound.name))
+
+class PrescriptionExtraInformation(models.Model):
+    
+    prescription = models.ForeignKey(med_models.Prescription, on_delete=models.CASCADE)
+    name = models.CharField(max_length=100, unique=True)
+    value = models.TextField()
+
+    def as_dict(self):
+        return {
+                "pk": self.pk,
+                "prescription": self.prescription,
+                "name": self.name,
+                "value": self.value
+        }
+
+    def __str__(self):
+        return force_text("{} - {} for {}").format(force_text(self.name),
+                                                   force_text(self.value),
+                                                   force_text(self.prescription))
+
+
+class MedicationRelatedHistoryDataManager(PermissionModelManager):
+
+    def add_data_change_record(self, related_object, request_data):
+        ct = ContentType.objects.get(model=related_object._meta.model_name)
+        object_id = related_object.id
+        record = self.create(content_type=ct, object_id=object_id, data = request_data)
+        return record
+
+    def get_history_data(self, data_object):
+        ct = ContentType.objects.get(model=data_object._meta.model_name)
+        object_id = data_object.id
+        qs = self.filter(content_type=ct, object_id=object_id)
+        print('get_history_data qs', qs)
+        return qs
+
+
+class MedicationRelatedHistoryData(models.Model):
+
+    objects = MedicationRelatedHistoryDataManager()
+
+    content_type = models.ForeignKey(ContentType, on_delete=models.PROTECT, null=True, blank=True,
+        help_text=_('Model type of the target object. '),
+      ) ## Compound/Prescription/MedAdeverseReaction/etc..
+    object_id = models.IntegerField(null=True, blank=True)
+    content_object = GenericForeignKey('content_type', 'object_id')
+    created = models.DateTimeField(auto_now_add=True,help_text="Timestamp of data created.")
+    data = JSONField(default=element_default,help_text="Data of changes to content_object.",null=False,blank=False)
+
+
+    def as_dict(self):
+        return {
+                "pk": self.pk,
+                "content_type": self.content_type,
+                "content_object": self.content_object,
+                "data": self.data,
+                "created": self.created
+        }
+
+    def __str__(self):
+        return force_text("{} - {} for {}").format(force_text(self.content_object),
+                                                   force_text(self.data),
+                                                   force_text(self.created))
+                                                   

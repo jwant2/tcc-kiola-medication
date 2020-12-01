@@ -2,8 +2,8 @@ from rest_framework import serializers
 import json
 # from .models import MedCompound
 from kiola.kiola_med.models import *
-from kiola.kiola_med import models as med_models
-from . import models
+from kiola.kiola_med import models as med_models, const as med_const
+from . import models, const
 
 class CompoundaSerializer(serializers.ModelSerializer):
     class Meta:
@@ -50,12 +50,35 @@ class MedPrescriptionSerializer(serializers.ModelSerializer):
     medicationAdverseReactions = serializers.SerializerMethodField()
     schedules = serializers.SerializerMethodField()
     prescrEvent = serializers.SerializerMethodField()
+    medicationType = serializers.SerializerMethodField()
+
+    def get_medicationType(self, obj):
+        extra_info = models.PrescriptionExtraInformation.objects\
+          .filter(prescription__pk=obj.pk, name=const.COMPOUND_EXTRA_INFO_NAME__MEDICATION_TYPE)\
+          .order_by('pk')\
+          .last()
+        if not extra_info:
+            extra_info = models.CompoundExtraInformation.objects\
+                .filter(compound=obj.compound, name=const.COMPOUND_EXTRA_INFO_NAME__MEDICATION_TYPE)\
+                .order_by('pk')\
+                .last()
+            if extra_info:
+                return extra_info.value
+            else:
+                return None
+        else:
+            return extra_info.value
+
 
     def get_medicationAdverseReactions(self, obj):
-        try:
-            return obj.adverse_reactions
-        except:
-            return None
+        seperator = ","
+        reactions = models.MedicationAdverseReaction.objects.filter(
+                        compound=obj.compound,
+                        active=True,
+                        editor=obj.subject.login
+                    ).values_list('reactions', flat=True)
+        value = seperator.join(reactions)
+        return value
 
     def get_activeComponents(self, obj):
         return obj.compound.active_components.all().values_list('name', flat=True)
@@ -73,8 +96,8 @@ class MedPrescriptionSerializer(serializers.ModelSerializer):
         return processed
 
     def get_prescrEvent(self, obj):
-        start = obj.prescriptionevent_set.filter(etype=med_models.PrescriptionEventType.objects.get(name=const.EVENT_TYPE__PRESCRIBED)).first()
-        end = obj.prescriptionevent_set.filter(etype=med_models.PrescriptionEventType.objects.get(name=const.EVENT_TYPE__END)).first()
+        start = obj.prescriptionevent_set.filter(etype=med_models.PrescriptionEventType.objects.get(name=med_const.EVENT_TYPE__PRESCRIBED)).first()
+        end = obj.prescriptionevent_set.filter(etype=med_models.PrescriptionEventType.objects.get(name=med_const.EVENT_TYPE__END)).first()
 
         return {
             'start': start.timepoint if start else None,
@@ -95,6 +118,7 @@ class MedPrescriptionSerializer(serializers.ModelSerializer):
                     'medicationAdverseReactions',
                     'schedules',
                     'prescrEvent',
+                    'medicationType'
                  ]
 
 
