@@ -60,7 +60,7 @@ from kiola.kiola_med import const as med_const
 from kiola.kiola_med import utils as med_utils
 from kiola.utils import exceptions
 
-from . import models, const, utils
+from . import models, const, utils, docs
 #
 from rest_framework.authentication import SessionAuthentication, BaseAuthentication
 from rest_framework.permissions import IsAuthenticated
@@ -168,8 +168,6 @@ def medication_upload(request):
 
 
             except Exception as error:
-                print('error', error)
-                print('error for ', column)
                 error_log = {'error_msg': str(error), 'error_data': column}
                 error_logs.append(error_log)
 
@@ -192,38 +190,61 @@ class CompoundAPIView(APIView, PaginationHandlerMixin):
     pagination_class = BasicPagination
     serializer_class = tcc_serializers.CompoundSerializer
     authentication_classes = [KiolaAuthentication,]
+    max_count = 80
 
     @swagger_auto_schema(
         tags=['Compound'], 
-        operation_description="GET /meds/compound/",
+        operation_description="GET /prescription/compound/",
         operation_summary="Query Compound resources",
         responses={
-            '200': openapi.Schema(
-                type=openapi.TYPE_OBJECT,
-                properties={
-                    "pk": openapi.Schema(type=openapi.TYPE_NUMBER, description='pk of  compound'),
-                    "uid": openapi.Schema(type=openapi.TYPE_STRING, description='uid of  compound / medication product'),
-                    "name": openapi.Schema(type=openapi.TYPE_STRING, description='name of  compound / medication product'),
-                    "source": openapi.Schema(type=openapi.TYPE_STRING, description='name of  compound source'),
-                    "indications": openapi.Schema(type=openapi.TYPE_ARRAY, items=openapi.Schema(type=openapi.TYPE_STRING), description='indications of compound '),
-                    "activeComponents": openapi.Schema(type=openapi.TYPE_STRING, description='activeComponents of  compound '),
-                    "dosage_form": openapi.Schema(type=openapi.TYPE_STRING, description='dosage_form of  compound '),
-                    "dosage_form_ref": openapi.Schema(type=openapi.TYPE_STRING, description='dosage_form_ref of  compound '),
-            }),
+            '200':docs.compound_res,
             '400': "Bad Request"
         }
     )
     @requires_api_login
-    def get(self, request, subject_uid=None, pk=None, *args, **kwargs):
+    def get(self, request, subject_uid=None, id=None, *args, **kwargs):
         
-        template = med_models.Compound.objects.select_related('source').annotate(active_components_name=F('active_components__name'))
+        template = med_models.Compound.objects.select_related('source')
 
-        if pk:
-            qs = template.filter(pk=pk)
+
+        if id:
+            qs = template.filter(uid=id)
             serializer = self.serializer_class(qs, many=True)
 
         else:
-            qs = template.filter(source__default=True)
+            query = request.GET
+
+            # set default value to limit param if not exist
+            # to ensure paging is enabled
+            if query.get('limit', None) is None:
+                request.query_params._mutable = True
+                request.query_params['limit'] = self.max_count
+                request.query_params._mutable = False
+
+            compound_name=query.get('compound', None)
+            active_component=query.get('active_components', None)
+
+
+            if compound_name:
+                if len(compound_name) < 3:
+                    msg = {'message': "Please enter at least 3 characters for better search results."}
+                    return Response(msg, status=status.HTTP_200_OK)
+                qs = template.filter(source__default=True, name__icontains=compound_name)
+
+            elif active_component:
+                if len(active_component) < 3:
+                    msg = {'message': "Please enter at least 3 characters for better search results."}
+                    return Response(msg, status=status.HTTP_200_OK)
+                qs = template.filter(source__default=True, active_components__name__icontains=active_component)
+
+            else:
+                 qs = template.filter(source__default=True)
+
+            if qs.count() > self.max_count:
+                msg = {'message': "More than %(max)s results found (%(amount)s). Please refine your search.." % {'max': self.max_count, 'amount': qs.cound()}}
+                return Response(msg, status=status.HTTP_200_OK)
+
+
 
             page = self.paginate_queryset(qs)
 
@@ -243,7 +264,7 @@ class MedObservationProfileAPIView(APIView):
 
     @swagger_auto_schema(
         tags=['MedicationObservationProfile'], 
-        operation_description="GET /meds/med_obs_profiles/",
+        operation_description="GET /prescription/med_obs_profiles/",
         operation_summary="Query Medication observation profiles",
         responses={
             '200': openapi.Schema(
@@ -301,144 +322,144 @@ class MedObservationProfileAPIView(APIView):
 
 
 
-class AdverseReactionAPIView(APIView):
+# class AdverseReactionAPIView(APIView):
 
-    authentication_classes = [KiolaAuthentication,]
-    render_classes = [JSONRenderer,]
-    serializer_class = tcc_serializers.PatientAdverseReactionSerializer
+#     authentication_classes = [KiolaAuthentication,]
+#     render_classes = [JSONRenderer,]
+#     serializer_class = tcc_serializers.PatientAdverseReactionSerializer
 
-    @swagger_auto_schema(
-        tags=['PatientAdverseReaction'], 
-        operation_description="GET /meds/adverse_reaction/",
-        operation_summary="Query PatientAdverseReaction",
-        responses={
-            '200': openapi.Schema(
-                type=openapi.TYPE_ARRAY,
-                items=openapi.Schema(
-                type=openapi.TYPE_OBJECT,
-                    properties={
-                        "pk": openapi.Schema(type=openapi.TYPE_NUMBER, description='PatientAdverseReaction Id'),
-                        "uid": openapi.Schema(type=openapi.TYPE_NUMBER, description='PatientAdverseReaction Uid'),
-                        "substance": openapi.Schema(type=openapi.TYPE_NUMBER, description='substance for AdverseReaction'),
-                        "reactionType": openapi.Schema(type=openapi.TYPE_STRING, description='Type of adverse reaction - Allergy/Side Effect/Intolerance/Idiosyncratic/Unknown'),
-                        "reactions": openapi.Schema(type=openapi.TYPE_STRING, description='reaction details'),
-                        "created": openapi.Schema(type=openapi.TYPE_STRING, description='created time of this reaction item  '),
-                        "updated": openapi.Schema(type=openapi.TYPE_STRING, description='updated time of this reaction item '),
-                        "active": openapi.Schema(type=openapi.TYPE_STRING, description='Status of this reaction item - false indicates deleted'),
+#     @swagger_auto_schema(
+#         tags=['PatientAdverseReaction'], 
+#         operation_description="GET /prescription/adverse_reaction/",
+#         operation_summary="Query PatientAdverseReaction",
+#         responses={
+#             '200': openapi.Schema(
+#                 type=openapi.TYPE_ARRAY,
+#                 items=openapi.Schema(
+#                 type=openapi.TYPE_OBJECT,
+#                     properties={
+#                         "pk": openapi.Schema(type=openapi.TYPE_NUMBER, description='PatientAdverseReaction Id'),
+#                         "uid": openapi.Schema(type=openapi.TYPE_NUMBER, description='PatientAdverseReaction Uid'),
+#                         "substance": openapi.Schema(type=openapi.TYPE_NUMBER, description='substance for AdverseReaction'),
+#                         "reactionType": openapi.Schema(type=openapi.TYPE_STRING, description='Type of adverse reaction - Allergy/Side Effect/Intolerance/Idiosyncratic/Unknown'),
+#                         "reactions": openapi.Schema(type=openapi.TYPE_STRING, description='reaction details'),
+#                         "created": openapi.Schema(type=openapi.TYPE_STRING, description='created time of this reaction item  '),
+#                         "updated": openapi.Schema(type=openapi.TYPE_STRING, description='updated time of this reaction item '),
+#                         "active": openapi.Schema(type=openapi.TYPE_STRING, description='Status of this reaction item - false indicates deleted'),
 
-            })),
-            '400': "Bad Request"
-        }
-    )
-    @requires_api_login
-    def get(self, request, subject_uid=None, pk=None, *args, **kwargs):
-        try:
-            if subject_uid is None:
-                subject = senses.Subject.objects.get(login=request.user)
-            else:
-                subject = senses.Subject.objects.get(uuid=subject_uid)
-        except senses.Subject.DoesNotExist:
-            raise exceptions.Forbidden("Unknown subject")
+#             })),
+#             '400': "Bad Request"
+#         }
+#     )
+#     @requires_api_login
+#     def get(self, request, subject_uid=None, pk=None, *args, **kwargs):
+#         try:
+#             if subject_uid is None:
+#                 subject = senses.Subject.objects.get(login=request.user)
+#             else:
+#                 subject = senses.Subject.objects.get(uuid=subject_uid)
+#         except senses.Subject.DoesNotExist:
+#             raise exceptions.Forbidden("Unknown subject")
 
-        reaction_id = pk
-        if reaction_id:
-            try:
-                reaction_item = models.PatientAdverseReaction.objects.get(pk=reaction_id)
-            except Exception as err:
-                print(err)
-                raise exceptions.BadRequest("PatientAdverseReaction with pk '%s' does not exist" % reaction_id)
-            serializer = self.serializer_class(reaction_item)
-        else:
-            qs = models.PatientAdverseReaction.objects.filter(subject=subject, active=True)
-            serializer = self.serializer_class(qs, many=True)
+#         reaction_id = pk
+#         if reaction_id:
+#             try:
+#                 reaction_item = models.PatientAdverseReaction.objects.get(pk=reaction_id)
+#             except Exception as err:
+#                 print(err)
+#                 raise exceptions.BadRequest("PatientAdverseReaction with pk '%s' does not exist" % reaction_id)
+#             serializer = self.serializer_class(reaction_item)
+#         else:
+#             qs = models.PatientAdverseReaction.objects.filter(subject=subject, active=True)
+#             serializer = self.serializer_class(qs, many=True)
 
-        return Response(serializer.data, status=status.HTTP_200_OK)
+#         return Response(serializer.data, status=status.HTTP_200_OK)
 
-    @swagger_auto_schema(
-        tags=['PatientAdverseReaction'], 
-        operation_description="GET /meds/adverse_reaction/",
-        operation_summary="Create/update PatientAdverseReaction",
-        request_body=openapi.Schema(
-                type=openapi.TYPE_OBJECT,
-                properties={
-                    "substance": openapi.Schema(type=openapi.TYPE_NUMBER, description='substance for AdverseReaction'),
-                    "reactionType": openapi.Schema(type=openapi.TYPE_STRING, description='Type of adverse reaction - Allergy/Side Effect/Intolerance/Idiosyncratic/Unknown'),
-                    "reactions": openapi.Schema(type=openapi.TYPE_STRING, description='reaction details'),
-                    "active": openapi.Schema(type=openapi.TYPE_STRING, description='Status of this reaction item - false indicates deleted'),
-                },
-        ),
-        responses={
-            '200': openapi.Schema(
-                type=openapi.TYPE_ARRAY,
-                items=openapi.Schema(
-                type=openapi.TYPE_OBJECT,
-                    properties={
-                        "pk": openapi.Schema(type=openapi.TYPE_NUMBER, description='PatientAdverseReaction Id'),
-                        "uid": openapi.Schema(type=openapi.TYPE_NUMBER, description='PatientAdverseReaction Uid'),
-                        "substance": openapi.Schema(type=openapi.TYPE_NUMBER, description='substance for AdverseReaction'),
-                        "reactionType": openapi.Schema(type=openapi.TYPE_STRING, description='Type of adverse reaction - Allergy/Side Effect/Intolerance/Idiosyncratic/Unknown'),
-                        "reactions": openapi.Schema(type=openapi.TYPE_STRING, description='reaction details'),
-                        "created": openapi.Schema(type=openapi.TYPE_STRING, description='created time of this reaction item  '),
-                        "updated": openapi.Schema(type=openapi.TYPE_STRING, description='updated time of this reaction item '),
-                        "active": openapi.Schema(type=openapi.TYPE_STRING, description='Status of this reaction item - false indicates deleted'),
+#     @swagger_auto_schema(
+#         tags=['PatientAdverseReaction'], 
+#         operation_description="GET /prescription/adverse_reaction/",
+#         operation_summary="Create/update PatientAdverseReaction",
+#         request_body=openapi.Schema(
+#                 type=openapi.TYPE_OBJECT,
+#                 properties={
+#                     "substance": openapi.Schema(type=openapi.TYPE_NUMBER, description='substance for AdverseReaction'),
+#                     "reactionType": openapi.Schema(type=openapi.TYPE_STRING, description='Type of adverse reaction - Allergy/Side Effect/Intolerance/Idiosyncratic/Unknown'),
+#                     "reactions": openapi.Schema(type=openapi.TYPE_STRING, description='reaction details'),
+#                     "active": openapi.Schema(type=openapi.TYPE_STRING, description='Status of this reaction item - false indicates deleted'),
+#                 },
+#         ),
+#         responses={
+#             '200': openapi.Schema(
+#                 type=openapi.TYPE_ARRAY,
+#                 items=openapi.Schema(
+#                 type=openapi.TYPE_OBJECT,
+#                     properties={
+#                         "pk": openapi.Schema(type=openapi.TYPE_NUMBER, description='PatientAdverseReaction Id'),
+#                         "uid": openapi.Schema(type=openapi.TYPE_NUMBER, description='PatientAdverseReaction Uid'),
+#                         "substance": openapi.Schema(type=openapi.TYPE_NUMBER, description='substance for AdverseReaction'),
+#                         "reactionType": openapi.Schema(type=openapi.TYPE_STRING, description='Type of adverse reaction - Allergy/Side Effect/Intolerance/Idiosyncratic/Unknown'),
+#                         "reactions": openapi.Schema(type=openapi.TYPE_STRING, description='reaction details'),
+#                         "created": openapi.Schema(type=openapi.TYPE_STRING, description='created time of this reaction item  '),
+#                         "updated": openapi.Schema(type=openapi.TYPE_STRING, description='updated time of this reaction item '),
+#                         "active": openapi.Schema(type=openapi.TYPE_STRING, description='Status of this reaction item - false indicates deleted'),
 
-            })),
-            '400': "Bad Request"
-        }
-    )
-    @requires_api_login
-    def post(self, request, subject_uid=None, pk=None, *args, **kwargs):
-        try:
-            if subject_uid is None:
-                subject = senses.Subject.objects.get(login=request.user)
-            else:
-                subject = senses.Subject.objects.get(uuid=subject_uid)
-        except senses.Subject.DoesNotExist:
-            raise exceptions.Forbidden("Unknown subject")
+#             })),
+#             '400': "Bad Request"
+#         }
+#     )
+#     @requires_api_login
+#     def post(self, request, subject_uid=None, pk=None, *args, **kwargs):
+#         try:
+#             if subject_uid is None:
+#                 subject = senses.Subject.objects.get(login=request.user)
+#             else:
+#                 subject = senses.Subject.objects.get(uuid=subject_uid)
+#         except senses.Subject.DoesNotExist:
+#             raise exceptions.Forbidden("Unknown subject")
         
-        data = request.data
-        substance_value = data.get('substance', "")
-        reaction_type_value = data.get('reactionType', "")
-        reactions_value = data.get('reactions', "")
-        # reaction_id = data.get('uid', None)
-        reaction_id = pk
-        active_value = data.get('active', None)
+#         data = request.data
+#         substance_value = data.get('substance', "")
+#         reaction_type_value = data.get('reactionType', "")
+#         reactions_value = data.get('reactions', "")
+#         # reaction_id = data.get('uid', None)
+#         reaction_id = pk
+#         active_value = data.get('active', None)
 
-        if substance_value == "" or reactions_value == "" or (active_value is not None and type(active_value) != type(True)):
-            raise exceptions.BadRequest("Invalid data %s " % data)
+#         if substance_value == "" or reactions_value == "" or (active_value is not None and type(active_value) != type(True)):
+#             raise exceptions.BadRequest("Invalid data %s " % data)
         
-        if active_value is None:
-            active_value = True
+#         if active_value is None:
+#             active_value = True
 
-        try:
-            reaction_type = models.AdverseReactionType.objects.get(name=reaction_type_value)
-        except:
-            raise exceptions.BadRequest("Invalid value %s for reaction_type" % reaction_type_value)
+#         try:
+#             reaction_type = models.AdverseReactionType.objects.get(name=reaction_type_value)
+#         except:
+#             raise exceptions.BadRequest("Invalid value %s for reaction_type" % reaction_type_value)
         
-        if reaction_id:
-            try:
-                adverse_reaction = models.PatientAdverseReaction.objects.get(pk=reaction_id, active=True)
-            except:
-                raise exceptions.BadRequest("Adverse Reaction with pk %s does not exist or has been deleted" % reaction_id)
+#         if reaction_id:
+#             try:
+#                 adverse_reaction = models.PatientAdverseReaction.objects.get(pk=reaction_id, active=True)
+#             except:
+#                 raise exceptions.BadRequest("Adverse Reaction with pk %s does not exist or has been deleted" % reaction_id)
 
-            adverse_reaction.substance = substance_value
-            adverse_reaction.reaction_type = reaction_type
-            adverse_reaction.reactions = reactions_value
-            adverse_reaction.active = active_value
-            adverse_reaction.save()
+#             adverse_reaction.substance = substance_value
+#             adverse_reaction.reaction_type = reaction_type
+#             adverse_reaction.reactions = reactions_value
+#             adverse_reaction.active = active_value
+#             adverse_reaction.save()
 
-        else:
-            adverse_reaction = models.PatientAdverseReaction.objects.create(
-                    subject=subject,
-                    substance=substance_value, 
-                    reaction_type=reaction_type,
-                    reactions=reactions_value,
-                    active=active_value,
-                    )
+#         else:
+#             adverse_reaction = models.PatientAdverseReaction.objects.create(
+#                     subject=subject,
+#                     substance=substance_value, 
+#                     reaction_type=reaction_type,
+#                     reactions=reactions_value,
+#                     active=active_value,
+#                     )
 
 
-        serializer = self.serializer_class([adverse_reaction], many=True)
-        return Response(serializer.data, status=status.HTTP_200_OK)
+#         serializer = self.serializer_class([adverse_reaction], many=True)
+#         return Response(serializer.data, status=status.HTTP_200_OK)
 
 
 # class PrescriptionQueryAPIView(APIView):
@@ -456,49 +477,16 @@ class PrescriptionAPIView(APIView):
 
 
     @swagger_auto_schema(
-        tags=['Prescription'], 
-        operation_description="GET /meds/prescription/",
-        operation_summary="Query prescription",
+        tags=['Medication'], 
+        operation_description="GET /prescription/medication/",
+        operation_summary="Query medication",
         responses={
-            '200': openapi.Schema(
-                type=openapi.TYPE_ARRAY,
-                items=openapi.Schema(
-                type=openapi.TYPE_OBJECT,
-                    properties={
-                        "id": openapi.Schema(type=openapi.TYPE_NUMBER, description='Prescription Id'),
-                        "taking_reason": openapi.Schema(type=openapi.TYPE_NUMBER, description='Taking reason for prescription'),
-                        "taking_hint": openapi.Schema(type=openapi.TYPE_STRING, description='Taking hint for prescription'),
-                        "compoundName": openapi.Schema(type=openapi.TYPE_STRING, description='Compound name of prescrioption'),
-                        "compoundId": openapi.Schema(type=openapi.TYPE_STRING, description='Compound Id of prescrioption'),
-                        "dosage_form": openapi.Schema(type=openapi.TYPE_STRING, description='dosage form of compound'),
-                        "activeComponents": openapi.Schema(type=openapi.TYPE_ARRAY,
-                              items=openapi.Schema(type=openapi.TYPE_STRING, description='name of activeComponent'),
-                              description='activeComponent name'),
-                        "medicationAdverseReactions": openapi.Schema(type=openapi.TYPE_STRING, description='medicationAdverseReactions of compound'),
-                        "schedules": openapi.Schema(
-                              type=openapi.TYPE_ARRAY,
-                              items=openapi.Schema(
-                                  type=openapi.TYPE_OBJECT,
-                                  properties={
-                                      'id': openapi.Schema(type=openapi.TYPE_NUMBER, description='Taking Id'),
-                                      'display': openapi.Schema(type=openapi.TYPE_STRING, description='Taking details'),
-                                  },
-                                  description='Taking item'),
-                              description='Takings of prescription'),
-                        "prescrEvent": openapi.Schema(
-                              type=openapi.TYPE_OBJECT,
-                              properties={
-                                  'start': openapi.Schema(type=openapi.TYPE_STRING, description='Start time string of prescription'),
-                                  'end': openapi.Schema(type=openapi.TYPE_STRING, description='End time string of prescription'),
-                              },
-                              description='Prescription Events'),
-
-            })),
+            '200': docs.prescr_res,
             '400': "Bad Request"
         }
     )
     @requires_api_login
-    def get(self, request, subject_uid=None, pk=None, *args, **kwargs):
+    def get(self, request, subject_uid=None, id=None, *args, **kwargs):
 
         try:
             if subject_uid is None:
@@ -509,7 +497,7 @@ class PrescriptionAPIView(APIView):
             raise exceptions.Forbidden("Unknown subject")
 
         # prescr_id = request.GET.get('id', None)
-        prescr_id = pk
+        prescr_id = id
         if prescr_id:
             try:
                 prescr = med_models.Prescription.objects.select_related(
@@ -538,8 +526,7 @@ class PrescriptionAPIView(APIView):
                 'status')[0]
 
 
-            except Exception as err:
-                print(err)
+            except:
                 raise exceptions.BadRequest("Prescription with pk '%s' does not exist or is inactive" % prescr_id)
             serializer = self.serializer_class([prescr], many=True)
 
@@ -575,57 +562,17 @@ class PrescriptionAPIView(APIView):
 
 
     @swagger_auto_schema(
-        tags=['Prescription'], 
-        operation_description="POST /meds/prescription/",
-        operation_summary="Create/update prescription",
-        request_body=openapi.Schema(
-                type=openapi.TYPE_OBJECT,
-                properties={
-                    "compoundName": openapi.Schema(type=openapi.TYPE_STRING, description='Compound Nane'),
-                    "taking_reason": openapi.Schema(type=openapi.TYPE_STRING, description='Reason of taking compound'),
-                    "taking_hint": openapi.Schema(type=openapi.TYPE_STRING, description='Hint of taking compound'),
-                    "medicationAdverseReactions": openapi.Schema(type=openapi.TYPE_STRING, description='medicationAdverseReactions - seperated by comma'),
-                    "medicationType": openapi.Schema(type=openapi.TYPE_STRING, description='medicationType - PRN/Regular'),
-                }
-        ),
+        tags=['Medication'], 
+        operation_description="POST /prescription/medication/",
+        operation_summary="Create/update medication",
+        request_body=docs.prescr_req,
         responses={
-            '200': openapi.Schema(
-                type=openapi.TYPE_OBJECT,
-                    properties={
-                        "id": openapi.Schema(type=openapi.TYPE_NUMBER, description='Prescription Id'),
-                        "taking_reason": openapi.Schema(type=openapi.TYPE_NUMBER, description='Taking reason for prescription'),
-                        "taking_hint": openapi.Schema(type=openapi.TYPE_STRING, description='Taking hint for prescription'),
-                        "compoundName": openapi.Schema(type=openapi.TYPE_STRING, description='Compound name of prescrioption'),
-                        "compoundId": openapi.Schema(type=openapi.TYPE_STRING, description='Compound Id of prescrioption'),
-                        "dosage_form": openapi.Schema(type=openapi.TYPE_STRING, description='dosage form of compound'),
-                        "activeComponents": openapi.Schema(type=openapi.TYPE_ARRAY,
-                              items=openapi.Schema(type=openapi.TYPE_STRING, description='name of activeComponent'),
-                              description='activeComponent name'),
-                        "medicationAdverseReactions": openapi.Schema(type=openapi.TYPE_STRING, description='medicationAdverseReactions of compound'),
-                        "schedules": openapi.Schema(
-                              type=openapi.TYPE_ARRAY,
-                              items=openapi.Schema(
-                                  type=openapi.TYPE_OBJECT,
-                                  properties={
-                                      'id': openapi.Schema(type=openapi.TYPE_NUMBER, description='Taking Id'),
-                                      'display': openapi.Schema(type=openapi.TYPE_STRING, description='Taking details'),
-                                  },
-                                  description='Taking item'),
-                              description='Takings of prescription'),
-                        "prescrEvent": openapi.Schema(
-                              type=openapi.TYPE_OBJECT,
-                              properties={
-                                  'start': openapi.Schema(type=openapi.TYPE_STRING, description='Start time string of prescription'),
-                                  'end': openapi.Schema(type=openapi.TYPE_STRING, description='End time string of prescription'),
-                              },
-                              description='Prescription Events'),
-
-            }),
+            '200': docs.prescr_res,
             '400': "Bad Request"
         }
     )
     @requires_api_login
-    def post(self, request, subject_uid=None, pk=None, *args, **kwargs):  
+    def post(self, request, subject_uid=None, id=None, *args, **kwargs):  
 
         try:
             if subject_uid is None:
@@ -636,30 +583,35 @@ class PrescriptionAPIView(APIView):
             raise exceptions.Forbidden("Unknown subject")
         
 
-        prescr_id = pk
+        prescr_id = id
         # prescr_id = data.get('id', None)
 
+        # filter extra fields that are not allowed for storing history records
         def process_request_data(request_data):
             data = {
-              'compoundName': request_data.get('compoundName', None),
-              'taking_reason': request_data.get('taking_reason', ""),
-              'taking_hint': request_data.get('taking_hint', ""),
+              'compound': request_data.get('compound', None),
+              'reason': request_data.get('reason', ""),
+              'hint': request_data.get('hint', ""),
               'medicationAdverseReactions': request_data.get("medicationAdverseReactions", ""),
               'medicationType': request_data.get('medicationType', None),
-              'prescription_start': request_data.get('prescription_start', None),
-              'prescription_end': request_data.get('prescription_end', None),      
+              'startDate': request_data.get('startDate', None),
+              'endDate': request_data.get('endDate', None),    
+              'active': request_data.get('active', None),    
             }
             return data
 
         processed_data = process_request_data(request.data) ## filter unnessary data fields
-        processed_data['id'] = str(prescr_id)
-        compound_name = processed_data.get('compoundName', None)
-        taking_reason = processed_data.get('taking_reason', "")
-        taking_hint = processed_data.get('taking_hint', "")
-        med_reactions = processed_data.get("medicationAdverseReactions", "")
+        processed_data['id'] = str(prescr_id) if prescr_id else None
+        compound_obj = processed_data.get('compound', None)
+        if not compound_obj or not compound_obj.get('id', None):
+            raise exceptions.BadRequest("Invalid data. Missing compound id")
+        taking_reason = processed_data.get('reason', "")
+        taking_hint = processed_data.get('hint', "")
+        active = processed_data.get('active', None)  
+        # med_reactions = processed_data.get("medicationAdverseReactions", "")
         medication_type = processed_data.get('medicationType', None)
-        p_start = processed_data.get('prescription_start', None)
-        p_end = processed_data.get('prescription_end', None)
+        p_start = processed_data.get('startDate', None)
+        p_end = processed_data.get('endDate', None)
 
         start_date = None
         if p_start:
@@ -673,19 +625,19 @@ class PrescriptionAPIView(APIView):
 
         if medication_type and medication_type not in const.MEDICATION_TYPE_VALUES:
             raise exceptions.BadRequest("Invalid data '%s' for medicationType" % medication_type)
-
+        if active is not None and type(active) != bool:
+            raise exceptions.BadRequest("Invalid data '%s' " % processed_data)
         if prescr_id:
             try:
                 prescr = med_models.Prescription.objects.get(pk=prescr_id, status__name=med_const.PRESCRIPTION_STATUS__ACTIVE)
                 
-            except Exception as err:
-                print(err)
+            except:
                 raise exceptions.BadRequest("Prescription with id '%s' does not exist or is inactive" % prescr_id)
 
-            if prescr.compound.name != compound_name:
-                raise exceptions.BadRequest("Compound with name '%s' does not match the compound of the given prescription with pk '%s'" % (compound_name, prescr_id))
+            if prescr.compound.uid != compound_obj['id']:
+                raise exceptions.BadRequest("Compound with id '%s' does not match the compound of the given prescription with pk '%s'" % (compound_obj['id'], prescr_id))
 
-            update_or_create_med_adverse_reaction(request, med_reactions, prescr.compound)
+            # update_or_create_med_adverse_reaction(request, med_reactions, prescr.compound)
             update_or_create_med_type(request, medication_type, prescr)
 
             with reversionrevisions.create_revision():
@@ -701,16 +653,19 @@ class PrescriptionAPIView(APIView):
 
             prescr.taking_hint = taking_hint
             prescr.taking_reason =  taking_reason
+            if active is not None and active is False:
+                prescr_stauts_inactive = med_models.PrescriptionStatus.objects.get(name=med_const.PRESCRIPTION_STATUS__INACTIVE)
+                prescr.status = prescr_stauts_inactive
             prescr.save()
 
 
         else:
             p_status = med_models.PrescriptionStatus.objects.get(name="Active")
-            compound = med_models.Compound.objects.filter(name=compound_name, source__default=True).last()
+            compound = med_models.Compound.objects.filter(uid=compound_obj['id'], source__default=True).last()
             if not compound or compound.source.default is not True:
-                raise exceptions.BadRequest("Compound with name '%s' does not exist or its source is inactive" % compound_name)
+                raise exceptions.BadRequest("Compound with id '%s' does not exist or its source is inactive" % compound_obj['id'])
 
-            update_or_create_med_adverse_reaction(request, med_reactions, compound)
+            # update_or_create_med_adverse_reaction(request, med_reactions, compound)
 
             with reversionrevisions.create_revision():
                 reversionrevisions.set_user(get_system_user())
@@ -726,11 +681,11 @@ class PrescriptionAPIView(APIView):
             update_or_create_med_type(request, medication_type, prescr)
 
         # save change history
-        if not processed_data.get('id', None):
+        if processed_data.get('id', None) is None:
             processed_data['id'] = str(prescr.pk)
         record = models.MedicationRelatedHistoryData.objects.add_data_change_record(prescr, processed_data)
         # prepare object for response
-        prescr = med_models.Prescription.objects.get(pk=prescr.pk, status__name=med_const.PRESCRIPTION_STATUS__ACTIVE)
+        prescr = med_models.Prescription.objects.get(pk=prescr.pk)
         serializer = self.serializer_class([prescr], many=True)
 
         return Response(serializer.data, status=status.HTTP_200_OK)
@@ -758,12 +713,16 @@ class PrescriptionHistoryAPIView(APIView):
     serializer_class = tcc_serializers.MedPrescriptionSerializer
 
     @swagger_auto_schema(
-        tags=['Prescription'], 
-        operation_description="GET /meds/prescription/histroy/",
+        tags=['Medication'], 
+        operation_description="GET /prescription/medication/{id}/histroy/",
         operation_summary="Query prescription history",
+        responses={
+          '200': docs.prescr_history_res,
+          '400': 'Bad request'
+        }
     )
     @requires_api_login
-    def get(self, request, subject_uid=None, pk=None, *args, **kwargs):
+    def get(self, request, subject_uid=None, id=None, *args, **kwargs):
         try:
             if subject_uid is None:
                 subject = senses.Subject.objects.get(login=request.user)
@@ -773,10 +732,10 @@ class PrescriptionHistoryAPIView(APIView):
             raise exceptions.Forbidden("Unknown subject")
 
         try:
-            prescr = med_models.Prescription.objects.select_related('compound').get(pk=pk, status__name=med_const.PRESCRIPTION_STATUS__ACTIVE)
+            prescr = med_models.Prescription.objects.select_related('compound').get(pk=id, status__name=med_const.PRESCRIPTION_STATUS__ACTIVE)
         except Exception as err:
             print(err)
-            raise exceptions.BadRequest("Prescription with pk '%s' does not exist or is inactive" % pk)
+            raise exceptions.BadRequest("Prescription with id '%s' does not exist or is inactive" % id)
 
         qs = models.MedicationRelatedHistoryData.objects.get_history_data(prescr)
 
@@ -804,6 +763,8 @@ class PrescriptionHistoryAPIView(APIView):
 
         return Response(results, status=status.HTTP_200_OK)
 
+
+
 class MedicationAdverseReactionAPIView(APIView):
 
     authentication_classes = [KiolaAuthentication,]
@@ -811,32 +772,16 @@ class MedicationAdverseReactionAPIView(APIView):
     serializer_class = tcc_serializers.MedicationAdverseReactionSerializer
 
     @swagger_auto_schema(
-        tags=['MedicationAdverseReaction'], 
-        operation_description="GET /meds/medreaction/",
-        operation_summary="Query MedicationAdverseReaction",
+        tags=['Reaction'], 
+        operation_description="GET /prescription/reaction/",
+        operation_summary="Query Reaction",
         responses={
-            '200': openapi.Schema(
-                type=openapi.TYPE_ARRAY,
-                items=openapi.Schema(
-                type=openapi.TYPE_OBJECT,
-                    properties={
-                        "pk": openapi.Schema(type=openapi.TYPE_NUMBER, description='Medication Adverse Reaction Id'),
-                        "uid": openapi.Schema(type=openapi.TYPE_NUMBER, description='Medication Adverse Reaction Uid'),
-                        "compoundId": openapi.Schema(type=openapi.TYPE_STRING, description='Compound ID of this Adverse reaction item'),
-                        "compoundName": openapi.Schema(type=openapi.TYPE_STRING, description='dosage of taking'),
-                        "reactionType": openapi.Schema(type=openapi.TYPE_STRING, description='Type of adverse reaction - Allergy/Side Effect/Intolerance/Idiosyncratic/Unknown'),
-                        "reactions": openapi.Schema(type=openapi.TYPE_STRING, description='reaction details'),
-                        "editor": openapi.Schema(type=openapi.TYPE_STRING, description='editor of this reaction item '),
-                        "created": openapi.Schema(type=openapi.TYPE_STRING, description='created time of this reaction item  '),
-                        "updated": openapi.Schema(type=openapi.TYPE_STRING, description='updated time of this reaction item '),
-                        "active": openapi.Schema(type=openapi.TYPE_STRING, description='Status of this reaction item - false indicates deleted'),
-
-            })),
+            '200': docs.adverse_reaction_res,
             '400': "Bad Request"
         }
     )
     @requires_api_login
-    def get(self, request, subject_uid=None, pk=None, *args, **kwargs):
+    def get(self, request, subject_uid=None, id=None, *args, **kwargs):
         try:
             if subject_uid is None:
                 subject = senses.Subject.objects.get(login=request.user)
@@ -846,13 +791,13 @@ class MedicationAdverseReactionAPIView(APIView):
             raise exceptions.Forbidden("Unknown subject")
 
         # reaction_id = request.GET.get('id', None)
-        reaction_id = pk
+        reaction_id = id
         if reaction_id:
             try:
-                reaction_item = models.MedicationAdverseReaction.objects.get(pk=reaction_id)
+                reaction_item = models.MedicationAdverseReaction.objects.get(uid=reaction_id)
             except Exception as err:
                 print(err)
-                raise exceptions.BadRequest("MedicationAdverseReaction with pk '%s' does not exist" % reaction_id)
+                raise exceptions.BadRequest("MedicationAdverseReaction with id '%s' does not exist" % reaction_id)
             serializer = self.serializer_class([reaction_item], many=True)
 
         else:
@@ -869,39 +814,17 @@ class MedicationAdverseReactionAPIView(APIView):
 
 
     @swagger_auto_schema(
-        tags=['MedicationAdverseReaction'], 
-        operation_description="POST /meds/medreaction/",
-        operation_summary="Create/update MedicationAdverseReaction",
-        request_body=openapi.Schema(
-                type=openapi.TYPE_OBJECT,
-                properties={
-                    "medicationId": openapi.Schema(type=openapi.TYPE_NUMBER, description='Prescription Id'),
-                    "reactionType": openapi.Schema(type=openapi.TYPE_STRING, description='Type of adverse reaction - Allergy/Side Effect/Intolerance/Idiosyncratic/Unknown'),
-                    "reactions": openapi.Schema(type=openapi.TYPE_STRING, description='reaction details'),
-                    "active": openapi.Schema(type=openapi.TYPE_STRING, description='Status of this reaction item - false indicates deleted'),
-                },
-                description='Schedule item of taking '
-        ),
+        tags=['Reaction'], 
+        operation_description="POST /prescription/reaction/",
+        operation_summary="Create/Update Reaction",
+        request_body=docs.adverse_reaction_req,
         responses={
-            '200': openapi.Schema(
-                type=openapi.TYPE_OBJECT,
-                properties={
-                    "pk": openapi.Schema(type=openapi.TYPE_NUMBER, description='Medication Adverse Reaction Id'),
-                    "uid": openapi.Schema(type=openapi.TYPE_NUMBER, description='Medication Adverse Reaction Uid'),
-                    "compoundId": openapi.Schema(type=openapi.TYPE_STRING, description='Compound ID of this Adverse reaction item'),
-                    "compoundName": openapi.Schema(type=openapi.TYPE_STRING, description='dosage of taking'),
-                    "reactionType": openapi.Schema(type=openapi.TYPE_STRING, description='Type of adverse reaction - Allergy/Side Effect/Intolerance/Idiosyncratic/Unknown'),
-                    "reactions": openapi.Schema(type=openapi.TYPE_STRING, description='reaction details'),
-                    "editor": openapi.Schema(type=openapi.TYPE_STRING, description='editor of this reaction item '),
-                    "created": openapi.Schema(type=openapi.TYPE_STRING, description='created time of this reaction item  '),
-                    "updated": openapi.Schema(type=openapi.TYPE_STRING, description='updated time of this reaction item '),
-                    "active": openapi.Schema(type=openapi.TYPE_STRING, description='Status of this reaction item - false indicates deleted'),
-            }),
+            '200': docs.adverse_reaction_res,
             '400': "Bad Request"
         }
     )
     @requires_api_login
-    def post(self, request, subject_uid=None, pk=None, *args, **kwargs):  
+    def post(self, request, subject_uid=None, id=None, *args, **kwargs):  
         try:
             if subject_uid is None:
                 subject = senses.Subject.objects.get(login=request.user)
@@ -912,43 +835,45 @@ class MedicationAdverseReactionAPIView(APIView):
 
         data = request.data
         # reaction_id = data.get('uid', None)
-        reaction_id = pk
+        reaction_id = id
         prescr_id = data.get('medicationId', None)
         reaction_type_name = data.get('reactionType', None)
         reactions = data.get('reactions', None)
+        active = data.get('active', None)
 
         if not prescr_id or not reaction_type_name or not reactions:
+            raise exceptions.BadRequest("Invalid data '%s' " % data)
+        if active is not None and type(active) != bool:
             raise exceptions.BadRequest("Invalid data '%s' " % data)
 
         try:
             prescr = med_models.Prescription.objects.select_related('compound').get(pk=prescr_id, status__name=med_const.PRESCRIPTION_STATUS__ACTIVE)
-        except Exception as err:
-            print(err)
-            raise exceptions.BadRequest("Prescription with pk '%s' does not exist or is inactive" % prescr_id)
-
+        except:
+            raise exceptions.BadRequest("Prescription with id '%s' does not exist or is inactive" % prescr_id)
+          
         try:
             reaction_type = models.AdverseReactionType.objects.get(name=reaction_type_name)
-        except Exception as err:
-            print(err)
+        except:
             raise exceptions.BadRequest("AdverseReactionType with name '%s' does not exist" % reaction_type_name)
 
         compound = prescr.compound
 
         if reaction_id:
             try:
-                reaction_item = models.MedicationAdverseReaction.objects.get(pk=reaction_id)
+                reaction_item = models.MedicationAdverseReaction.objects.get(uid=reaction_id)
                 reaction_item.compound = compound
                 reaction_item.reaction_type = reaction_type
                 reaction_item.reactions = reactions
                 reaction_item.editor = request.user
+                if active is not None:
+                    reaction_item.active = active
                 reaction_item.save()
-            except Exception as err:
-                print(err)
-                raise exceptions.BadRequest("MedicationAdverseReaction with pk '%s' does not exist" % reaction_id)
+            except:
+                raise exceptions.BadRequest("MedicationAdverseReaction with id '%s' does not exist" % reaction_id)
 
         else:
             reaction_item, created = models.MedicationAdverseReaction.objects.get_or_create(
-                compound=compound, reaction_type=reaction_type, reactions=reactions, editor=request.user)
+                compound=compound, reaction_type=reaction_type, reactions=reactions, editor=request.user, active=True)
 
         serializer = self.serializer_class([reaction_item], many=True)
 
@@ -962,38 +887,16 @@ class TakingSchemaAPIView(APIView):
     serializer_class = tcc_serializers.ScheduledTakingSerializer
 
     @swagger_auto_schema(
-        tags=['Scheduled Items'], 
-        operation_description="GET /meds/scheduleitem/",
-        operation_summary="Query ScheduledItem",
+        tags=['Schedule'], 
+        operation_description="GET /prescription/schedule/",
+        operation_summary="Query Schedule",
         responses={
-            '200': openapi.Schema(
-                type=openapi.TYPE_ARRAY,
-                items=openapi.Schema(
-                type=openapi.TYPE_OBJECT,
-                    properties={
-                        "id": openapi.Schema(type=openapi.TYPE_NUMBER, description='Taking Id'),
-                        "medicationId": openapi.Schema(type=openapi.TYPE_NUMBER, description='Prescription Id'),
-                        "strength": openapi.Schema(type=openapi.TYPE_STRING, description='strength of compound / medication product'),
-                        "dosage": openapi.Schema(type=openapi.TYPE_STRING, description='dosage of taking'),
-                        "formulation": openapi.Schema(type=openapi.TYPE_STRING, description='formulation of compound'),
-                        "startTime": openapi.Schema(type=openapi.TYPE_STRING, description='startTime of taking'),
-                        "frequency": openapi.Schema(type=openapi.TYPE_STRING, description='frequency of taking - daily/weekly/fornightly/monthly/once-only '),
-                        "reminder": openapi.Schema(type=openapi.TYPE_BOOLEAN, description='should set reminder for taking '),
-                        "clinic_scheduled": openapi.Schema(type=openapi.TYPE_BOOLEAN, description='whether the last editor of this taking is a clinician '),
-                        "schedule": openapi.Schema(
-                            type=openapi.TYPE_OBJECT,
-                            properties={
-                                "type": openapi.Schema(type=openapi.TYPE_STRING, description='schedule type - solar or custom '),
-                                "time": openapi.Schema(type=openapi.TYPE_BOOLEAN, description='schedule time - morning/noon/afternoon/night or custom time string '),
-                            },
-                            description='schedule time of taking '
-                        ),
-            })),
+            '200': docs.taking_res,
             '400': "Bad Request"
         }
     )
     @requires_api_login
-    def get(self, request, subject_uid=None, pk=None, *args, **kwargs):
+    def get(self, request, subject_uid=None, id=None, *args, **kwargs):
 
         try:
             if subject_uid is None:
@@ -1004,7 +907,7 @@ class TakingSchemaAPIView(APIView):
             raise exceptions.Forbidden("Unknown subject")
 
         # taking_id = request.GET.get('id', None)
-        taking_id = pk
+        taking_id = id
         if taking_id:
             try:
                 taking_item = models.ScheduledTaking.objects.annotate(prescr_id=
@@ -1012,7 +915,7 @@ class TakingSchemaAPIView(APIView):
                 ).get(pk=taking_id)
             except Exception as err:
                 print(err)
-                raise exceptions.BadRequest("ScheduledTaking with pk '%s' does not exist" % taking_id)
+                raise exceptions.BadRequest("ScheduledTaking with id '%s' does not exist" % taking_id)
             serializer = self.serializer_class([taking_item], many=True)
 
         else:
@@ -1031,72 +934,42 @@ class TakingSchemaAPIView(APIView):
 
 
     @swagger_auto_schema(
-        tags=['Scheduled Items'], 
-        operation_description="POST /meds/scheduleitem/",
-        operation_summary="Create/update ScheduledItem",
-        request_body=openapi.Schema(
-                type=openapi.TYPE_OBJECT,
-                properties={
-                    "medicationId": openapi.Schema(type=openapi.TYPE_NUMBER, description='Prescription Id'),
-                    "strength": openapi.Schema(type=openapi.TYPE_STRING, description='strength of compound / medication product'),
-                    "dosage": openapi.Schema(type=openapi.TYPE_STRING, description='dosage of taking'),
-                    "formulation": openapi.Schema(type=openapi.TYPE_STRING, description='formulation of compound'),
-                    "startTime": openapi.Schema(type=openapi.TYPE_STRING, description='startTime of taking'),
-                    "frequency": openapi.Schema(type=openapi.TYPE_STRING, description='frequency of taking - daily/weekly/fornightly/monthly/once-only '),
-                    "reminder": openapi.Schema(type=openapi.TYPE_BOOLEAN, description='should set reminder for taking '),
-                    "schedule": openapi.Schema(
-                        type=openapi.TYPE_OBJECT,
-                        properties={
-                            "type": openapi.Schema(type=openapi.TYPE_STRING, description='schedule type - solar or custom '),
-                            "time": openapi.Schema(type=openapi.TYPE_BOOLEAN, description='schedule time - morning/noon/afternoon/night or custom time string '),
-                        },
-                        description='schedule time of taking '
-                    ),
-                },
-                description='Schedule item of taking '
-        ),
+        tags=['Schedule'], 
+        operation_description="POST /prescription/schedule/",
+        operation_summary="Create/Update Schedule",
+        request_body=docs.taking_req,
         responses={
-            '200': openapi.Schema(
-                type=openapi.TYPE_OBJECT,
-                properties={
-                    "id": openapi.Schema(type=openapi.TYPE_NUMBER, description='Taking Id'),
-                    "medicationId": openapi.Schema(type=openapi.TYPE_NUMBER, description='Prescription Id'),
-                    "strength": openapi.Schema(type=openapi.TYPE_STRING, description='strength of compound / medication product'),
-                    "dosage": openapi.Schema(type=openapi.TYPE_STRING, description='dosage of taking'),
-                    "formulation": openapi.Schema(type=openapi.TYPE_STRING, description='formulation of compound'),
-                    "startTime": openapi.Schema(type=openapi.TYPE_STRING, description='startTime of taking'),
-                    "frequency": openapi.Schema(type=openapi.TYPE_STRING, description='frequency of taking - daily/weekly/fornightly/monthly/once-only '),
-                    "reminder": openapi.Schema(type=openapi.TYPE_BOOLEAN, description='should set reminder for taking '),
-                    "clinic_scheduled": openapi.Schema(type=openapi.TYPE_BOOLEAN, description='whether the last editor of this taking is a clinician '),
-                    "schedule": openapi.Schema(
-                        type=openapi.TYPE_OBJECT,
-                        properties={
-                            "type": openapi.Schema(type=openapi.TYPE_STRING, description='schedule type - solar or custom '),
-                            "time": openapi.Schema(type=openapi.TYPE_BOOLEAN, description='schedule time - morning/noon/afternoon/night or custom time string '),
-                        },
-                        description='schedule time of taking '
-                    ),
-            }),
+            '200': docs.taking_res,
             '400': "Bad Request"
         }
     )
     @requires_api_login
-    def post(self, request, subject_uid=None, pk=None, *args, **kwargs):
+    def post(self, request, subject_uid=None, id=None, *args, **kwargs):
 
 
         data = request.data
         # taking_id = data.get('id', "")
-        taking_id = pk
-        prescr_id = data.get('medicationId', "")
-        schedule = data.get('schedule', None)
-        schedule_type = schedule.get('type', None)
-        schedule_time = schedule.get('time', None)
-        frequency = data.get('frequency', None)
-        reminder = data.get('reminder', False)
-        start_date = data.get('startTime', None)
-        dose = data.get('dosage', None)
-        strength = data.get('strength', None)
-        unit = data.get('formulation', None)
+
+        taking_id = id
+        try:
+            prescr_id = data.get('medicationId', "")
+            schedule_type = data['type']
+            schedule_time = data['time']
+            frequency = data['frequency']
+            reminder = data['reminder']
+            start_date = data['startDate']
+            end_date = data.get('endDate', None)
+            dose = data['dosage']
+            strength = data['strength']
+            unit = data['formulation']
+            hint = data.get('hint', "")
+            active = data.get('active', None)
+
+        except: 
+            raise exceptions.BadRequest("Invalid data '%s'. Missing some of the required fields " % data)
+
+        if active is not None and type(active) != bool:
+            raise exceptions.BadRequest("Invalid data '%s' " % data)
 
         taking = None
         if taking_id:
@@ -1109,7 +982,7 @@ class TakingSchemaAPIView(APIView):
             prescr = med_models.Prescription.objects.get(pk=prescr_id, status__name=med_const.PRESCRIPTION_STATUS__ACTIVE)
         except Exception as err:
             print(err)
-            raise exceptions.BadRequest("Prescription with pk '%s' does not exist or is inactive" % prescr_id)
+            raise exceptions.BadRequest("Prescription with id '%s' does not exist or is inactive" % prescr_id)
         
         if schedule_type == 'custom':
             timepoint = med_models.TakingTimepoint.objects.get(name=schedule_type.lower())
@@ -1128,62 +1001,59 @@ class TakingSchemaAPIView(APIView):
         
         prescr_schema = prescr.prescriptionschema_set.all().first()
         takings = prescr_schema.taking_schema.takings.all().values_list('pk', flat=True)
-        print('takings', takings)
+
         should_new_takingschema = False
         with reversionrevisions.create_revision():
             reversionrevisions.set_user(get_system_user())
             for item in takings:
                 try:
-                    exist = item.scheduledtaking
+                    exist = models.ScheduledTaking.objects.get(pk=item)
                 except:
                     should_new_takingschema = True
                     break
-
-        print('should_new_takingschema', should_new_takingschema)
-        print('taking', taking)
-        print('time', time)
 
         taking_unit, created = med_models.TakingUnit.objects.get_or_create(name=unit)
         if taking:
             if taking.pk not in takings:
                 raise exceptions.BadRequest("Taking with id '%s' does not match the gvien prescription (%s)" % (taking_id, prescr_id))
-            taking.timepoint=timepoint
-            taking.taking_time=time
-            taking.start_date=datetime.strptime(start_date.split("T")[0], "%Y-%m-%d")
-            taking.editor=request.user
-            taking.unit=taking_unit
-            taking.strength=strength
-            taking.dosage=dose
-            taking.reminder=reminder
-            taking.clinic_scheduled=False
-            taking.frequency=models.TakingFrequency.objects.get(name=frequency)
-            taking.save() 
+            if active is not None and active is False:
+                schema = prescr_schema.taking_schema
+                schema.takings.remove(taking)
+                schema.save()
+                # order_taking = med_models.OrderedTaking.objects.get(taking=taking, schema=schema)
+                # order_taking.delete()
+
+            else:
+
+                taking.timepoint=timepoint
+                taking.taking_time=time
+                taking.start_date=datetime.strptime(start_date.split("T")[0], "%Y-%m-%d")
+                taking.end_date=datetime.strptime(end_date.split("T")[0], "%Y-%m-%d") if end_date else None
+                taking.editor=request.user
+                taking.unit=taking_unit
+                taking.strength=strength
+                taking.dosage=dose
+                taking.reminder=reminder
+                taking.clinic_scheduled=False
+                taking.frequency=models.TakingFrequency.objects.get(name=frequency)
+                taking.save() 
 
         else:
             taking = models.ScheduledTaking.objects.create(
                 timepoint=timepoint,
                 taking_time=time,
+                end_date=datetime.strptime(end_date.split("T")[0], "%Y-%m-%d") if end_date else None,  
                 start_date=datetime.strptime(start_date.split("T")[0], "%Y-%m-%d"),
                 editor=request.user,
                 unit=taking_unit,
                 strength=strength,
                 dosage=dose,
+                hint=hint,
                 reminder=reminder,
                 clinic_scheduled=False,
                 frequency=models.TakingFrequency.objects.get(name=frequency)
             )
-            # taking = utils.TakingSchemaScheduled(
-            #     timepoint=timepoint,
-            #     taking_time=time,
-            #     start_date=datetime.strptime(start_date.split("T")[0], "%Y-%m-%d"),
-            #     editor=request.user,
-            #     unit=taking_unit,
-            #     strength=strength,
-            #     dosage=dose,
-            #     reminder=reminder,
-            #     clinic_scheduled=False,
-            #     frequency=models.TakingFrequency.objects.get(name=frequency)
-            # )
+  
             if should_new_takingschema:
                 schema = med_models.TakingSchema.objects.create()
                 med_models.OrderedTaking.objects.create(taking=taking, schema=schema)
@@ -1208,26 +1078,10 @@ class UserPreferenceConfigAPIView(APIView):
 
     @swagger_auto_schema(
         tags=['UserPreferenceConfig'], 
-        operation_description="GET /meds/user-pref/",
+        operation_description="GET /prescription/user_preference_config/",
         operation_summary="Query User Preference Config resources",
         responses={
-            '200': openapi.Schema(
-                type=openapi.TYPE_ARRAY,
-                items=openapi.Schema(
-                    type=openapi.TYPE_OBJECT,
-                    properties={
-                        "indications": openapi.Schema(type=openapi.TYPE_ARRAY, 
-                            items=openapi.Schema(
-                                type=openapi.TYPE_OBJECT,
-                                properties={
-                                    "type": openapi.Schema(type=openapi.TYPE_STRING, description='timepoint morning/noon/afternoon/night'),
-                                    "time": openapi.Schema(type=openapi.TYPE_STRING, description='actual time string of the timepoint'),
-                                }, 
-                            ), 
-                        ),
-                    },
-                    description='user preference config for medication time '
-            )),
+            '200': docs.user_pref_res,
             '400': "Bad Request"
         }
     )
@@ -1242,40 +1096,40 @@ class UserPreferenceConfigAPIView(APIView):
         if data is None: 
             set_default_user_pref_med_time_values(request.user)
             data = models.UserPreferenceConfig.objects.get_value(const.USER_PREFERENCE_KEY__MEDICATION_TIMES, request.user)
-        config_data = {
-            "data": data.values()
-        }
+        config_data = data.values()
         return Response(config_data, status=status.HTTP_200_OK) 
 
 
-    @swagger_auto_schema(
-        tags=['UserPreferenceConfig'], 
-        operation_description="POST /meds/user-pref/",
-        operation_summary="Create/replace UserPreferenceConfig",
-        responses={
-            '200': "Success",
-            '400': "Bad Request"
-        }
-    )
-    @requires_api_login
-    def post(self, request, *args, **kwargs):
-        try:
-            subject = senses.Subject.objects.get(login=request.user)
-        except senses.Subject.DoesNotExist:
-            raise exceptions.Forbidden("Unknown subject")
+    # @swagger_auto_schema(
+    #     tags=['UserPreferenceConfig'], 
+    #     operation_description="POST /prescription/user_preference_config/",
+    #     operation_summary="Create/replace UserPreferenceConfig",
+    #     request_body=docs.user_pref_res,
+    #     responses={
+    #         '200': docs.user_pref_res,
+    #         '400': "Bad Request"
+    #     }
+    # )
+    # @requires_api_login
+    # def post(self, request, *args, **kwargs):
+    #     try:
+    #         subject = senses.Subject.objects.get(login=request.user)
+    #     except senses.Subject.DoesNotExist:
+    #         raise exceptions.Forbidden("Unknown subject")
         
-        data = request.data
-        med_pref_data = data.get('data', None)
-        config_data = {}
-        for item in med_pref_data:
-            config_data[f'{const.USER_PREFERENCE_CONFIG_PREFIX}{item["type"].lower()}'] = item
-        result = models.UserPreferenceConfig.objects.set_value(const.USER_PREFERENCE_KEY__MEDICATION_TIMES, config_data, request.user)
-        return Response({"msg": "Success"}, status=status.HTTP_200_OK)
+    #     data = request.data
+    #     med_pref_data = data.get('data', None)
+    #     config_data = {}
+    #     for item in med_pref_data:
+    #         config_data[f'{const.USER_PREFERENCE_CONFIG_PREFIX}{item["type"].lower()}'] = item
+    #     result = models.UserPreferenceConfig.objects.set_value(const.USER_PREFERENCE_KEY__MEDICATION_TIMES, config_data, request.user)
+    #     return Response({"msg": "Success"}, status=status.HTTP_200_OK)
 
     @swagger_auto_schema(
         tags=['UserPreferenceConfig'], 
-        operation_description="PUT /meds/user-pref/",
+        operation_description="PUT /prescription/user_preference_config/",
         operation_summary="Update UserPreferenceConfig",
+        request_body=docs.user_pref_res,
         responses={
             '200': "Success",
             '400': "Bad Request"
@@ -1288,78 +1142,15 @@ class UserPreferenceConfigAPIView(APIView):
         except senses.Subject.DoesNotExist:
             raise exceptions.Forbidden("Unknown subject")
         
-        data = request.data
-        med_pref_data = data.get('data', None)
+        med_pref_data = request.data
         config_data = models.UserPreferenceConfig.objects.get_value(const.USER_PREFERENCE_KEY__MEDICATION_TIMES, request.user)
         for item in med_pref_data:
-            config_data[f'{const.USER_PREFERENCE_CONFIG_PREFIX}{item["type"].lower()}'] = item
+            config_item = config_data.get(f'{const.USER_PREFERENCE_CONFIG_PREFIX}{item["type"]}', None)
+            if config_item is None:
+                raise exceptions.BadRequest("Invalid data for type '%s" % item['type'])
+            config_data[f'{const.USER_PREFERENCE_CONFIG_PREFIX}{item["type"]}'] = item
         result = models.UserPreferenceConfig.objects.set_value(const.USER_PREFERENCE_KEY__MEDICATION_TIMES, config_data, request.user)
-        return Response({"msg": "Success"}, status=status.HTTP_200_OK)
+        config_data = models.UserPreferenceConfig.objects.get_value(const.USER_PREFERENCE_KEY__MEDICATION_TIMES, request.user).values()
+        return Response(config_data, status=status.HTTP_200_OK)
 
 
-class CompoundSearchAPIView(APIView):
-
-    pagination_class = BasicPagination
-    serializer_class = tcc_serializers.CompoundSerializer
-    authentication_classes = [KiolaAuthentication,]
-
-    max_count = 80
-
-    @swagger_auto_schema(
-        tags=['Compound'], 
-        operation_description="GET /meds/compound/search/",
-        operation_summary="Search Compound resources",
-        manual_parameters=[
-            openapi.Parameter('compound', openapi.IN_QUERY, type=openapi.TYPE_STRING, required=False),
-            openapi.Parameter('active_components', openapi.IN_QUERY, type=openapi.TYPE_STRING, required=False)
-        ],
-        responses={
-            '200': openapi.Schema(
-                type=openapi.TYPE_ARRAY,
-                items=openapi.Schema(
-                    type=openapi.TYPE_OBJECT,
-                    properties={
-                        "pk": openapi.Schema(type=openapi.TYPE_NUMBER, description='pk of  compound'),
-                        "uid": openapi.Schema(type=openapi.TYPE_STRING, description='uid of  compound / medication product'),
-                        "name": openapi.Schema(type=openapi.TYPE_STRING, description='name of  compound / medication product'),
-                        "source": openapi.Schema(type=openapi.TYPE_STRING, description='name of  compound source'),
-                        "indications": openapi.Schema(type=openapi.TYPE_ARRAY, items=openapi.Schema(type=openapi.TYPE_STRING), description='indications of compound '),
-                        "activeComponents": openapi.Schema(type=openapi.TYPE_STRING, description='activeComponents of  compound '),
-                        "dosage_form": openapi.Schema(type=openapi.TYPE_STRING, description='dosage_form of  compound '),
-                        "dosage_form_ref": openapi.Schema(type=openapi.TYPE_STRING, description='dosage_form_ref of  compound '),
-                    }
-            )),
-            '400': "Bad Request"
-        }
-    )
-    @requires_api_login
-    def get(self, request, subject_uid=None, *args, **kwargs):
-        
-        query = request.GET
-
-        compound_name=query.get('compound', None)
-        active_component=query.get('active_components', None)
-        template = med_models.Compound.objects.select_related('source').annotate(active_components_name=F('active_components__name'))
-
-
-        if compound_name:
-            if len(compound_name) < 3:
-                msg = {'message': "Please enter at least 3 characters for better search results."}
-                return Response(msg, status=status.HTTP_200_OK)
-            qs = template.filter(source__default=True, name__icontains=compound_name)
-
-        elif active_component:
-            if len(active_component) < 3:
-                msg = {'message': "Please enter at least 3 characters for better search results."}
-                return Response(msg, status=status.HTTP_200_OK)
-            qs = template.filter(source__default=True, active_components__name__icontains=active_component)
-
-        else:
-            raise exceptions.BadRequest("Invalid data. Please make sure either compound or active_component is provided.")
-
-        if qs.count() > self.max_count:
-            msg = {'message': "More than %(max)s results found (%(amount)s). Please refine your search.." % {'max': self.max_count, 'amount': qs.cound()}}
-            return Response(msg, status=status.HTTP_200_OK)
-
-        serializer = self.serializer_class(qs, many=True)
-        return Response(serializer.data, status=status.HTTP_200_OK)

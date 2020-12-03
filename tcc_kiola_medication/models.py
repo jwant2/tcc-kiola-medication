@@ -95,14 +95,13 @@ class ScheduledTaking(med_models.BaseTaking):
     TYPE_SHORT = const.TAKING_SCHEMA_TYPE__SCHEDULED
     formatter = utils.ScheduleTakingSchemaFormatter
 
-
     timepoint = models.ForeignKey(med_models.TakingTimepoint, on_delete=models.CASCADE)
     taking_time = models.TimeField(blank=False)
     start_date = models.DateField(blank=False)
-    # end_date = models.DateField(blank=False)
+    end_date = models.DateField(blank=True, null=True)
     dosage = models.CharField(max_length=100)
     strength = models.CharField(max_length=100)
-    # hint = models.TextField() # taking_hint
+    hint = models.TextField() # taking_hint
     unit = models.ForeignKey(med_models.TakingUnit, on_delete=models.PROTECT)
     reminder = models.BooleanField(default=False)
     editor = models.ForeignKey(get_user_model(), on_delete=models.CASCADE)
@@ -118,6 +117,8 @@ class ScheduledTaking(med_models.BaseTaking):
                 "dosage": self.dosage,
                 "unit": self.unit.name,
                 "start_date": self.start_date,
+                "end_date": self.end_date,
+                "hint": self.hint,
                 "frequency": self.frequency.name,
                 "editor": self.editor.username,
                 "clinic_scheduled": self.clinic_scheduled,
@@ -192,8 +193,11 @@ class UserPreferenceConfig(models.Model):
 class CompoundExtraInformation(models.Model):
     
     compound = models.ForeignKey(med_models.Compound, on_delete=models.CASCADE)
-    name = models.CharField(max_length=100, unique=True)
+    name = models.CharField(max_length=100)
     value = models.TextField()
+
+    class Meta:
+        unique_together = (('compound', 'name'),)
 
     def as_dict(self):
         return {
@@ -211,8 +215,11 @@ class CompoundExtraInformation(models.Model):
 class PrescriptionExtraInformation(models.Model):
     
     prescription = models.ForeignKey(med_models.Prescription, on_delete=models.CASCADE)
-    name = models.CharField(max_length=100, unique=True)
+    name = models.CharField(max_length=100)
     value = models.TextField()
+
+    class Meta:
+        unique_together = (('prescription', 'name'),)
 
     def as_dict(self):
         return {
@@ -240,7 +247,6 @@ class MedicationRelatedHistoryDataManager(PermissionModelManager):
         ct = ContentType.objects.get(model=data_object._meta.model_name)
         object_id = data_object.id
         qs = self.filter(content_type=ct, object_id=object_id)
-        print('get_history_data qs', qs)
         return qs
 
 
