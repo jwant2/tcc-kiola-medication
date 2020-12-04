@@ -1,7 +1,10 @@
 from django.contrib import admin
+from django.utils.translation import ugettext_lazy as _
+from django.utils.safestring import mark_safe
 
 from kiola.utils.admin import KIOLAAdmin
-from . import models
+from kiola.kiola_pharmacy import models as pharmacy_models
+from . import models, forms
 
 class AdverseReactionTypeAdmin(KIOLAAdmin):
     list_display = ["name"]
@@ -37,3 +40,46 @@ class MedicationRelatedHistoryDataAddmin(KIOLAAdmin):
     list_display = ["content_object", "data", "created"]
 
 admin.site.register(models.MedicationRelatedHistoryData, MedicationRelatedHistoryDataAddmin)
+
+
+class CompoundImport(pharmacy_models.ImportHistory):
+    class Meta:
+        proxy=True
+        verbose_name = _("Compound Import")
+        verbose_name_plural = _("Compound Import")
+
+
+class CompoundImportAdmin(KIOLAAdmin):
+    # change_form_template = "admin/test_form.html"
+    list_filter = ("status","started","ended")
+
+    def get_status(self,instance):
+        if instance.status == "F":
+            color   = "red"
+            message = "Failed"
+        elif instance.status == "C":
+            color   = "green"
+            message = "Completed"
+        elif instance.status == "S":
+            color   = "yellow"
+            message = "Started"
+        else:
+            color   = "grey"
+            message = "?"
+        return mark_safe("<span style=\"color:%s\">%s</span>" % ( color , message ))
+        
+    list_display = [ "started" , "ended" , "get_status" , "source_file"  ]
+
+    def get_queryset(self, request):
+        return pharmacy_models.ImportHistory.objects.all()
+
+    def get_form(self, request, obj=None, **kwargs):
+        if not obj:
+            kwargs['form'] = forms.CompoundImportHistoryForm
+        return super(CompoundImportAdmin, self).get_form(request, obj, **kwargs)
+
+    def change_form_title(self, object_id):
+        return str(pharmacy_models.ImportHistory._default_manager.get(pk=object_id))
+
+admin.site.register(CompoundImport, CompoundImportAdmin)
+

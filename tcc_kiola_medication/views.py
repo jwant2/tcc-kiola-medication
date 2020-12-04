@@ -96,90 +96,100 @@ def index(request):
     # print('results', results)
     return HttpResponse()
 
-## TODO: move to admin views
-def medication_upload(request):
+# ## TODO: move to admin views
+# def medication_upload(request):
 
 
-    template =  "medicationsModule/medication_upload.html"
+#     template =  "medicationsModule/medication_upload.html"
 
-    prompt = {'instructions':'Upload CSV'}
+#     prompt = {'instructions':'Upload CSV'}
 
-    if request.method == "GET":
-        return render(request,template,prompt)
+#     if request.method == "GET":
+#         return render(request,template,prompt)
 
-    csv_file = request.FILES['file']
+#     csv_file = request.FILES['file']
 
-    if not csv_file.name.endswith('.csv'):
-        messages.error(request, 'This is not a csv file')
+#     if not csv_file.name.endswith('.csv'):
+#         messages.error(request, 'This is not a csv file')
 
-    data_set = csv_file.read().decode('UTF-8')
-    io_string = io.StringIO(data_set)
-    next(io_string)
-    error_logs = []
+#     data_set = csv_file.read().decode('UTF-8')
+#     io_string = io.StringIO(data_set)
+#     next(io_string)
+#     error_logs = []
 
-    with transaction.atomic():
-        ImportHistory.objects.filter(status="S").update(status="F")
-    # lock access to this table
-    with transaction.atomic():
-        running_import = ImportHistory.objects.create(status="S", source_file=csv_file.name)
-    with reversionrevisions.create_revision():
-        reversionrevisions.set_user(get_system_user())
-        name = "Prince of Wales"
-        default_source_exsits = CompoundSource.objects.filter(default=True).count() > 0
-        source, created = CompoundSource.objects.get_or_create(name=name,
-                                  version="1.1",
-                                  language=ISOLanguage.objects.get(alpha2='en'),
-                                  country=ISOCountry.objects.get(alpha2="AU"),
-                                  group="POW",
-                                  default= False if default_source_exsits else True,
-                                )
+#     with transaction.atomic():
+#         ImportHistory.objects.filter(status="S").update(status="F")
+#     # lock access to this table
+#     with transaction.atomic():
+#         running_import = ImportHistory.objects.create(status="S", source_file=csv_file.name)
+#     with reversionrevisions.create_revision():
+#         reversionrevisions.set_user(get_system_user())
+#         name = "Prince of Wales"
+#         version = "1.1"
+#         group = "POW"
+#         default_source_exsits = CompoundSource.objects.filter(default=True).count() > 0
+#         source, created = CompoundSource.objects.get_or_create(name=name,
+#                                   version=version,
+#                                   language=ISOLanguage.objects.get(alpha2='en'),
+#                                   country=ISOCountry.objects.get(alpha2="AU"),
+#                                   group=group,
+#                                   default= False if default_source_exsits else True,
+#                                 )
 
-        for column in csv.reader(io_string, delimiter=',', quotechar='"', quoting=csv.QUOTE_ALL):
-            try:
-                if ActiveComponent.objects.filter(name=column[0]).count() == 0:
-                    ac,  created = ActiveComponent.objects.get_or_create(name=column[0], name_ref=column[4])
-                else:
-                    ac = ActiveComponent.objects.get(name=column[0])
+#         for column in csv.reader(io_string, delimiter=',', quotechar='"', quoting=csv.QUOTE_ALL):
+#             try:
+#                 if ActiveComponent.objects.filter(name=column[0]).count() == 0:
+#                     ac,  created = ActiveComponent.objects.get_or_create(name=column[0], name_ref=column[4])
+#                 else:
+#                     ac = ActiveComponent.objects.get(name=column[0])
+#                 prn_value = column[32]
+#                 if prn_value == "Yes":
+#                     med_type = const.MEDICATION_TYPE_VALUE__PRN
+#                 else: 
+#                     med_type = const.MEDICATION_TYPE_VALUE__REGULAR
+                
+#                 dosageform=column[26]
+#                 dosageform_ref = dosageform[:3].upper()
 
-                dosageform=column[26]
-                dosageform_ref = dosageform[:3].upper()
+#                 if dosageform == "":
+#                     dosageform = "N/A"
+#                     dosageform_ref = "N/A"
+#                 Product.objects.update_or_create(
+#                     unique_id=column[4],
+#                     title=column[1],
+#                     defaults = {
+#                         'title':column[1],
+#                         'unique_id':column[4],
+#                         'meta_data':'{"active_components": {"'+str(ac.id)+'":"'+ac.name+'"}, "SCH/PRN": "'+prn_value+'", "dosage_form": {"'+dosageform_ref+'": "'+dosageform+'"}}'
+#                     }
+#                 )
 
-                if dosageform == "":
-                    dosageform = "N/A"
-                    dosageform_ref = "N/A"
-                Product.objects.update_or_create(
-                    unique_id=column[4],
-                    title=column[1],
-                    defaults = {
-                        'title':column[1],
-                        'unique_id':column[4],
-                        'meta_data':'{"active_components": {"'+str(ac.id)+'":"'+ac.name+'"}, "dosage_form": {"'+dosageform_ref+'": "'+dosageform+'"}}'
-                    }
-                )
+#                 compound, created = Compound.objects.update_or_create(
+#                     uid=column[4],
+#                     name=column[1],
+#                     defaults = {'source':source,'name':column[1],'dosage_form':column[26]}
+#                   )
+#                 active_components = compound.active_components.all()
+#                 compound.active_components.add(ac)
+#                 compound.save()
 
-                compound, created = Compound.objects.update_or_create(
-                    uid=column[4],
-                    name=column[1],
-                    defaults = {'source':source,'name':column[1],'dosage_form':column[26]}
-                  )
-                active_components = compound.active_components.all()
-                compound.active_components.add(ac)
-                compound.save()
+#                 prn, created = models.CompoundExtraInformation.objects.get_or_create(compound=compound, name=const.COMPOUND_EXTRA_INFO_NAME__MEDICATION_TYPE)
+#                 prn.value = med_type
+#                 prn.save()
 
+#             except Exception as error:
+#                 error_log = {'error_msg': str(error), 'error_data': column}
+#                 error_logs.append(error_log)
 
-            except Exception as error:
-                error_log = {'error_msg': str(error), 'error_data': column}
-                error_logs.append(error_log)
-
-    ## FIXME: return proper info for the process result
-    context = {}
-    with transaction.atomic():
-        # release access to this table
-        running_import.status = "C"
-        running_import.details = error_logs
-        running_import.ended = timezone.now()
-        running_import.save()
-    return render(request, template, context)
+#     ## FIXME: return proper info for the process result
+#     context = {}
+#     with transaction.atomic():
+#         # release access to this table
+#         running_import.status = "C"
+#         running_import.details = error_logs
+#         running_import.ended = timezone.now()
+#         running_import.save()
+#     return render(request, template, context)
 
 
 class BasicPagination(PageNumberPagination):
