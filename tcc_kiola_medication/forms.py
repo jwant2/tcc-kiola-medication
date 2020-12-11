@@ -106,6 +106,11 @@ class CompoundImportHistoryForm(ModelForm):
                 if dosageform == "":
                     dosageform = "N/A"
                     dosageform_ref = "N/A"
+                else:
+                    unit, created = med_models.TakingUnit.objects.get_or_create(name=dosageform)
+                    if created:
+                        unit.descrition=dosageform_ref
+                        unit.save
 
                 # create or update medication product data
                 pharmacy_models.Product.objects.update_or_create(

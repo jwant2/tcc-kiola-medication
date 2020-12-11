@@ -464,6 +464,17 @@ def update_or_create_med_type(request, medication_type: str, prescription: med_m
     prn.save()
     return prn
 
+def update_prescription_displayable_taking(prescription):
+    takings = models.ScheduledTaking.objects.filter(takingschema__prescriptionschema__prescription=prescription)
+    taking_strings = []
+    for taking in takings:
+        taking_strings.append(taking.get_displayable())
+    seperator = " | "
+    displayable_taking = seperator.join(taking_strings)
+    prescription.displayable_taking = displayable_taking
+    prescription.save()
+    return displayable_taking
+
 class PrescriptionHistoryAPIView(APIView):
 
     authentication_classes = [KiolaAuthentication,]
@@ -831,6 +842,8 @@ def process_taking_request(request, data, taking_id, prescr_id, schedule_type, s
                 ## FIXME: need to check if there is an existing taking for same prescr and timepoint?
                 med_models.OrderedTaking.objects.create(taking=taking, schema=schema)
                 schema.save()
+
+        update_prescription_displayable_taking(prescr)
 
         return taking
 
