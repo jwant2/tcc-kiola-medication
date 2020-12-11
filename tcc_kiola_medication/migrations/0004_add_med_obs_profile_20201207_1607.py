@@ -16,6 +16,15 @@ def setup_med_obs_profile(apps, schema_editor):
             pyxtures.Pyxture().setup_medication_observation_profile()
 
 
+def add_patient_compound_source(apps, schema_editor):
+
+    from reversion import revisions as reversion
+    from kiola.utils.commons import get_system_user
+    from kiola.kiola_senses import const
+    from .. import pyxtures
+
+    pyxtures.Pyxture().create_patient_enter_compound_source()
+
 def undo_noop(apps, schema_editor):
     pass
 
@@ -28,4 +37,5 @@ class Migration(migrations.Migration):
 
     operations = [
         migrations.RunPython(setup_med_obs_profile, undo_noop),
+        migrations.RunPython(add_patient_compound_source, undo_noop),
     ]

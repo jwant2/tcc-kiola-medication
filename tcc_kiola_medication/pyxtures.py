@@ -3,6 +3,8 @@ from kiola.kiola_senses import models as senses_models
 from kiola.kiola_senses import const as senses_const
 from kiola.cares import const as cares_const
 from kiola.utils.pyxtures import Pyxture as BasePyxture
+from kiola.kiola_med import models as med_models, const as med_const
+from diplomat.models import ISOLanguage, ISOCountry
 
 from . import const
 class Pyxture(BasePyxture):
@@ -12,7 +14,7 @@ class Pyxture(BasePyxture):
 
     def dev(self):
         self.setup_medication_observation_profile()
-  
+        self.create_patient_enter_compound_source()
     def setup_medication_observation_profile(self):
 
 
@@ -103,3 +105,14 @@ class Pyxture(BasePyxture):
         senses_models.RelatedObservationProfile.objects.get_or_create(
             parent=parent, child=new_obs, num_occurences=num_occurences
         )
+
+
+    def create_patient_enter_compound_source(self):
+        source, created = med_models.CompoundSource.objects.get_or_create(name=const.COMPOUND_SOURCE_NAME__TCC,
+                                  version=const.COMPOUND_SOURCE_VERSION__PATIENT,
+                                  description=const.COMPOUND_SOURCE_DESCRIPTION__PATIENT_ENTERED,
+                                  language=ISOLanguage.objects.get(alpha2='en'),
+                                  country=ISOCountry.objects.get(alpha2="AU"),
+                                  group="TCC",
+                                  default=False,
+                                )

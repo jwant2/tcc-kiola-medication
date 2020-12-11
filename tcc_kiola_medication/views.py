@@ -3,6 +3,14 @@ from django.shortcuts import get_object_or_404, render, redirect
 from django.urls import reverse
 from django.views import generic    
 from django.utils import timezone
+from django.utils.translation import ugettext_lazy as _
+from django.template import loader
+from django import http
+from django.template.loader import get_template
+
+from functools import reduce
+import operator
+from datetime import datetime
 
 from django.contrib import messages
 import csv, io
@@ -18,7 +26,7 @@ from . import serializers as tcc_serializers
 #from .models import MedCompound
 
 from kiola.kiola_med.models import *
-from kiola.kiola_pharmacy.models import * 
+from kiola.kiola_pharmacy import models as pharmacy_models
 
 from kiola.utils import authentication
 from kiola.utils.drf import KiolaAuthentication
@@ -59,8 +67,12 @@ from kiola.kiola_med import models as med_models
 from kiola.kiola_med import const as med_const
 from kiola.kiola_med import utils as med_utils
 from kiola.utils import exceptions
+import kiola.utils.forms as utils_forms
 
-from . import models, const, utils, docs
+from . import models, const, utils, docs, forms
+from rest_framework.decorators import api_view, renderer_classes
+from rest_framework import serializers as drf_serializers
+
 #
 from rest_framework.authentication import SessionAuthentication, BaseAuthentication
 from rest_framework.permissions import IsAuthenticated
@@ -70,126 +82,9 @@ from drf_yasg import openapi
 
 from django.db import transaction
 
-def index(request):
-    from reversion_compare.mixins import CompareMixin
-
-    qs2 = re_models.Version.objects.get_for_object_reference(med_models.Prescription, 65).order_by('pk').annotate(date_created=F('revision__date_created'))
-
-    # print('test1,', test1)
-    mixin = CompareMixin()
-    compare_data, has_unfollowed_fields = mixin.compare(qs2[4].object, qs2[3], qs2[4])
-    print('compare_data', compare_data)
-    # print()
-    # print('raw1', qs2[3].field_dict)
-    # print('raw2', qs2[4].field_dict)
-    for item in qs2:
-        print()
-        print('raw', item.field_dict)
-        print('revision', item.revision)
-    # se1 = tcc_serializers.MedPrescriptionSerializer(qs2[3].object)
-    # se2 = tcc_serializers.MedPrescriptionSerializer(qs2[4].object)
-    # print('se1', se1.data)
-    # print('se2', se2.data)
 
 
-    # value = { k : second_dict[k] for k in set(second_dict) - set(first_dict) }
-    # print('results', results)
-    return HttpResponse()
 
-# ## TODO: move to admin views
-# def medication_upload(request):
-
-
-#     template =  "medicationsModule/medication_upload.html"
-
-#     prompt = {'instructions':'Upload CSV'}
-
-#     if request.method == "GET":
-#         return render(request,template,prompt)
-
-#     csv_file = request.FILES['file']
-
-#     if not csv_file.name.endswith('.csv'):
-#         messages.error(request, 'This is not a csv file')
-
-#     data_set = csv_file.read().decode('UTF-8')
-#     io_string = io.StringIO(data_set)
-#     next(io_string)
-#     error_logs = []
-
-#     with transaction.atomic():
-#         ImportHistory.objects.filter(status="S").update(status="F")
-#     # lock access to this table
-#     with transaction.atomic():
-#         running_import = ImportHistory.objects.create(status="S", source_file=csv_file.name)
-#     with reversionrevisions.create_revision():
-#         reversionrevisions.set_user(get_system_user())
-#         name = "Prince of Wales"
-#         version = "1.1"
-#         group = "POW"
-#         default_source_exsits = CompoundSource.objects.filter(default=True).count() > 0
-#         source, created = CompoundSource.objects.get_or_create(name=name,
-#                                   version=version,
-#                                   language=ISOLanguage.objects.get(alpha2='en'),
-#                                   country=ISOCountry.objects.get(alpha2="AU"),
-#                                   group=group,
-#                                   default= False if default_source_exsits else True,
-#                                 )
-
-#         for column in csv.reader(io_string, delimiter=',', quotechar='"', quoting=csv.QUOTE_ALL):
-#             try:
-#                 if ActiveComponent.objects.filter(name=column[0]).count() == 0:
-#                     ac,  created = ActiveComponent.objects.get_or_create(name=column[0], name_ref=column[4])
-#                 else:
-#                     ac = ActiveComponent.objects.get(name=column[0])
-#                 prn_value = column[32]
-#                 if prn_value == "Yes":
-#                     med_type = const.MEDICATION_TYPE_VALUE__PRN
-#                 else: 
-#                     med_type = const.MEDICATION_TYPE_VALUE__REGULAR
-                
-#                 dosageform=column[26]
-#                 dosageform_ref = dosageform[:3].upper()
-
-#                 if dosageform == "":
-#                     dosageform = "N/A"
-#                     dosageform_ref = "N/A"
-#                 Product.objects.update_or_create(
-#                     unique_id=column[4],
-#                     title=column[1],
-#                     defaults = {
-#                         'title':column[1],
-#                         'unique_id':column[4],
-#                         'meta_data':'{"active_components": {"'+str(ac.id)+'":"'+ac.name+'"}, "SCH/PRN": "'+prn_value+'", "dosage_form": {"'+dosageform_ref+'": "'+dosageform+'"}}'
-#                     }
-#                 )
-
-#                 compound, created = Compound.objects.update_or_create(
-#                     uid=column[4],
-#                     name=column[1],
-#                     defaults = {'source':source,'name':column[1],'dosage_form':column[26]}
-#                   )
-#                 active_components = compound.active_components.all()
-#                 compound.active_components.add(ac)
-#                 compound.save()
-
-#                 prn, created = models.CompoundExtraInformation.objects.get_or_create(compound=compound, name=const.COMPOUND_EXTRA_INFO_NAME__MEDICATION_TYPE)
-#                 prn.value = med_type
-#                 prn.save()
-
-#             except Exception as error:
-#                 error_log = {'error_msg': str(error), 'error_data': column}
-#                 error_logs.append(error_log)
-
-#     ## FIXME: return proper info for the process result
-#     context = {}
-#     with transaction.atomic():
-#         # release access to this table
-#         running_import.status = "C"
-#         running_import.details = error_logs
-#         running_import.ended = timezone.now()
-#         running_import.save()
-#     return render(request, template, context)
 
 
 class BasicPagination(PageNumberPagination):
@@ -332,159 +227,12 @@ class MedObservationProfileAPIView(APIView):
 
 
 
-# class AdverseReactionAPIView(APIView):
-
-#     authentication_classes = [KiolaAuthentication,]
-#     render_classes = [JSONRenderer,]
-#     serializer_class = tcc_serializers.PatientAdverseReactionSerializer
-
-#     @swagger_auto_schema(
-#         tags=['PatientAdverseReaction'], 
-#         operation_description="GET /prescription/adverse_reaction/",
-#         operation_summary="Query PatientAdverseReaction",
-#         responses={
-#             '200': openapi.Schema(
-#                 type=openapi.TYPE_ARRAY,
-#                 items=openapi.Schema(
-#                 type=openapi.TYPE_OBJECT,
-#                     properties={
-#                         "pk": openapi.Schema(type=openapi.TYPE_NUMBER, description='PatientAdverseReaction Id'),
-#                         "uid": openapi.Schema(type=openapi.TYPE_NUMBER, description='PatientAdverseReaction Uid'),
-#                         "substance": openapi.Schema(type=openapi.TYPE_NUMBER, description='substance for AdverseReaction'),
-#                         "reactionType": openapi.Schema(type=openapi.TYPE_STRING, description='Type of adverse reaction - Allergy/Side Effect/Intolerance/Idiosyncratic/Unknown'),
-#                         "reactions": openapi.Schema(type=openapi.TYPE_STRING, description='reaction details'),
-#                         "created": openapi.Schema(type=openapi.TYPE_STRING, description='created time of this reaction item  '),
-#                         "updated": openapi.Schema(type=openapi.TYPE_STRING, description='updated time of this reaction item '),
-#                         "active": openapi.Schema(type=openapi.TYPE_STRING, description='Status of this reaction item - false indicates deleted'),
-
-#             })),
-#             '400': "Bad Request"
-#         }
-#     )
-#     @requires_api_login
-#     def get(self, request, subject_uid=None, pk=None, *args, **kwargs):
-#         try:
-#             if subject_uid is None:
-#                 subject = senses.Subject.objects.get(login=request.user)
-#             else:
-#                 subject = senses.Subject.objects.get(uuid=subject_uid)
-#         except senses.Subject.DoesNotExist:
-#             raise exceptions.Forbidden("Unknown subject")
-
-#         reaction_id = pk
-#         if reaction_id:
-#             try:
-#                 reaction_item = models.PatientAdverseReaction.objects.get(pk=reaction_id)
-#             except Exception as err:
-#                 print(err)
-#                 raise exceptions.BadRequest("PatientAdverseReaction with pk '%s' does not exist" % reaction_id)
-#             serializer = self.serializer_class(reaction_item)
-#         else:
-#             qs = models.PatientAdverseReaction.objects.filter(subject=subject, active=True)
-#             serializer = self.serializer_class(qs, many=True)
-
-#         return Response(serializer.data, status=status.HTTP_200_OK)
-
-#     @swagger_auto_schema(
-#         tags=['PatientAdverseReaction'], 
-#         operation_description="GET /prescription/adverse_reaction/",
-#         operation_summary="Create/update PatientAdverseReaction",
-#         request_body=openapi.Schema(
-#                 type=openapi.TYPE_OBJECT,
-#                 properties={
-#                     "substance": openapi.Schema(type=openapi.TYPE_NUMBER, description='substance for AdverseReaction'),
-#                     "reactionType": openapi.Schema(type=openapi.TYPE_STRING, description='Type of adverse reaction - Allergy/Side Effect/Intolerance/Idiosyncratic/Unknown'),
-#                     "reactions": openapi.Schema(type=openapi.TYPE_STRING, description='reaction details'),
-#                     "active": openapi.Schema(type=openapi.TYPE_STRING, description='Status of this reaction item - false indicates deleted'),
-#                 },
-#         ),
-#         responses={
-#             '200': openapi.Schema(
-#                 type=openapi.TYPE_ARRAY,
-#                 items=openapi.Schema(
-#                 type=openapi.TYPE_OBJECT,
-#                     properties={
-#                         "pk": openapi.Schema(type=openapi.TYPE_NUMBER, description='PatientAdverseReaction Id'),
-#                         "uid": openapi.Schema(type=openapi.TYPE_NUMBER, description='PatientAdverseReaction Uid'),
-#                         "substance": openapi.Schema(type=openapi.TYPE_NUMBER, description='substance for AdverseReaction'),
-#                         "reactionType": openapi.Schema(type=openapi.TYPE_STRING, description='Type of adverse reaction - Allergy/Side Effect/Intolerance/Idiosyncratic/Unknown'),
-#                         "reactions": openapi.Schema(type=openapi.TYPE_STRING, description='reaction details'),
-#                         "created": openapi.Schema(type=openapi.TYPE_STRING, description='created time of this reaction item  '),
-#                         "updated": openapi.Schema(type=openapi.TYPE_STRING, description='updated time of this reaction item '),
-#                         "active": openapi.Schema(type=openapi.TYPE_STRING, description='Status of this reaction item - false indicates deleted'),
-
-#             })),
-#             '400': "Bad Request"
-#         }
-#     )
-#     @requires_api_login
-#     def post(self, request, subject_uid=None, pk=None, *args, **kwargs):
-#         try:
-#             if subject_uid is None:
-#                 subject = senses.Subject.objects.get(login=request.user)
-#             else:
-#                 subject = senses.Subject.objects.get(uuid=subject_uid)
-#         except senses.Subject.DoesNotExist:
-#             raise exceptions.Forbidden("Unknown subject")
-        
-#         data = request.data
-#         substance_value = data.get('substance', "")
-#         reaction_type_value = data.get('reactionType', "")
-#         reactions_value = data.get('reactions', "")
-#         # reaction_id = data.get('uid', None)
-#         reaction_id = pk
-#         active_value = data.get('active', None)
-
-#         if substance_value == "" or reactions_value == "" or (active_value is not None and type(active_value) != type(True)):
-#             raise exceptions.BadRequest("Invalid data %s " % data)
-        
-#         if active_value is None:
-#             active_value = True
-
-#         try:
-#             reaction_type = models.AdverseReactionType.objects.get(name=reaction_type_value)
-#         except:
-#             raise exceptions.BadRequest("Invalid value %s for reaction_type" % reaction_type_value)
-        
-#         if reaction_id:
-#             try:
-#                 adverse_reaction = models.PatientAdverseReaction.objects.get(pk=reaction_id, active=True)
-#             except:
-#                 raise exceptions.BadRequest("Adverse Reaction with pk %s does not exist or has been deleted" % reaction_id)
-
-#             adverse_reaction.substance = substance_value
-#             adverse_reaction.reaction_type = reaction_type
-#             adverse_reaction.reactions = reactions_value
-#             adverse_reaction.active = active_value
-#             adverse_reaction.save()
-
-#         else:
-#             adverse_reaction = models.PatientAdverseReaction.objects.create(
-#                     subject=subject,
-#                     substance=substance_value, 
-#                     reaction_type=reaction_type,
-#                     reactions=reactions_value,
-#                     active=active_value,
-#                     )
-
-
-#         serializer = self.serializer_class([adverse_reaction], many=True)
-#         return Response(serializer.data, status=status.HTTP_200_OK)
-
-
-# class PrescriptionQueryAPIView(APIView):
-
-#     authentication_classes = [KiolaAuthentication,]
-#     render_classes = [JSONRenderer,]
-#     serializer_class = tcc_serializers.MedPrescriptionSerializer
 
 class PrescriptionAPIView(APIView):
 
     authentication_classes = [KiolaAuthentication,]
     render_classes = [JSONRenderer,]
     serializer_class = tcc_serializers.MedPrescriptionSerializer
-
-
 
     @swagger_auto_schema(
         tags=['Medication'], 
@@ -755,7 +503,7 @@ class PrescriptionHistoryAPIView(APIView):
             A = qs[i].data
             B = qs[i+1].data 
             value = {x:(A[x], B[x]) for x in B if x in A if B[x] != A[x]}
-            print('value', value)
+
             if value:
                 temp = []
                 for item in value:
@@ -818,7 +566,6 @@ class MedicationAdverseReactionAPIView(APIView):
                 subject=subject,
                 status__name=med_const.PRESCRIPTION_STATUS__ACTIVE).values_list('compound__pk', flat=True)
             )
-            print('qs', qs)
             serializer = self.serializer_class(qs, many=True)
         return Response(serializer.data, status=status.HTTP_200_OK)
 
@@ -867,7 +614,6 @@ class MedicationAdverseReactionAPIView(APIView):
             raise exceptions.BadRequest("AdverseReactionType with name '%s' does not exist" % reaction_type_name)
 
         compound = prescr.compound
-
         if reaction_id:
             try:
                 reaction_item = models.MedicationAdverseReaction.objects.get(uid=reaction_id)
@@ -978,6 +724,15 @@ class TakingSchemaAPIView(APIView):
         except: 
             raise exceptions.BadRequest("Invalid data '%s'. Missing some of the required fields " % data)
 
+        taking = process_taking_request(request, data, taking_id, prescr_id, schedule_type, schedule_time, frequency, reminder, start_date, end_date, dose, strength, unit, hint, active)
+        
+        serializer = self.serializer_class([models.ScheduledTaking.objects.annotate(prescr_id=
+                    F('takingschema__prescriptionschema__prescription')
+                ).get(pk=taking.pk)], many=True)
+
+        return Response(serializer.data, status=status.HTTP_200_OK)
+
+def process_taking_request(request, data, taking_id, prescr_id, schedule_type, schedule_time, frequency, reminder, start_date, end_date, dose, strength, unit, hint, active, clinic_scheduled=False):
         if active is not None and type(active) != bool:
             raise exceptions.BadRequest("Invalid data '%s' " % data)
 
@@ -1041,10 +796,11 @@ class TakingSchemaAPIView(APIView):
                 taking.end_date=datetime.strptime(end_date.split("T")[0], "%Y-%m-%d") if end_date else None
                 taking.editor=request.user
                 taking.unit=taking_unit
+                taking.hint=hint
                 taking.strength=strength
                 taking.dosage=dose
                 taking.reminder=reminder
-                taking.clinic_scheduled=False
+                taking.clinic_scheduled=clinic_scheduled
                 taking.frequency=models.TakingFrequency.objects.get(name=frequency)
                 taking.save() 
 
@@ -1060,7 +816,7 @@ class TakingSchemaAPIView(APIView):
                 dosage=dose,
                 hint=hint,
                 reminder=reminder,
-                clinic_scheduled=False,
+                clinic_scheduled=clinic_scheduled,
                 frequency=models.TakingFrequency.objects.get(name=frequency)
             )
   
@@ -1075,12 +831,8 @@ class TakingSchemaAPIView(APIView):
                 ## FIXME: need to check if there is an existing taking for same prescr and timepoint?
                 med_models.OrderedTaking.objects.create(taking=taking, schema=schema)
                 schema.save()
-        
-        serializer = self.serializer_class([models.ScheduledTaking.objects.annotate(prescr_id=
-                    F('takingschema__prescriptionschema__prescription')
-                ).get(pk=taking.pk)], many=True)
 
-        return Response(serializer.data, status=status.HTTP_200_OK)
+        return taking
 
 class UserPreferenceConfigAPIView(APIView):
     authentication_classes = [KiolaAuthentication,]
@@ -1164,3 +916,206 @@ class UserPreferenceConfigAPIView(APIView):
         return Response(config_data, status=status.HTTP_200_OK)
 
 
+class TCCPrescriptionView(kiola_views.KiolaSubjectView):
+    fid = None
+    sid = None
+    template_name = 'list/tcc_prescription.html'
+
+    def get(self, request, *args, **kwargs):
+        self.fid = kwargs.get('fid', None)
+        self.sid = kwargs.get('sid', None)
+        return super(TCCPrescriptionView, self).get(request, *args, **kwargs)
+
+    # override for getting back to prescription item page
+    def get_success_url(self):
+        """
+        Returns the supplied success URL.
+        """
+        if self.fid:
+            url = reverse('med:prescription', args=(self.request.subject_uid, self.fid))
+        else:
+            url = reverse('med:prescription_index', args=(self.request.subject_uid,))
+        return url
+
+    def get_form_kwargs(self):
+        kwargs = super(TCCPrescriptionView, self).get_form_kwargs()
+        if kwargs['initial'].get('status', None) not in [med_models.PrescriptionStatus.objects.get(name=med_const.PRESCRIPTION_STATUS__ACTIVE).pk, None]:
+            kwargs.update({'_kiola_option__disabled': True})
+        return kwargs
+
+    # override for getting back to prescription item page
+    def form_valid(self, form):
+        try:
+            self.process_form(form)
+        except utils_forms.FormProcessingError:
+            return self.form_invalid(form)
+
+        if form.fid and not self.fid:
+            self.fid = form.fid
+        messages.success(self.request, self.get_success_message(form))
+        return HttpResponseRedirect(self.get_success_url())
+
+    def get_context_data(self, **kwargs):
+        super(TCCPrescriptionView, self).get_context_data(**kwargs)
+        # get language code of compound source
+        try:
+            language_code = med_models.CompoundSource.objects.filter(name=const.COMPOUND_SOURCE_NAME__TCC).order_by("pk")[0].language.terminology[:2]
+        except IndexError:
+            language_code = settings.LANGUAGE_CODE[0:2]
+
+        kwargs["current_compound_source"] = med_models.CompoundSource.objects.get_default()
+
+        pill_translated = _(med_const.TAKING_UNIT__PILL).translate(language_code).lower()
+        capsule_translated = _(med_const.TAKING_UNIT__CAPSULE).translate(language_code).lower()
+        search_list = [_(med_const.TAKING_UNIT__PILL).translate(language_code).lower(), _(med_const.TAKING_UNIT__CAPSULE).translate(language_code).lower()]
+        pattern_list = pharmacy_models.ProductDosageForm.objects.filter(
+            reduce(operator.or_, (Q(title__icontains=x) for x in search_list))).values_list(
+            "title", flat=True)
+
+        kwargs["taking_unit_mapping"] = {"pattern_list": list(pattern_list), "value": med_models.TakingUnit.objects.get(name=med_const.TAKING_UNIT__PILL).pk}
+        kwargs["taking_unit_default_value"] = med_models.TakingUnit.objects.get(name=med_const.TAKING_UNIT__UNIT).pk
+        if 'form' not in kwargs:
+            kwargs['form'] = self.get_form()
+
+        if kwargs["form"].initial.get('status', None) not in [med_models.PrescriptionStatus.objects.get(name=med_const.PRESCRIPTION_STATUS__ACTIVE).pk, None]:
+            messages.warning(self.request, _("Prescription is readonly"))
+
+
+        if self.fid:
+            kwargs["taking_form"] = forms.ScheduleTakingForm(initial={"prescription_id": self.fid})
+            prescription = med_models.Prescription.objects.get(pk=self.fid)
+            subject = senses.Subject.objects.get(uuid=self.sid)
+            takings = models.ScheduledTaking.objects.filter(takingschema__prescriptionschema__prescription__pk=self.fid)
+            kwargs["takings"] = takings
+            reactions = models.MedicationAdverseReaction.objects.filter(compound=prescription.compound, editor=subject.login)
+            kwargs["reactions"] = reactions
+
+        return kwargs
+
+
+    def get_form_class(self):
+        """
+        Returns the form class to use in this view
+        """
+        # TODO:cgo:get template name from med configuration
+        # site dependent
+        # for now we return the only available template
+        return forms.TCCPrescriptionForm
+        # return self.form_class
+
+class TakingSchemaResource(resource.Resource):
+
+    def get(self, request, sid=None, id=None, **kwargs):
+        try:
+            subject = senses.Subject.objects.get(uuid=sid)
+        except senses.Subject.DoesNotExist:
+            raise exceptions.Forbidden("Unknown subject")
+
+
+        class Serializer(drf_serializers.ModelSerializer):
+            class Meta:
+                model =  models.ScheduledTaking
+                fields = "__all__"
+
+        # taking_id = request.GET.get('id', None)
+        taking_id = id
+        if taking_id:
+            try:
+                taking_item = models.ScheduledTaking.objects.annotate(prescr_id=
+                    F('takingschema__prescriptionschema__prescription')
+                ).get(pk=taking_id)
+            except:
+                raise exceptions.BadRequest("ScheduledTaking with id '%s' does not exist" % taking_id)
+            serializer = Serializer(taking_item)
+
+        else:
+            raise exceptions.BadRequest("Missing ScheduledTaking id.")
+
+        return HttpResponse(
+            JSONRenderer().render(serializer.data), 
+            content_type=kiola_const.MIME_TYPE__APPLICATION_JSON, 
+            status=status.HTTP_200_OK)
+
+    def post(self, request, sid=None, id=None, fid=None, **kwargs):
+        try:
+            subject = senses.Subject.objects.get(uuid=sid)
+        except senses.Subject.DoesNotExist:
+            raise exceptions.Forbidden("Unknown subject")
+
+        form = forms.ScheduleTakingForm(request.POST)
+        form.is_valid()
+        data = form.cleaned_data
+
+        taking_id = id
+        prescr_id = fid
+        try:
+            schedule_type = "custom" if data['timepoint'].name == "custom" else "solar"
+            schedule_time = data['taking_time'].strftime("%H:%M") if data['taking_time'] and data['timepoint'].name == "custom" else data['timepoint'].name
+            frequency = data['frequency'].name
+            reminder = data.get('reminder')
+            start_date = data['start_date'].strftime("%Y-%m-%d") if data.get('start_date') else None
+            end_date = data.get('end_date').strftime("%Y-%m-%d") if data.get('end_date') else None
+            dose = data['dosage']
+            strength = data['strength']
+            unit = data['unit'].name
+            hint = data.get('hint', "")
+            active = data.get('active')
+        except Exception as err:
+            print('err', err)
+            raise exceptions.BadRequest("Invalid data '%s'. Missing some of the required fields " % data)
+        
+        taking = process_taking_request(request, data, taking_id, prescr_id, schedule_type, schedule_time, frequency, reminder, start_date, end_date, dose, strength, unit, hint, active, clinic_scheduled=True)
+
+        return HttpResponse(status=status.HTTP_200_OK)
+
+
+# replace kiola_med.views.SISAutocompleteResource for adding PRN info
+class TCCAutocompleteResource(resource.Resource):
+    ''' Autocomplete Search results for SIS Database
+    '''
+
+    search_template = 'tcc_sis_search_result.html'
+    max_count = 80
+
+    @authentication.requires_api_login
+    def get(self, request, **kwargs):
+        """returns a rendered template of autocomplete search results
+        """
+
+        try:
+            drug_search = service_providers.service_registry.search("drug_search")
+        except service_providers.NoServiceFound as details:
+            # FIXME : log in backend
+            out = u"<span style=\"color:red\">%s</span>" % _(
+                "The database for drugs is not available at the moment. Please try again later. If the problem persists, please contact our helpdesk.")
+            return http.HttpResponse(out, content_type="text/html")
+        try:
+            drugs = drug_search(request.GET.get('q', ""))
+        except service_providers.ServiceNotAvailable as details:
+            # FIXME : log in backend
+            msg = _("At the moment we are updating the database. Please try again later.")
+            out = u"<span style=\"color:red\">%s</span>" % msg
+            return http.HttpResponse(out, content_type="text/html")
+        if len(drugs) > self.max_count:
+            out = "<span>%s</span>" % _("More than %(max)s results found (%(amount)s). Please refine your search..").translate(
+                get_language()) % {'max': self.max_count, 'amount': len(drugs)}
+            return http.HttpResponse(out, content_type="text/html")
+        t = get_template(self.search_template)
+        html = ""
+        results = []
+        for drug in drugs:
+            prn = models.CompoundExtraInformation.objects.filter(compound__uid=drug["unique_id"], name=const.COMPOUND_EXTRA_INFO_NAME__MEDICATION_TYPE).last()
+            context = {'title': drug["title"],
+                       'unique_id': drug["unique_id"],
+                       'main_indications': list(drug["main_indications"].values())[0],
+                       'dosage_form': list(drug["dosage_form"].values())[0],
+                       'active_components': u", ".join(sorted(drug["active_components"].values())),
+                       'prn': prn.value if prn else None,
+                       'count': drug["count"]
+                       }
+            results.append(t.render(context))
+        html = u"<span class=\"total_count\">%s %s %s</span>\n" % (_("Found").translate(get_language()),
+                                                                   len(drugs), _("results").translate(get_language()))
+        html += u" (%s)\n" % (_("Click on the result to select a compound").translate(get_language()))
+        html = html + "".join(results)
+        return http.HttpResponse(html, content_type="text/html")

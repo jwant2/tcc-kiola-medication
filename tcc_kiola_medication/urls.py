@@ -6,57 +6,23 @@
 from django.conf import settings 
 from django.conf.urls import include, url
 
+from kiola.utils.authorization import permission_required_annotated
 
 from . import views
 
-# from .views import CompoundAPIView, CompoundRudView,  PrescriptionRudView, MedObservationProfileAPIView
-
 urlpatterns = [
-    
-    # url(r"^$", views.index, name='index'),
-    # url(r"upload-csv-old/", views.medication_upload_old, name="medication_upload"),
-    # url(r"upload-csv/", views.medication_upload, name="medication_upload"),
-    #url(r"compounds/", views.CompoundViewSet),
-    # url(r"compoundSource/", views.addCompoundSource),
+    url(r'^m/p/(?P<sid>[a-zA-Z2-9]{21,23})/prescr/add/$',
+        permission_required_annotated(perm="kiola_med.view_index")(views.TCCPrescriptionView.as_view()),
+        name="prescription_add"),
+    url(r'^m/p/(?P<sid>[a-zA-Z2-9]{21,23})/prescr/(?P<fid>\d+)/$',
+        permission_required_annotated(perm="kiola_med.view_index")(views.TCCPrescriptionView.as_view()),
+        name="prescription"),
+    url(r'^m/p/(?P<sid>[a-zA-Z2-9]{21,23})/prescr/(?P<fid>\d+)/schedule/$',
+        permission_required_annotated(perm="kiola_med.view_index")(views.TakingSchemaResource.as_view()),
+        name="taking"),
+    url(r'^m/p/(?P<sid>[a-zA-Z2-9]{21,23})/prescr/(?P<fid>\d+)/schedule/(?P<id>\d+)/$',
+        permission_required_annotated(perm="kiola_med.view_index")(views.TakingSchemaResource.as_view()),
+        name="taking-id"),
 
-
-    # url(r'singleCompound/(?P<pk>\d+)/$', CompoundRudView.as_view(), name='post-rud'),
-
-
-    #url(r"compoundAPI/(?P<pk>\d+)/", CompoundRudView.as_view(), name='post-rud'),
-    #url(r'v(?P<apiv>1)/subjects/(?P<subject_uid>[a-zA-Z0-9\-_]*)/observations/$', views.ObservationResource.as_view(), name="observation"),
-    
-    # url(r"allPrescriptions/", PrescriptionAPIView.as_view(), name='post-listcreater'),
-    # url(r'prescription/(?P<subject_id>\d+)/$', PrescriptionRudView.as_view(), name='post-rud'),
-
-      
-    ## url(r'api/v(?P<apiv>[0-9\.]+)/', include('kiola.kiola_admin.api_urls', namespace="admin_api")),
-
-
-
-
-    #MEDS TESTING:
-    # url(r'prescr/$', views.PrescriptionListView.as_view(), name="prescription_list"),
-
-    # url(r'listPrescriptions/$', views.PrescriptionListAPI.as_view(), name="prescription_listtwo"),
-
-    # #Adverse reactions API - don't have the data/where is it?
-    # url(r'adverse_reaction/$', views.AdverseReactionAPIView.as_view(), name="adverse_reaction"),
-    # url(r"med_obs_profiles/", MedObservationProfileAPIView.as_view(), name='med_obs_profiles'),
-
-    # url(r"compounds/$", CompoundAPIView.as_view(), name='compounds'),
-    # url(r"compounds/(?P<pk>\d+)/$", CompoundAPIView.as_view(), name='compounds'),
-    # url(r"compounds/search/$", views.CompoundSearchAPIView.as_view(), name='compound_search'),
-
-    # # url(r"prescriptions/$", views.PrescriptionAPIView.as_view(), name="prescriptions-add"),
-    # # url(r"prescriptions/(?P<pk>\d+)/$", views.PrescriptionAPIView.as_view(), name="prescriptions-update"),
-    # url(r"prescriptions/$", views.PrescriptionAPIView.as_view(), name="prescriptions"),
-    # url(r"prescriptions/(?P<pk>\d+)/$", views.PrescriptionAPIView.as_view(), name="prescriptions"),
-    # url(r"user-pref/$", views.UserPreferenceConfigAPIView.as_view(), name="user-preference"),
-    # url(r"scheduleitem/$", views.TakingSchemaAPIView.as_view(), name="takings"),
-    # url(r"scheduleitem/(?P<pk>\d+)/$", views.TakingSchemaAPIView.as_view(), name="takings"),
-    # url(r"medreaction/$", views.MedicationAdverseReactionAPIView.as_view(), name="med_adverse_reactions"),
-    # url(r"medreaction/(?P<pk>\d+)/$", views.MedicationAdverseReactionAPIView.as_view(), name="med_adverse_reactions"),
-    
 ]
 

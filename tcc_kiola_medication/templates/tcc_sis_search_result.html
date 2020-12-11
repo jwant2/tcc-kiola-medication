@@ -1,0 +1,27 @@
+{% load i18n %}
+<div class="choice well well-sm lnk" data-uid="{{unique_id}}" data-value="{{title}}" data-dosage="{{dosage_form}}">
+{% if compound_newer_available %}
+<div class="alert alert-info">{% trans 'A different version of the current compound is available in the current default datasource. You may ignore this message after comparing the compound information.' %}
+<p>
+<dt>{{compound_newer.title}}</dt>
+<dd><i>{% trans 'Indication' %}</i>: {{compound_newer.main_indications}}</dd>
+<dd><i>{% trans 'Active components' %}</i>: {{compound_newer.active_components}}</dd>
+<dd><i>{% trans 'Dosage form' %}</i>: {{compound_newer.dosage_form}}</dd>
+{% if compound_newer_available %}
+<dd><i><small>{% trans 'Datasource' %}</i>: {{current_compound_source.name}} {{current_compound_source.version}}</small></dd>
+{% endif %}
+</p>
+</div>
+{% endif %}
+<dt>{{title}}</dt>
+{% if main_indications %}<dd><i>{% trans 'Indication' %}</i>: {{main_indications}}</dd>{% endif %}
+<dd><i>{% trans 'Active components' %}</i>: {{active_components}}</dd>
+<dd><i>{% trans 'Dosage form' %}</i>: {{dosage_form}}</dd>
+{% if prn %}
+<dd><i>{% trans 'SCH/PRN' %}</i>: {{prn}}</dd>
+
+{% endif %}
+{% if compound_newer_available %}
+<dd><i><small>{% trans 'Datasource' %}</i>: {{compound_source.name}} {{compound_source.version}}</small></dd>
+{% endif %}
+</div>

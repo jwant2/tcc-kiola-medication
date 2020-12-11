@@ -1,0 +1,585 @@
+{% extends "cares_base.html" %}
+{% comment %} copied from simple_prescription.html {% endcomment %}
+{% load common_filters %}
+{% load admin_static %}
+{% load widget_tweaks %}
+{% load i18n %}
+{% load defer %}
+{% load med %}
+{% block title %}{% block page_title %}{% trans form.title %}{% endblock %}{% endblock %}
+
+{% block extrastyle %}{{form.media.css}}{% endblock %}
+
+{% block extrajs_top %}
+<script src="{% static 'datepicker/bootstrap-datetimepicker.js' %}"></script>
+<link href="{% static 'datepicker/bootstrap-datetimepicker.min.css' %}" type="text/css" media="all" rel="stylesheet" />
+{{form.media.js}}{% endblock %}
+
+{% block extrajs_bottom %}
+<script src="{% static kiola_frontend_theme|add:'/js/jquery.maskedinput.js' %}"></script>
+<script src="{% static "kiola-ace-extensions/form.js" %}"></script>
+
+{% endblock%}
+
+{% block content %}
+
+<div id="form-content" class="row">
+    <div class="col-sm-12">
+        <div class="panel panel-default">
+            <div class="alert alert-info">
+            <p style="font-weight: bold"> Fields with  <b>*</b> are mandatory.</p>
+            </div>
+          <form class="form-horizontal" method="post" autocomplete="off">
+          {% csrf_token %} 
+            <div class="panel-heading">
+                {% for hidden in form.hidden_fields %}
+                {{ hidden }}
+                {% endfor %}
+                {% csrf_token %}
+                {% include "forms/form_header.html" %}
+            </div>
+            <div class="panel-body">
+                {% include "forms/form_non_field_errors.html" %}
+                <div id="edit-basic">
+                    <h4 class="header blue bolder smaller">{% trans 'Compound' %}</h4>
+                    <div class="row">
+                        {% if not form.fid %}
+                            <div class="col-sm-6">
+                                <div class="row">
+                               <div class="col-sm-3"></div>
+                               <div class="col-sm-9"><small>{% trans "Datasource" %}: {{current_compound_source.name}} {{current_compound_source.version}}</small></div>
+                               </div>                                   
+                                {% include "forms/form_standard_field.html" with field=form.sis_search  input_col="col-sm-12" css_class="input-xxlarge"%}
+                                                                
+                                <div id="selected">
+                                    <span>{% if form.compound_id.value %}
+                                                {% render_sis_compound_info compound_id=form.compound_id.value compound_source=form.compound_source.value %}
+                                            {% else %}
+                                                {% trans 'Nothing selected' %}
+                                            {% endif %}
+                                     </span>
+                                </div>
+                            </div><!-- /.col-sm-6 -->
+                            <div class="col-sm-6">
+                                <div class="widget-box">
+                                    <div class="widget-header widget-header-flat">
+                                        <h4>{% trans 'Search results...' %} <span id="spin_container"></span></h4>
+                                    </div>
+                                    <div class="widget-body">
+                                        <div class="widget-main">
+                                            <div id="med_search_results">
+                                                {% trans 'Please enter your search' %}
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div><!-- /.col-sm-6 -->
+                        {% else %}
+                            <div class="col-sm-12">
+                            {% tcc_render_sis_compound_info compound_id=form.compound_id.value compound_source=form.compound_source.value %}
+                            </div>
+                        {% endif %}
+                    </div><!-- /.row -->
+                    <h4 class="header blue bolder smaller">{% trans 'Prescription' %}</h4>
+                    <div class="row">
+                        {% include "forms/form_standard_field.html" with field=form.ev__prescription_startdate help_text_col=True %}
+                        {% include "forms/form_standard_field.html" with field=form.taking_reason css_class="input-xlarge" input_col="col-sm-5" %}
+                        {% comment %} <div class="panel panel-default">
+                          <div class="panel-body" style="background-color:#F7F7F7"> {% endcomment %}
+   
+                          {% comment %} <div class="form-group">
+                              <label class="col-sm-3 control-label no-padding-right" for="id_{{form.first_name.name}}">{% trans 'Taking schema' %}</label>
+                              <div class="col-sm-9">
+                                  {% include "forms/form_field_error.html" with field=form.taking__morning  %}
+                                  {% render_field form.taking__morning placeholder=form.taking__morning.label class+="input-mini" %}&nbsp;/&nbsp; 
+                                  {% include "forms/form_field_error.html" with field=form.taking__noon %}
+                                  {% render_field form.taking__noon placeholder=form.taking__noon.label class+="input-mini" %}&nbsp;/&nbsp;
+                                  {% include "forms/form_field_error.html" with field=form.taking__evening %}
+                                  {% render_field form.taking__evening placeholder=form.taking__evening.label class+="input-mini" %}&nbsp;/&nbsp;
+                                  {% include "forms/form_field_error.html" with field=form.taking__night %}
+                                  {% render_field form.taking__night placeholder=form.taking__night.label class+="input-mini" %}&nbsp;
+                                  {% include "forms/form_field_error.html" with field=form.taking__unit %}
+                                  {% render_field form.taking__unit class+="input-small" %}
+                              </div>
+                          </div> {% endcomment %}
+                          {% comment %} <div class="form-group">
+                          <div class="col-sm-3 control-label no-padding-right"><span><strong>{% trans 'or' %}</strong></span></div>
+                          <div class="col-sm-9">&nbsp;</div>
+                          </div> {% endcomment %}
+                          {% comment %} {% include "forms/form_standard_field.html" with field=form.taking__text css_class="input-xlarge" input_col="col-sm-5" %} {% endcomment %}
+      
+                          {% comment %} </div>
+                        </div> {% endcomment %}
+
+
+                        
+                        {% include "forms/form_standard_field.html" with field=form.taking_hint  input_col="col-sm-5" %}
+                        {% include "forms/form_standard_field.html" with field=form.ev__prescription_enddate  %}
+                        {% include "forms/form_standard_field.html" with field=form.med_type  %}
+
+                    
+                        <div class="space"></div>
+                    </div><!-- /.row -->
+                    {% if form.fid %}
+                    <h4 class="header blue bolder smaller">{% trans 'Schedule Taking' %}</h4>
+                    <div class="row">
+                        <div class="panel-heading">
+                          <div class="clearfix">
+                              <button class="btn btn-success" type="button" id="new_taking" style="margin-bottom:8px;" >New schedule taking</button>
+                          </div>
+                        </div>
+                        <div class="col-sm-12">
+                            <div class="panel panel-default">
+                              <div class="panel-body no-padding" style="background-color:#F7F7F7">
+                                    <table id="grid-basic" class="table table-bordered table-striped no-margin">
+                                        <thead class="thin-border-bottom">
+                                            <tr>
+                                                <th data-column-id="frequency">{% trans 'Frequency' %}</th>
+                                                <th data-column-id="timepoint">{% trans 'Timepoint' %}</th>
+                                                <th data-column-id="time">{% trans 'Taking time' %}</th>
+                                                <th data-column-id="details">{% trans 'Strength/Dosage/Fomulation' %}</th>
+                                                <th data-column-id="start_date">{% trans 'Start date' %}</th>
+                                                <th data-column-id="end_date">{% trans 'End date' %}</th>
+                                                <th data-column-id="reminder">{% trans 'Reminder' %}</th>
+                                                <th data-column-id="action">{% trans 'Action' %}</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody id="grid-boday">
+                                            {% for obj in takings %} 
+                                                <tr>
+                                                    <td>{{obj.frequency}}</td> <!-- frequency -->
+                                                    <td>{{obj.timepoint}}</td> <!-- timepoint -->
+                                                    <td>{{obj.taking_time}}</td> <!-- time -->
+                                                    <td>{{obj.strength}}/{{obj.dosage}}/{{obj.unit}}</td> <!-- details  (Strength/Dosage/Fomulation)-->
+                                                    <td>{{obj.start_date}}</td> <!-- start_date -->
+                                                    <td>{{obj.end_date}}</td> <!-- end_date -->
+                                                    <td>{{obj.reminder}} </td> <!-- reminder -->
+                                                    <td>
+                                                        <button type="button" class="btn btn-xs confirmaction" 
+                                                            data-placement="bottom"  alt="edit"
+                                                            onclick="editTaking({{obj.pk}})"
+                                                            title="edit">
+                                                        <i class="fa fa-pencil bigger-130"></i>
+                                                        </button>
+                                                        <button type="button" class="btn btn-xs btn-danger confirmaction" 
+                                                            data-placement="bottom"  alt="delete"
+                                                            onclick="removeTaking({{obj.pk}})"
+                                                            title="delete">
+                                                        <i class="fa fa-trash-o bigger-130"></i>
+                                                        </button>
+                                                    </td> <!-- action -->
+                                                </tr>
+                                            {% endfor %}
+
+                                        </tbody>
+                                    </table>
+                              </div> <!-- panel body -->
+                            </div> <!-- panel -->
+                        </div> <!-- col -->
+                    </div>  <!-- row -->
+
+                    {% endif %}
+
+
+                    {% if form.fid %}
+                    <h4 class="header blue bolder smaller">{% trans 'Adverse Reactions' %}</h4>
+                    <div class="row">
+                        <div class="panel-heading">
+    
+                        </div>
+                        <div class="col-sm-12">
+                            <div class="panel panel-default">
+                              <div class="panel-body no-padding" style="background-color:#F7F7F7">
+                                    <table id="grid-basic" class="table table-bordered table-striped no-margin">
+                                        <thead class="thin-border-bottom">
+                                            <tr>
+                                                {% comment %} <th data-column-id="compound">{% trans 'Compound' %}</th> {% endcomment %}
+                                                <th data-column-id="reaction_type">{% trans 'Reaction type' %}</th>
+                                                <th data-column-id="reactions">{% trans 'Reactions' %}</th>
+                                                <th data-column-id="created_at">{% trans 'Created' %}</th>
+                                                <th data-column-id="updated_at">{% trans 'Last updated' %}</th>
+                                                <th data-column-id="status">{% trans 'Status' %}</th>
+
+                                            </tr>
+                                        </thead>
+                                        <tbody id="grid-boday">
+                                            {% for obj in reactions %} 
+                                                <tr>
+                                                    {% comment %} <td>{{obj.compound}}</td> <!-- compound --> {% endcomment %}
+                                                    <td>{{obj.reaction_type}}</td> <!-- reaction_type -->
+                                                    <td>{{obj.reactions}}</td> <!-- reactions -->
+                                                    <td>{{obj.created}}</td> <!-- created_at -->
+                                                    <td>{{obj.updated}}</td> <!-- updated_at -->
+                                                    <td>
+                                                    {% if obj.active is True %}
+                                                        Active
+                                                    {% else %}
+                                                        Deleted
+                                                    {% endif %}
+                                                    </td> <!-- status -->
+                            
+                                                </tr>
+                                            {% endfor %}
+
+                                        </tbody>
+                                    </table>
+                              </div> <!-- panel body -->
+                            </div> <!-- panel -->
+                        </div> <!-- col -->
+                    </div>  <!-- row -->
+
+                    {% endif %}
+
+                </div>
+            </div><!-- /panel-body -->
+            <div class="panel-footer">
+                {% include "forms/form_footer.html" %}
+            </div><!-- /panel-footer -->
+          </form>
+        </div><!--/panel-->
+    </div><!-- /.col-sm-12 -->
+</div><!--/.form-content-->
+
+{% defer_html %}
+<script src="{% static 'autocomplete-fixes.js' %}"></script>
+<script type="text/javascript">
+
+
+
+var spin_opts = {
+        lines: 7, // The number of lines to draw
+        length: 2, // The length of each line
+        width: 3, // The line thickness
+        radius: 5, // The radius of the inner circle
+        corners: 1, // Corner roundness (0..1)
+        rotate: 0, // The rotation offset
+        direction: 1, // 1: clockwise, -1: counterclockwise
+        color: '#000', // #rgb or #rrggbb or array of colors
+        speed: 1, // Rounds per second
+        trail: 60, // Afterglow percentage
+        shadow: false, // Whether to render a shadow
+        hwaccel: false, // Whether to use hardware acceleration
+        className: 'spinner', // The CSS class to assign to the spinner
+        zIndex: 2e9, // The z-index (defaults to 2000000000)
+        top: '20px', // Top position relative to parent in px
+        left: '20px' // Left position relative to parent in px
+      };
+
+$('#id_sis_search').yourlabsAutocomplete({
+    url: '/api/v1/prescription/tcc/',
+    // Hide after 200ms of mouseout
+    hideAfter: 60 * 1000,
+    // Choices are elements with data-url attribute in the autocomplete
+    
+    // Show the autocomplete after only 1 character in the input.
+    minimumCharacters: 2,
+    // Override the placeholder attribute in the input:
+    placeholder: '{% trans 'Enter Compound name here ...' %}',
+    // Append the autocomplete HTML somewhere else:
+    appendAutocomplete: $('#med_search_results'),
+    box : $('#med_search_results'),
+    
+    fixPosition : function() {}, //do not reposition
+    inputBlur: function(){}, // no automatic hide
+    
+    makeXhr : function() {
+        
+    	// turn off workaround
+    	if (/Firefox/i.test(navigator.userAgent)){
+            $(window).off('scroll', $.proxy(this.hide, this));
+    	}
+    	 this.input.addClass('xhr-pending');
+         this.spinner = new Spinner(spin_opts).spin();
+         $('#spin_container').empty();
+         $('#spin_container').append(this.spinner.el);
+        
+        this.xhr = $.ajax(this.url, {
+        	type: 'GET',
+            data: this.data,
+            complete: $.proxy(this.fetchComplete, this)
+        });
+    },
+    
+    fetchComplete: function(jqXHR, textStatus) {
+        if (this.xhr === jqXHR) {
+            // Current request finished.
+            this.xhr = false;
+            this.spinner.stop();
+        } else {
+            // Ignore response from earlier request.
+            return;
+        }
+        // Current request done, nothing else pending.
+        this.input.removeClass('xhr-pending');
+        
+        if (textStatus == 'abort') return;
+        this.show(jqXHR.responseText);
+    }
+})
+
+$('#id_sis_search').bind(
+      'selectChoice',
+      function(e, choice, autocomplete) {
+//          autocomplete.input.val(choice.data('value'));
+          //autocomplete.refresh();
+          //autocomplete.hide()
+          if ($('#selected').find('.well').length){
+        	  $('#selected .well').fadeOut(300, function() {$(this).remove(); });
+          }else{
+        	  $('#selected').empty()
+          }
+          var newElement = moveAnimate(choice,$('#selected'));
+          newElement.find('dt i').remove();
+          newElement.removeClass("lnk");
+          newElement.removeClass("choice");
+          $('#id_compound_id').val(choice.data('uid'));                 
+                      
+          var dosage = choice.data("dosage");
+          var pattern_list = "{{taking_unit_mapping.pattern_list}}";          
+                    
+          if (pattern_list.indexOf(dosage) > -1) {
+              $("#id_taking__unit").val({{taking_unit_mapping.value}});
+          }
+          else {
+              $("#id_taking__unit").val({{taking_unit_default_value}});
+          }
+          $("#id_taking__unit").data('originalOption', $("#id_taking__unit option:selected"));
+      }
+  );
+
+function moveAnimate(element, newParent){
+    element = $(element); //Allow passing in either a JQuery object or selector
+    newParent= $(newParent); //Allow passing in either a JQuery object or selector
+    var oldOffset = element.offset();
+    var newElement= element.clone();
+    
+    newElement.prependTo(newParent);
+
+    var newOffset = newElement.offset();
+    
+    var temp = element.clone().appendTo('body');
+    temp    .css('position', 'absolute')
+            .css('left', oldOffset.left)
+            .css('top', oldOffset.top)
+            .css('zIndex', 1000);
+    newElement.hide();
+    temp.animate( {'top': newOffset.top, 'left':newOffset.left}, 'slow', function(){
+       newElement.show();
+       temp.remove();
+    });
+    return newElement;
+}
+
+
+$(document).ready(function() {
+	
+	$("#id_taking__unit").data('originalOption',$("#id_taking__unit option:selected"));
+	$("#id_taking__unit").on("change",function(e){
+		var source=$(this);
+		var selected = $(source).find("option:selected")
+	    bootbox.confirm("{% trans 'Really change unit '%}"+ " {% trans 'from' %} '"+ $(source).data('originalOption').text() +"' {% trans 'to' %} '" + $(selected).text() + "' ?", function(result) {
+	        if(!result) {
+	            $(source).val($(source).data("originalOption").val());
+	        }
+	        $(source).data("originalOption", $(source).find("option:selected"))
+	    });
+	})
+    
+
+	
+});
+
+
+</script>
+<script type="text/javascript">
+function editTaking(id) {
+
+  $.ajax({
+    headers: {
+      Accept: "application/json; charset=utf-8",
+    },
+    type: 'GET', 
+    url: './schedule/'+id+'/',
+    context: $(this)
+  })
+  .done(function(data) {
+    data.start_date = parseDateString(data.start_date)
+    if (data.end_date) {
+        data.end_date = parseDateString(data.end_date)
+    }
+    $.each(data, function(key, value){
+      element = $('#schedule_taking_form').find('#id_'+key)
+      if (element.length ) {
+          element.val(value)
+      }
+      if ( element.length && key == "reminder") {
+          element.prop('checked', value);
+          element.removeProp('value');
+          element.removeAttr('value');
+      }
+    });
+
+    ele = $('#schedule_taking_form').find('#form_group_taking_time')
+    timepoint = $( "#id_timepoint option:selected" ).text()
+    if (timepoint == "custom") {
+        ele.removeClass("hidden");
+    } else {
+        ele.addClass("hidden");
+    }
+    $('#myModal').modal('show') 
+  
+  })
+ .fail(function(jqXHR, textStatus) {
+      console.log('jqXHR', jqXHR)
+      if(jqXHR.responseJSON && jqXHR.responseJSON["status"]) {
+        alert(jqXHR.responseJSON["status"]);
+      }
+      else {
+        alert("Unexpected server error, logout then login again")
+      }      
+    })
+  .always(function() {
+    $( ".submission-button" ).removeClass("disabled")
+    $(".submission-busy").addClass("hidden")    
+  }); 
+}
+
+
+function removeTaking(id) {
+    $.ajax({
+    headers: {
+      Accept: "application/json; charset=utf-8",
+    },
+    type: 'GET', 
+    url: './schedule/'+id+'/',
+    context: $(this)
+  })
+  .done(function(data) {
+    data.start_date = parseDateString(data.start_date)
+    if (data.end_date) {
+        data.end_date = parseDateString(data.end_date)
+    }
+
+    $.each(data, function(key, value){
+      element = $('#schedule_taking_form').find('#id_'+key)
+      if (element.length) {
+          element.val(value)
+      }
+    });
+
+    $('#schedule_taking_form').find('#id_active').val(false)
+    upload_form($('#schedule_taking_form'), './schedule/'+id+'/')
+  })
+ .fail(function(jqXHR, textStatus) {
+      console.log('jqXHR', jqXHR)
+      if(jqXHR.responseJSON && jqXHR.responseJSON["status"]) {
+        alert(jqXHR.responseJSON["status"]);
+      }
+      else {
+        alert("Unexpected server error, logout then login again")
+      }      
+    })
+  .always(function() {
+    $( ".submission-button" ).removeClass("disabled")
+    $(".submission-busy").addClass("hidden")    
+  }); 
+
+  return false
+
+}
+
+$("#new_taking").on(ace.click_event, function (e) {
+    e.preventDefault();
+    $('#schedule_taking_form').find("input, textarea, select").val(undefined);
+    $('#schedule_taking_form').find("#id_reminder").prop('checked', false);
+    $('#schedule_taking_form').find("#id_reminder").removeAttr('value');
+    output = parseDateString()
+    $('#schedule_taking_form').find('#id_start_date').val(output)
+    $('#myModal').modal('show')  
+});
+
+
+function parseDateString(dateString) {
+    if (dateString){
+        d = new Date(dateString); 
+    } else {
+        d = new Date();
+    }
+    month = d.getMonth()+1;
+    day = d.getDate();
+    output = (day<10 ? '0' : '') + day + '/' +
+        (month<10 ? '0' : '') + month + '/' +
+        d.getFullYear()
+    return output
+}
+
+function upload_form(form, url) {
+  var form_data = form.serialize()
+  // Disable submission button and show spinner before doing slow ajax call
+  $(".submission-button" ).addClass("disabled")
+  $(".submission-busy").removeClass("hidden")
+
+  $.ajax({
+    headers: {
+      Accept: "application/json; charset=utf-8",
+    },
+    type: 'POST', 
+    url: url, 
+    data: form_data,
+    context: $(this)
+  })
+  .done(function(data) {
+    $(window).off('beforeunload');
+    location.reload()
+    $('#myModal').modal('hide');
+  })
+  .fail(function(jqXHR, textStatus) {
+    if(jqXHR.responseJSON && jqXHR.responseJSON["status"]) {
+      alert(jqXHR.responseJSON["status"]);
+    }
+    else {
+      alert("Unexpected server error, logout then login again")
+    }      
+  })
+  .always(function() {
+    $( ".submission-button" ).removeClass("disabled")
+    $(".submission-busy").addClass("hidden")    
+  }); 
+}
+
+
+</script>
+{% end_defer_html %}
+
+
+<div id="myModal" class="modal fade" tabindex="-1" role="dialog">
+  <div class="modal-dialog " role="document"> <!--modal-lg-->
+    <div class="modal-content">
+      <div class="modal-header">
+        <button type="button" class="close" data-dismiss="modal" aria-label="Close"><span aria-hidden="true">&times;</span></button>
+        <h4 class="modal-title">New schedule taking</h4>
+      </div>
+      <div class="modal-body">
+
+        <div class="form_taking">
+            <div class="alert alert-info">
+            <p style="font-weight: bold"> Fields with  <b>*</b> are mandatory.</p>
+            </div>
+            {% include "forms/schedule_taking_form.html" with form=taking_form %}
+
+
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-default" data-dismiss="modal">Cancel</button>
+        <button type="button" class="page_assessment btn btn-primary submission-button" onclick="$('#taking_form_btn').click()">
+          Save<i class="fa fa-refresh fa-spin fa-fw hidden submission-busy"></i><span class="sr-only">Loading...</span>
+        </button>
+      </div>
+    </div><!-- /.modal-content -->
+  </div><!-- /.modal-dialog -->
+</div><!-- /.modal -->  
+
+{% endblock %}
+
+

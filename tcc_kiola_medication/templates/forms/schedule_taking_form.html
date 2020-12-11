@@ -1,0 +1,74 @@
+{% load widget_tweaks %}
+{% load i18n %}
+
+{% include "forms/form_non_field_errors.html" %} 
+<style>
+.content {
+    max-height: 0;
+    overflow: hidden;
+    transition: max-height 0.3s ease-out;
+}
+</style>
+
+<div>
+    <form  id="schedule_taking_form" class="form-horizontal" method="post">
+        {% for hidden in form.hidden_fields %}
+            {{ hidden }}
+        {% endfor %}
+        <div class="row">
+
+            {% for field in form.visible_fields %}
+                {% include "forms/form_standard_field.html" with field=field  input_col="col-sm-11" label_col="col-sm-4" field_col="col-sm-8" css_class="col-xs-12"%}
+            {% endfor %}
+
+            {% comment %} {% include "forms/form_standard_field.html" with field=form.inter1_call1no_outcome  input_col="col-sm-11" label_col="col-sm-4" field_col="col-sm-8" css_class="col-xs-12"%} {% endcomment %}
+            {% comment %} {% include "forms/form_standard_field.html" with field=form.notes  input_col="col-sm-11" label_col="col-sm-4" field_col="col-sm-8" css_class="col-xs-12"%} {% endcomment %}
+        </div>
+        <div><button id="taking_form_btn" type="submit" class="hidden">Save</button></div>
+    </form>
+</div>
+
+<script schedule_taking_form="text/javascript">
+    $('#schedule_taking_form').submit(function(e) {
+        window.onbeforeunload = null
+
+        id = $(this).find('#id_id').val()
+        e.preventDefault();
+        if (id) {
+            upload_form($(this), './schedule/'+id+'/')
+        } else {
+            upload_form($(this), './schedule/')
+        }
+
+        return true;
+    });
+
+    $('#id_timepoint').on('change', function (e){
+        ele = $('#schedule_taking_form').find('#form_group_taking_time')
+        timepoint = $( "#id_timepoint option:selected" ).text()
+        if (timepoint == "custom") {
+            ele.removeClass("hidden");
+        } else {
+            ele.addClass("hidden");
+        }
+    });
+
+  
+    $.fn.serializeObject = function()
+    { 
+      var o = {};
+      var a = this.serializeArray();
+      $.each(a, function() {
+          if (o[this.name]) {
+              if (!o[this.name].push) {
+                  o[this.name] = [o[this.name]];
+              }
+              o[this.name].push(this.value || '');
+          } else {
+              o[this.name] = this.value || '';
+          }
+      });
+      return o;
+    };
+
+</script>

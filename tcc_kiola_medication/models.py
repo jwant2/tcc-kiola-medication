@@ -13,25 +13,7 @@ from django.utils.translation import ugettext_lazy as _, ugettext_noop, get_lang
 from kiola.kiola_med import models as med_models
 from kiola.kiola_senses import models as senses
 from . import utils, const
-#from healthy_heart.models import Compound
 
-# class MedCompound(models.Model):
-#     name = models.CharField(max_length=100)
-
-#     def __str__(self):
-#         return self.name
-
-# class MedCompoundTwo(models.Model):
-#     name = models.CharField(max_length=100)
-
-#     def __str__(self):
-#         return self.name
-
-# class Presc(models.Model):
-#     name = models.CharField(max_length=100)
-
-#     def __str__(self):
-#         return self.name
 
 class AdverseReactionType(models.Model):
     name = models.CharField(max_length=100)
@@ -40,7 +22,7 @@ class AdverseReactionType(models.Model):
         return self.name
 
 class PatientAdverseReaction(models.Model):
-    uid = models.CharField(max_length=100, default=str(uuid.uuid4()))
+    uid = models.UUIDField(unique=True, default=uuid.uuid4, editable=False)
     subject = models.ForeignKey(senses.Subject, on_delete=models.PROTECT)
     substance = models.CharField(max_length=100, blank=False)
     reaction_type = models.ForeignKey(AdverseReactionType, on_delete=models.PROTECT)
@@ -57,7 +39,7 @@ class PatientAdverseReaction(models.Model):
 
 class MedicationAdverseReaction(models.Model):
   
-    uid = models.CharField(max_length=100, default=str(uuid.uuid4()))
+    uid = models.UUIDField(unique=True, default=uuid.uuid4, editable=False)
     compound = models.ForeignKey(med_models.Compound, on_delete=models.CASCADE)
     editor = models.ForeignKey(get_user_model(), on_delete=models.PROTECT)
     reaction_type = models.ForeignKey(AdverseReactionType, on_delete=models.PROTECT)
