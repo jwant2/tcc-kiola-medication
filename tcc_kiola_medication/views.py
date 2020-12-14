@@ -145,8 +145,8 @@ class CompoundAPIView(APIView, PaginationHandlerMixin):
             else:
                  qs = template.filter(source__default=True)
 
-            if qs.count() > self.max_count:
-                msg = {'message': "More than %(max)s results found (%(amount)s). Please refine your search.." % {'max': self.max_count, 'amount': qs.cound()}}
+            if qs.count() > self.max_count and (compound_name or compound_name):
+                msg = {'message': "More than %(max)s results found (%(amount)s). Please refine your search.." % {'max': self.max_count, 'amount': qs.count()}}
                 return Response(msg, status=status.HTTP_200_OK)
 
 
@@ -383,6 +383,9 @@ class PrescriptionAPIView(APIView):
 
         if medication_type and medication_type not in const.MEDICATION_TYPE_VALUES:
             raise exceptions.BadRequest("Invalid data '%s' for medicationType" % medication_type)
+        elif not medication_type:
+            raise exceptions.BadRequest("Invalid data '%s' for medicationType" % medication_type)
+              
         if active is not None and type(active) != bool:
             raise exceptions.BadRequest("Invalid data '%s' " % processed_data)
         if prescr_id:
