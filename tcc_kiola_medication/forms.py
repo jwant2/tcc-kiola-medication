@@ -76,23 +76,33 @@ class CompoundImportHistoryForm(ModelForm):
         with transaction.atomic():
             self.instance = pharmacy_models.ImportHistory.objects.create(status="S", source_file=file_data.name)
 
+        # create new compound source
+        source, created = med_models.CompoundSource.objects.get_or_create(name=const.COMPOUND_SOURCE_NAME__TCC,
+                                  version=version,
+                                  language=ISOLanguage.objects.get(alpha2='en'),
+                                  country=ISOCountry.objects.get(alpha2="AU"),
+                                  group="TCC",
+                                  default=True,
+                                )
+
         formulations = {}
         # FIXME: unable to handle any other PBS data format
         # loop csv file data row by row
         for column in csv.reader(io_string, delimiter=',', quotechar='"', quoting=csv.QUOTE_ALL):
             try:
                 # process and create active components data
-                # if med_models.ActiveComponent.objects.filter(name=column[0]).count() == 0:
-                #     ac,  created = med_models.ActiveComponent.objects.get_or_create(name=column[0], name_ref=column[4])
-                # else:
-                #     ac = med_models.ActiveComponent.objects.get(name=column[0])
+
+                ac,  created = med_models.ActiveComponent.objects.get_or_create(name=column[0])
+                if created:
+                    ac.name_ref=column[4]
+                    ac.save()
                 
                 # process SCH/PRN
                 prn_value = column[32]
-                # if prn_value == "Yes":
-                #     med_type = const.MEDICATION_TYPE_VALUE__REGULAR
-                # else: 
-                #     med_type = const.MEDICATION_TYPE_VALUE__PRN
+                if prn_value == "Yes":
+                    med_type = const.MEDICATION_TYPE_VALUE__REGULAR
+                else: 
+                    med_type = const.MEDICATION_TYPE_VALUE__PRN
 
                 dosageform=column[26]
                 dosageform_ref = dosageform[:3].upper()
@@ -114,34 +124,28 @@ class CompoundImportHistoryForm(ModelForm):
                         'meta_data':'{"active_components": {"1":"'+column[0]+'"}, "SCH/PRN": "'+prn_value+'", "source": {"name": "'+const.COMPOUND_SOURCE_NAME__TCC+'", "version": "'+version+'"}, "dosage_form": {"'+dosageform_ref+'": "'+dosageform+'"}}'
                     }
                 )
-                # # create or update compound data
-                # compound, created = med_models.Compound.objects.update_or_create(
-                #     uid=column[4],
-                #     name=column[1],
-                #     defaults = {'source':source,'name':column[1],'dosage_form':column[26]}
-                #   )
-                # active_components = compound.active_components.all()
-                # compound.active_components.add(ac)
-                # compound.save()
+                # create or update compound data
+                compound, created = med_models.Compound.objects.update_or_create(
+                    uid=column[4],
+                    name=column[1],
+                    defaults = {'source':source,'name':column[1],'dosage_form':column[26]}
+                  )
+                active_components = compound.active_components.all()
+                compound.active_components.add(ac)
+                compound.save()
 
-                # # store PRN data
-                # prn, created = models.CompoundExtraInformation.objects.get_or_create(compound=compound, name=const.COMPOUND_EXTRA_INFO_NAME__MEDICATION_TYPE)
-                # prn.value = med_type
-                # prn.save()
+                # store PRN data
+                prn, created = models.CompoundExtraInformation.objects.get_or_create(compound=compound, name=const.COMPOUND_EXTRA_INFO_NAME__MEDICATION_TYPE)
+                if created:
+                    prn.value = med_type
+                    prn.save()
 
             except Exception as error:
                 # store error data row and error message in ImportHistory.details
                 error_log = {'error_msg': str(error), 'error_data': column}
                 error_logs.append(error_log)
 
-        # create new compound source
-        source, created = med_models.CompoundSource.objects.get_or_create(name=const.COMPOUND_SOURCE_NAME__TCC,
-                                  version=version,
-                                  language=ISOLanguage.objects.get(alpha2='en'),
-                                  country=ISOCountry.objects.get(alpha2="AU"),
-                                  group="TCC",
-                                  default=True,
-                                )
+
 
         for key in formulations.keys():
             unit, created = med_models.TakingUnit.objects.get_or_create(name=key)

@@ -17,8 +17,8 @@ def data_import(apps, schema_editor):
         reversion.set_user(get_system_user())
         with open(file_path, 'rb') as fp:
             form = CompoundImportHistoryForm(
-                                              data={ "data_source_description": "mos_rx.csv TCC", "data_source_version": "1.21"}, 
-                                              files={"source_file": SimpleUploadedFile('mos_rx_1000_rows.csv', fp.read())}
+                                              data={ "data_source_description": "mos_rx.csv TCC", "data_source_version": "1.0"}, 
+                                              files={"source_file": SimpleUploadedFile('mos_rx.csv', fp.read())}
                                             )
             form.is_valid()
             form.save()

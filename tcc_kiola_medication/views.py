@@ -1,68 +1,62 @@
+from functools import reduce
+import operator
+from datetime import datetime
+import csv, io
+import uuid
+import dateutil.parser
+import shortuuid
+
+
 from django.http import HttpResponse, HttpResponseRedirect
 from django.shortcuts import get_object_or_404, render, redirect
 from django.urls import reverse
 from django.views import generic    
 from django.utils import timezone
-from django.utils.translation import ugettext_lazy as _
+from django.utils.translation import ugettext_lazy as _, get_language
 from django.template import loader
 from django import http
 from django.template.loader import get_template
-
-from functools import reduce
-import operator
-from datetime import datetime
-
+from django.conf import settings
+from django.utils.encoding import force_text
+from django.db import transaction
 from django.contrib import messages
-import csv, io
-import uuid
+from django.core import serializers
+from django.db.models import Q, Prefetch, Subquery, OuterRef, F
+from django.template.response import TemplateResponse
+from django.contrib.contenttypes.models import ContentType
+
+from reversion import models as reversion
+from reversion import revisions as reversionrevisions
+from reversion import models as re_models
+
 from rest_framework.views import APIView
 from rest_framework.response import Response
-from rest_framework import status
+from rest_framework import viewsets, generics, mixins, status
+from rest_framework.decorators import api_view, renderer_classes
+from rest_framework import serializers as drf_serializers
+from rest_framework.authentication import SessionAuthentication, BaseAuthentication
+from rest_framework.permissions import IsAuthenticated
+from rest_framework.pagination import PageNumberPagination
+from rest_framework.renderers import JSONRenderer
+# import rest_framework.pagination #? FIXME:
 
-from rest_framework import viewsets, generics, mixins
-
-
-from . import serializers as tcc_serializers
+from diplomat.models import ISOLanguage, ISOCountry
+from drf_yasg.utils import swagger_auto_schema, swagger_serializer_method
+from drf_yasg import openapi
 #from .models import MedCompound
 
-from kiola.kiola_med.models import *
 from kiola.kiola_pharmacy import models as pharmacy_models
-
 from kiola.utils import authentication
 from kiola.utils.drf import KiolaAuthentication
-
-
-from django.core import serializers
-
 from kiola.utils.decorators.api import requires, returns
 from kiola.utils.commons import http_client_codes
 from kiola.utils import const as kiola_const
-
 from kiola.utils.authentication import requires_api_login
-
 from kiola.kiola_senses import resource
-
-
-#testing meds
 from kiola.utils import views as kiola_views
 from kiola.kiola_senses import models as senses
-
-from django.db.models import Q, Prefetch, Subquery, OuterRef, F
-get_for_model = ContentType.objects.get_for_model
-from django.template.response import TemplateResponse
-from reversion import models as reversion
-
-
 from kiola.utils.commons import get_system_user
-from reversion import revisions as reversionrevisions
-from reversion import models as re_models
-import dateutil.parser
-
-#pagination:
-import rest_framework.pagination
-from rest_framework.pagination import PageNumberPagination
-from .utils import PaginationHandlerMixin, set_default_user_pref_med_time_values
-from rest_framework.renderers import JSONRenderer
+from kiola.utils import service_providers
 from kiola.kiola_med import models as med_models
 from kiola.kiola_med import const as med_const
 from kiola.kiola_med import utils as med_utils
@@ -70,102 +64,20 @@ from kiola.utils import exceptions
 import kiola.utils.forms as utils_forms
 
 from . import models, const, utils, docs, forms
-from rest_framework.decorators import api_view, renderer_classes
-from rest_framework import serializers as drf_serializers
-
-#
-from rest_framework.authentication import SessionAuthentication, BaseAuthentication
-from rest_framework.permissions import IsAuthenticated
-
-from drf_yasg.utils import swagger_auto_schema, swagger_serializer_method
-from drf_yasg import openapi
-
-from django.db import transaction
+from . import serializers as tcc_serializers
+from .utils import PaginationHandlerMixin, set_default_user_pref_med_time_values
 
 
-
-
+get_for_model = ContentType.objects.get_for_model
 
 
 class BasicPagination(PageNumberPagination):
     page_size_query_param = 'limit'
 
-# class CompoundAPIView(APIView, PaginationHandlerMixin):
-
-#     pagination_class = BasicPagination
-#     serializer_class = tcc_serializers.CompoundSerializer
-#     authentication_classes = [KiolaAuthentication,]
-#     max_count = 80
-
-#     @swagger_auto_schema(
-#         tags=['Compound'], 
-#         operation_description="GET /prescription/compound/",
-#         operation_summary="Query Compound resources",
-#         responses={
-#             '200':docs.compound_res,
-#             '400': "Bad Request"
-#         }
-#     )
-#     @requires_api_login
-#     def get(self, request, subject_uid=None, id=None, *args, **kwargs):
-        
-#         template = med_models.Compound.objects.select_related('source')
-
-
-#         if id:
-#             qs = template.filter(uid=id)
-#             serializer = self.serializer_class(qs, many=True)
-
-#         else:
-#             query = request.GET
-
-#             # set default value to limit param if not exist
-#             # to ensure paging is enabled
-#             if query.get('limit', None) is None:
-#                 request.query_params._mutable = True
-#                 request.query_params['limit'] = self.max_count
-#                 request.query_params._mutable = False
-
-#             compound_name=query.get('compound', None)
-#             active_component=query.get('active_components', None)
-
-
-#             if compound_name:
-#                 if len(compound_name) < 3:
-#                     msg = {'message': "Please enter at least 3 characters for better search results."}
-#                     return Response(msg, status=status.HTTP_200_OK)
-#                 qs = template.filter(source__default=True, name__icontains=compound_name)
-
-#             elif active_component:
-#                 if len(active_component) < 3:
-#                     msg = {'message': "Please enter at least 3 characters for better search results."}
-#                     return Response(msg, status=status.HTTP_200_OK)
-#                 qs = template.filter(source__default=True, active_components__name__icontains=active_component)
-
-#             else:
-#                  qs = template.filter(source__default=True)
-
-#             if qs.count() > self.max_count and (compound_name or compound_name):
-#                 msg = {'message': "More than %(max)s results found (%(amount)s). Please refine your search.." % {'max': self.max_count, 'amount': qs.count()}}
-#                 return Response(msg, status=status.HTTP_200_OK)
-
-
-
-#             page = self.paginate_queryset(qs)
-
-#             if page is not None:
-#                 serializer = self.get_paginated_response(self.serializer_class(page,
-#     many=True).data)
-
-#             else:
-#                 serializer = self.serializer_class(qs, many=True)
-#         return Response(serializer.data, status=status.HTTP_200_OK)
-
-
 class CompoundAPIView(APIView, PaginationHandlerMixin):
 
     pagination_class = BasicPagination
-    serializer_class = tcc_serializers.PharmacyProductSerializer
+    serializer_class = tcc_serializers.CompoundSerializer
     authentication_classes = [KiolaAuthentication,]
     max_count = 80
 
@@ -181,9 +93,11 @@ class CompoundAPIView(APIView, PaginationHandlerMixin):
     @requires_api_login
     def get(self, request, subject_uid=None, id=None, *args, **kwargs):
         
-        template = pharmacy_models.Product.objects
+        template = med_models.Compound.objects.select_related('source')
+
+
         if id:
-            qs = template.filter(unique_id=id)
+            qs = template.filter(uid=id)
             serializer = self.serializer_class(qs, many=True)
 
         else:
@@ -204,32 +118,112 @@ class CompoundAPIView(APIView, PaginationHandlerMixin):
                 if len(compound_name) < 3:
                     msg = {'message': "Please enter at least 3 characters for better search results."}
                     return Response(msg, status=status.HTTP_200_OK)
-                compound_name.strip().lower()
-                qs = template.filter(title__icontains=compound_name)
+                qs = template.filter(name__icontains=compound_name)
 
             elif active_component:
                 if len(active_component) < 3:
                     msg = {'message': "Please enter at least 3 characters for better search results."}
                     return Response(msg, status=status.HTTP_200_OK)
-                active_component.strip().lower()
-                qs = template.filter(meta_data__icontains=active_component)
+                qs = template.filter(active_components__name__icontains=active_component)
+
             else:
-                qs = template.all()
+                 qs = template.all()
 
             if qs.count() > self.max_count and (compound_name or compound_name):
                 msg = {'message': "More than %(max)s results found (%(amount)s). Please refine your search.." % {'max': self.max_count, 'amount': qs.count()}}
                 return Response(msg, status=status.HTTP_200_OK)
 
-
-
+            qs = qs.filter(Q(source__default=True)|Q(source__version=const.COMPOUND_SOURCE_VERSION__PATIENT))
             page = self.paginate_queryset(qs)
 
             if page is not None:
                 serializer = self.get_paginated_response(self.serializer_class(page,
-    many=True).data)
+                                                          many=True).data)
 
             else:
                 serializer = self.serializer_class(qs, many=True)
+        return Response(serializer.data, status=status.HTTP_200_OK)
+
+    @swagger_auto_schema(
+        tags=['Compound'], 
+        operation_description="POST /prescription/compound/",
+        operation_summary="Create Compound resources",
+        responses={
+            '200':docs.compound_res,
+            '400': "Bad Request"
+        }
+    )
+    @requires_api_login
+    def post(self, request, subject_uid=None, id=None, *args, **kwargs):
+        try:
+            if subject_uid is None:
+                subject = senses.Subject.objects.get(login=request.user)
+            else:
+                subject = senses.Subject.objects.get(uuid=subject_uid)
+        except senses.Subject.DoesNotExist:
+            raise exceptions.Forbidden("Unknown subject")
+
+        data = request.data
+        try:
+            active_omponents = data["activeComponents"]
+            compound_name = data['name']
+            formulation = data['formulation']
+            med_type = data['medicationType']
+
+        except: 
+            raise exceptions.BadRequest("Invalid data '%s'. Missing some of the required fields " % data)
+
+        exist = med_models.Compound.objects.filter(name=compound_name).count()
+        if exist > 0:
+            raise exceptions.BadRequest("Given compound name '%s' already exists " % compound_name)
+
+        uid = shortuuid.uuid()
+        dosageform=formulation
+        dosageform_ref = dosageform[:3].upper()
+        if dosageform == "":
+            dosageform = "N/A"
+            dosageform_ref = "N/A"
+
+
+
+        with reversionrevisions.create_revision():
+            reversionrevisions.set_user(get_system_user())
+
+            unit, created = med_models.TakingUnit.objects.get_or_create(name=dosageform)
+            if created:
+                unit.descrition=dosageform_ref
+                unit.save
+
+
+            # get patient compound source
+            source = med_models.CompoundSource.objects.get(name=const.COMPOUND_SOURCE_NAME__TCC,
+                                      version=const.COMPOUND_SOURCE_VERSION__PATIENT)
+
+            # create active components
+            ac,  created = med_models.ActiveComponent.objects.get_or_create(name=compound_name)
+            if created:
+                ac.name_ref = uid
+                ac.save()
+
+            # create or update compound data
+            compound, created = med_models.Compound.objects.get_or_create(
+                uid=uid,
+                name=compound_name,
+                source=source,
+                dosage_form=dosageform,
+                dosage_form_ref=dosageform_ref,
+                registration_number=request.user.username,
+              )
+            active_components = compound.active_components.all()
+            compound.active_components.add(ac)
+            compound.save()
+
+        prn, created = models.CompoundExtraInformation.objects.get_or_create(compound=compound, name=const.COMPOUND_EXTRA_INFO_NAME__MEDICATION_TYPE)
+        if created:
+            prn.value = med_type
+            prn.save()
+
+        serializer = tcc_serializers.CompoundSerializer([compound], many=True)
         return Response(serializer.data, status=status.HTTP_200_OK)
 
 
