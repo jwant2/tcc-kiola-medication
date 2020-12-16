@@ -27,6 +27,35 @@ class CompoundSerializer(serializers.ModelSerializer):
     def get_activeComponents(self, obj):
         return obj.active_components.all().values_list('name', flat=True)
 
+class PharmacyProductSerializer(serializers.ModelSerializer):
+    id = serializers.CharField(source='unique_id')
+    name = serializers.CharField(source='title')
+    activeComponents = serializers.SerializerMethodField()
+    source = serializers.SerializerMethodField()
+    formulation = serializers.SerializerMethodField()
+
+    class Meta:
+        model =  med_models.Compound
+        fields = ['id','name', 'source','activeComponents','formulation']
+
+    def get_activeComponents(self, obj):
+        meta_data = json.loads(obj.meta_data)
+        active_components = meta_data['active_components'].values()
+        if len(active_components) > 0:
+            return active_components
+        return []
+
+    def get_formulation(self, obj):
+        meta_data = json.loads(obj.meta_data)
+        return list(meta_data["dosage_form"].values())[0]
+    
+    def get_source(self, obj):
+        meta_data = json.loads(obj.meta_data)
+        source = meta_data.get("source", None)
+        if source:
+            return f'{source["name"]} ({source["version"]})'
+        return None
+
 class PrescriptionSerializer(serializers.ModelSerializer):
     class Meta:
         model =  med_models.Prescription

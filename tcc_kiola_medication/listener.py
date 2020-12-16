@@ -14,63 +14,42 @@ log = logger.KiolaLogger(__name__).getLogger()
 connected = False
 
 def handle_new_prescription(sender, instance, **kwargs):
+    '''
+        For create/update PrescriptionProfileRelation when a new prescription is created from the medication API
+    '''
     created = kwargs.get('created', None)
     if created: 
         active_ppr = med_models.PrescriptionProfileRelation.objects.filter(active=True, root_profile__subject=instance.prescription.subject).first()
         current_active_prescriptions = med_models.Prescription.objects.filter(subject=instance.prescription.subject, status__name=med_const.PRESCRIPTION_STATUS__ACTIVE)
 
-        print('active_ppr', active_ppr)
+        # print('active_ppr', active_ppr)
+        # check if exists current active PrescriptionProfileRelation
+        # create a new one if not exist
         if active_ppr:
             pall = active_ppr.prescriptions.all()
-            print('pall', pall)
+            # print('pall', pall)
             existing = pall.filter(compound=instance.prescription.compound)
 
-            print('existing', existing)
+            # print('existing', existing)
+            # check if the create prescription exists in the active PrescriptionProfileRelation
+            # finish this process if alreaddy exist
             if len(existing) == 0:
                 prescription = med_models.Prescription.objects.filter(
                       subject=instance.prescription.subject, 
                       compound=instance.prescription.compound,
                       status__name=med_const.PRESCRIPTION_STATUS__ACTIVE
                       ).order_by('pk')
-                print('inactive_prescription', prescription.values_list('pk', flat=True))
+                # print('inactive_prescription', prescription.values_list('pk', flat=True))
+                # check if there is a presciption use the same compound
+                # create a new PrescriptionProfileRelation if not
+                # put the existing prescription into PrescriptionProfileRelation so it will be replace in PrescriptionProfileRelation.objects.remove_and_update
                 if len(prescription) > 1:
                     active_ppr.prescriptions.add(prescription[0])
                     active_ppr.save()
                 else:
-        #     ppr_prescriptions_pks = active_ppr.prescriptions.all()
-        #     print('pks', ppr_prescriptions_pks)
-        #     print('instance', instance.prescription)
-        #     # if ppr.count() > 0:
-        #     #     # prescriptions_changed = False
-        #     if instance.prescription not in ppr_prescriptions_pks:
-
-        #         # new_active_prescriptions = list(current_active_prescriptions).append(instance)
                     new_ppr = med_models.PrescriptionProfileRelation.objects.create_for_prescriptions(current_active_prescriptions)
-                    print('added a new presction to ppr', new_ppr)
-
         else:
             new_ppr = med_models.PrescriptionProfileRelation.objects.create_for_prescriptions(current_active_prescriptions)
-            print('create a new presction to ppr', new_ppr)
-
-
-
-        # if len(selected_prescriptions) > 0:
-        #     prescriptions = models.Prescription.objects.filter(subject=subject,
-        #                                                        pk__in=selected_prescriptions)
-        #     if len(prescriptions) != len(selected_prescriptions):
-        #         messages.error(request, _("Unable to read selected prescriptions"))
-        #     else:
-        #         models.PrescriptionProfileRelation.objects.create_for_prescriptions(prescriptions)
-        #         messages.success(request, _("Prescription monitoring updated"))
-        # else:
-        #     # find current PrescriptionProfileRelations and set to inactive
-        #     pks = list(models.PrescriptionProfileRelation.objects.filter(active=True, root_profile__subject=subject).values_list("pk", flat=True))
-        #     if pks:
-        #         models.PrescriptionProfileRelation.objects.deactivate(pks, update_sop_status=True)
-        #         messages.success(request, _("Removed prescription monitoring"))
-        #     else:
-        #         messages.error(request, _("No prescriptions selected"))
-
 
 def disconnect():
   

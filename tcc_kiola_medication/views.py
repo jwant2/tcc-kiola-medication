@@ -90,10 +90,82 @@ from django.db import transaction
 class BasicPagination(PageNumberPagination):
     page_size_query_param = 'limit'
 
+# class CompoundAPIView(APIView, PaginationHandlerMixin):
+
+#     pagination_class = BasicPagination
+#     serializer_class = tcc_serializers.CompoundSerializer
+#     authentication_classes = [KiolaAuthentication,]
+#     max_count = 80
+
+#     @swagger_auto_schema(
+#         tags=['Compound'], 
+#         operation_description="GET /prescription/compound/",
+#         operation_summary="Query Compound resources",
+#         responses={
+#             '200':docs.compound_res,
+#             '400': "Bad Request"
+#         }
+#     )
+#     @requires_api_login
+#     def get(self, request, subject_uid=None, id=None, *args, **kwargs):
+        
+#         template = med_models.Compound.objects.select_related('source')
+
+
+#         if id:
+#             qs = template.filter(uid=id)
+#             serializer = self.serializer_class(qs, many=True)
+
+#         else:
+#             query = request.GET
+
+#             # set default value to limit param if not exist
+#             # to ensure paging is enabled
+#             if query.get('limit', None) is None:
+#                 request.query_params._mutable = True
+#                 request.query_params['limit'] = self.max_count
+#                 request.query_params._mutable = False
+
+#             compound_name=query.get('compound', None)
+#             active_component=query.get('active_components', None)
+
+
+#             if compound_name:
+#                 if len(compound_name) < 3:
+#                     msg = {'message': "Please enter at least 3 characters for better search results."}
+#                     return Response(msg, status=status.HTTP_200_OK)
+#                 qs = template.filter(source__default=True, name__icontains=compound_name)
+
+#             elif active_component:
+#                 if len(active_component) < 3:
+#                     msg = {'message': "Please enter at least 3 characters for better search results."}
+#                     return Response(msg, status=status.HTTP_200_OK)
+#                 qs = template.filter(source__default=True, active_components__name__icontains=active_component)
+
+#             else:
+#                  qs = template.filter(source__default=True)
+
+#             if qs.count() > self.max_count and (compound_name or compound_name):
+#                 msg = {'message': "More than %(max)s results found (%(amount)s). Please refine your search.." % {'max': self.max_count, 'amount': qs.count()}}
+#                 return Response(msg, status=status.HTTP_200_OK)
+
+
+
+#             page = self.paginate_queryset(qs)
+
+#             if page is not None:
+#                 serializer = self.get_paginated_response(self.serializer_class(page,
+#     many=True).data)
+
+#             else:
+#                 serializer = self.serializer_class(qs, many=True)
+#         return Response(serializer.data, status=status.HTTP_200_OK)
+
+
 class CompoundAPIView(APIView, PaginationHandlerMixin):
 
     pagination_class = BasicPagination
-    serializer_class = tcc_serializers.CompoundSerializer
+    serializer_class = tcc_serializers.PharmacyProductSerializer
     authentication_classes = [KiolaAuthentication,]
     max_count = 80
 
@@ -109,11 +181,9 @@ class CompoundAPIView(APIView, PaginationHandlerMixin):
     @requires_api_login
     def get(self, request, subject_uid=None, id=None, *args, **kwargs):
         
-        template = med_models.Compound.objects.select_related('source')
-
-
+        template = pharmacy_models.Product.objects
         if id:
-            qs = template.filter(uid=id)
+            qs = template.filter(unique_id=id)
             serializer = self.serializer_class(qs, many=True)
 
         else:
@@ -134,16 +204,17 @@ class CompoundAPIView(APIView, PaginationHandlerMixin):
                 if len(compound_name) < 3:
                     msg = {'message': "Please enter at least 3 characters for better search results."}
                     return Response(msg, status=status.HTTP_200_OK)
-                qs = template.filter(source__default=True, name__icontains=compound_name)
+                compound_name.strip().lower()
+                qs = template.filter(title__icontains=compound_name)
 
             elif active_component:
                 if len(active_component) < 3:
                     msg = {'message': "Please enter at least 3 characters for better search results."}
                     return Response(msg, status=status.HTTP_200_OK)
-                qs = template.filter(source__default=True, active_components__name__icontains=active_component)
-
+                active_component.strip().lower()
+                qs = template.filter(meta_data__icontains=active_component)
             else:
-                 qs = template.filter(source__default=True)
+                qs = template.all()
 
             if qs.count() > self.max_count and (compound_name or compound_name):
                 msg = {'message': "More than %(max)s results found (%(amount)s). Please refine your search.." % {'max': self.max_count, 'amount': qs.count()}}
@@ -398,7 +469,6 @@ class PrescriptionAPIView(APIView):
             if prescr.compound.uid != compound_obj['id']:
                 raise exceptions.BadRequest("Compound with id '%s' does not match the compound of the given prescription with pk '%s'" % (compound_obj['id'], prescr_id))
 
-            # update_or_create_med_adverse_reaction(request, med_reactions, prescr.compound)
             update_or_create_med_type(request, medication_type, prescr)
 
             with reversionrevisions.create_revision():
@@ -422,14 +492,15 @@ class PrescriptionAPIView(APIView):
 
         else:
             p_status = med_models.PrescriptionStatus.objects.get(name="Active")
-            compound = med_models.Compound.objects.filter(uid=compound_obj['id'], source__default=True).last()
-            if not compound or compound.source.default is not True:
-                raise exceptions.BadRequest("Compound with id '%s' does not exist or its source is inactive" % compound_obj['id'])
-
-            # update_or_create_med_adverse_reaction(request, med_reactions, compound)
-
             with reversionrevisions.create_revision():
                 reversionrevisions.set_user(get_system_user())
+                adapter = med_models.Compound.objects.get_adapter(med_models.CompoundSource.objects.get(default=True).pk)
+                compound, created = adapter.get_or_create(compound_obj['id'])
+                # compound = med_models.Compound.objects.filter(uid=compound_obj['id'], source__default=True).last()
+                if not compound or compound.source.default is not True:
+                    raise exceptions.BadRequest("Compound with id '%s' does not exist or its source is inactive" % compound_obj['id'])
+
+
                 prescr, replaced = med_models.Prescription.objects.prescribe(subject=subject,
                                                                           prescriber=request.user,
                                                                           compound=compound,

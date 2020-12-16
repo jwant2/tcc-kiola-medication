@@ -8,6 +8,7 @@ from kiola.utils import service_providers
 from django.utils.translation import ugettext_lazy as _
 from datetime import datetime
 from django.utils.encoding import force_text
+from django.core import exceptions as djexceptions
 
 class PaginationHandlerMixin(object):
     @property
@@ -96,7 +97,7 @@ def tcc_render_sis_compound_info(context, compound_id, compound_source=None):
         if compound_source:
             params.update({"source__pk":compound_source})
         compound = med_models.Compound.objects.filter(**params).order_by('pk').last()
-        current_compound_source = med_models.CompoundSource.objects.get(default=True, name=compound.source.name)
+        current_compound_source = med_models.CompoundSource.objects.get(default=True)
         context["current_compound_source"] = current_compound_source
         if compound.source.pk != current_compound_source.pk:
             context["compound_newer_available"] = True
@@ -143,3 +144,62 @@ def tcc_render_sis_compound_info(context, compound_id, compound_source=None):
     return context
 
 med_tags.register.inclusion_tag('tcc_sis_search_result.html'   , takes_context=True)(tcc_render_sis_compound_info)
+
+
+class TCCAdapter(med_utils.CompoundAdapterBase):
+
+    def get_or_create(self, compound_id):
+        from . import models
+        # FIXME:cgo: we should filter for uid only here?
+        # how to check if compound source is of same type?
+        # -> use same name or add new attribute compound source type?
+        compounds = self.manager.filter(uid=compound_id,
+                                        source=self.source)
+
+        # if compound already exists don't create a new one
+        # FIXME:cgo: this should move into a Compound Source specific adapter class
+        # right now only SIS DBs are supported
+        created = False
+        if len(compounds) == 0:
+            created = True
+            drug_search = service_providers.service_registry.search("drug_search")
+            drugs = drug_search(q=compound_id, by_id=True)
+            if len(drugs) == 0:
+                raise ValueError("No drug found matching product ID '%s'" % compound_id)
+            product = drugs[0]
+            compound, created = self.manager.get_or_create(
+                uid=compound_id,
+                source=self.source,
+                defaults={
+                    'dosage_form_ref': list(product["dosage_form"].keys())[0],
+                    'dosage_form': list(product["dosage_form"].values())[0],
+                    'name': product["title"],
+                    'registration_number': product.get("znumm", None)
+                }
+            )
+
+            for unique_id, comp in product["active_components"].items():
+                if comp:
+                    active_component, created = med_models.ActiveComponent.objects.get_or_create(name=comp,
+                                                                                             name_ref=compound_id)
+                    compound.active_components.add(active_component)
+
+            # store PRN data
+            prn_value = product.get("SCH/PRN", None)
+            prn = None
+            if prn_value:
+                if prn_value == "Yes":
+                    med_type = const.MEDICATION_TYPE_VALUE__REGULAR
+                else: 
+                    med_type = const.MEDICATION_TYPE_VALUE__PRN
+                prn, created = models.CompoundExtraInformation.objects.get_or_create(compound=compound, name=const.COMPOUND_EXTRA_INFO_NAME__MEDICATION_TYPE)
+                if created:
+                    prn.value = med_type
+                    prn.save()
+
+        elif len(compounds) > 1:
+            raise djexceptions.MultipleObjectsReturned("Found more than one compound, matching id and source")
+        else:
+            compound = compounds[0]
+
+        return compound, created

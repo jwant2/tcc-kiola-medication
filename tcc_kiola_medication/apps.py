@@ -42,8 +42,8 @@ class TccKiolaMedicationConfig(AppConfig):
     name = 'tcc_kiola_medication'
     verbose_name = "TCC Kiola Medications"
 
-    # def ready(self):
-    #     from kiola.kiola_med import models as med_models
-    #     from . import models
+    def ready(self):
+        from kiola.kiola_med import models as med_models
+        from . import utils
 
-    #     med_models.Prescription.objects = models.TccPrescriptionManager()
+        med_models.CompoundManager.adapters["TCC"] = utils.TCCAdapter

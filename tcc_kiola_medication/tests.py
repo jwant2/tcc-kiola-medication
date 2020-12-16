@@ -102,12 +102,12 @@ class MedicationTest(KiolaTest):
         compound_source_exist = med_models.CompoundSource.objects.filter(name=const.COMPOUND_SOURCE_NAME__TCC, version="test").count() == 1
         self.assertTrue(compound_source_exist)
         compound_exist = med_models.Compound.objects.filter(uid="342225332", source__version="test").count() == 1
-        self.assertTrue(compound_exist)
+        self.assertFalse(compound_exist)
         product_exist = pharmacy_models.Product.objects.filter(unique_id="342225332").count() == 1
         unit_exist = med_models.TakingUnit.objects.filter(name="Solution").count()  == 1 
         self.assertTrue(unit_exist)
         prn_exist = models.CompoundExtraInformation.objects.filter(compound__uid="342225332", name=const.COMPOUND_EXTRA_INFO_NAME__MEDICATION_TYPE).count() == 1 
-        self.assertTrue(prn_exist)
+        self.assertFalse(prn_exist)
 
     def prepare_device(self, url, method):
         remote_access_id, signature, senddate = Device.objects.get_signature(url, method, self.device, self.subject.login)
@@ -295,7 +295,12 @@ class MedicationTest(KiolaTest):
           }
         ]
         self.assertEqual(content, data)
-
+        # test if compound created 
+        compound_exist = med_models.Compound.objects.filter(uid="342225332", source__version="test").count() == 1
+        self.assertTrue(compound_exist)
+        prn_exist = models.CompoundExtraInformation.objects.filter(compound__uid="342225332", name=const.COMPOUND_EXTRA_INFO_NAME__MEDICATION_TYPE).count() == 1 
+        self.assertTrue(prn_exist)
+        
         # test update single
         url = reverse("tcc_med_api:single-medication", kwargs={"apiv":1, "id":"1"})
         signature_url = f'http://testserver{url}'

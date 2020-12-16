@@ -1,5 +1,8 @@
 import uuid
+import json
 from django.db import models
+from django.db.models import Q
+
 from django_smartsearch.fields import JSONField
 from django.conf import settings
 from django.utils.encoding import force_text
@@ -12,6 +15,8 @@ from django.utils.translation import ugettext_lazy as _, ugettext_noop, get_lang
 
 from kiola.kiola_med import models as med_models
 from kiola.kiola_senses import models as senses
+from kiola.utils import service_providers
+from kiola.kiola_pharmacy import models as pharmacy_models
 from . import utils, const
 
 
@@ -269,3 +274,40 @@ class MedicationRelatedHistoryData(models.Model):
                                                    force_text(self.data),
                                                    force_text(self.created))
                                                    
+
+def drug_search(q,by_id=False):
+    imports = pharmacy_models.ImportHistory.objects.all().order_by("-pk")
+    if len(imports)>0:
+        if imports[0].status != "C":
+            raise service_providers.ServiceNotAvailable()
+    data=[]
+    filter_params = []
+    if ( by_id ):
+        q = q.strip().lower()
+        filter_params = [ Q ( unique_id = q ) ]
+    else:
+        q = q.strip().lower()
+        if len(q)==0:
+            return []
+        qparts = q.split(" ")
+        for qpart in qparts:
+            qpart = qpart.strip()
+            if qpart != "":
+                filter_params.append(Q(title__icontains=qpart))
+    count=1
+    for product in pharmacy_models.Product.objects.filter(*filter_params):
+        meta = json.loads(product.meta_data)        
+
+        data.append({'title':product.title,
+          'unique_id' : product.unique_id,
+          'main_indications' :meta.get("main_indication",{"1":None}),
+          'active_components':meta.get("active_components","-"),
+          'dosage_form': meta.get("dosage_form","-"),
+          'source': meta.get('source', None),
+          'SCH/PRN': meta.get('SCH/PRN', None),
+          'count':count
+        })
+        count+=1
+    return data
+
+service_providers.service_registry.register(name="drug_search",function=drug_search)
