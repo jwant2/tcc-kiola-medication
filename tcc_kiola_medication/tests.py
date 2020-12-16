@@ -36,7 +36,7 @@ class MedicationTest(KiolaTest):
             pass
         ProjectPyxtureLoader().load()
         module_dir = os.path.dirname(__file__)  # get current directory
-        file_path = os.path.join(module_dir, 'testfile/mos_rx_1000_rows.csv')
+        file_path = os.path.join(module_dir, 'datafiles/test/mos_rx_300_rows.csv')
         with reversion.create_revision():
             reversion.set_user(get_system_user())
             with open(file_path, 'rb') as fp:
@@ -134,13 +134,12 @@ class MedicationTest(KiolaTest):
             accept_language=None,
             accept="application/json")
         content = json.loads(response.content.decode("utf-8"))
-
         self.assertEquals(response.status_code, 200)
         self.assertEqual(content['next'], (f'{signature_url}?page=2'))
         self.assertEqual(content['previous'], None)
         self.assertEqual(type(content['results']), list)
         self.assertEqual(len(content['results']), 80)
-        self.assertEqual(content['count'], 473)
+        self.assertEqual(content['count'], 115)
  
         # test query page and limit
         url = reverse("tcc_med_api:compound", kwargs={"apiv":1})
