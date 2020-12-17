@@ -2,6 +2,20 @@
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+### [0.1.1](https://bitbucket.org/teleclinicalcare/tcc-kiola-medication/compare/v0.1.0...v0.1.1) (2020-12-17)
+
+
+### Features
+
+* add api for patient defined compound ([8ae797e](https://bitbucket.org/teleclinicalcare/tcc-kiola-medication/commit/8ae797e12206f823475c3b6ad0a18ceab88235ed))
+* add chart for medication observation ([88b6217](https://bitbucket.org/teleclinicalcare/tcc-kiola-medication/commit/88b621762c3c7ef9282dcf1cee023a8044206a8d))
+* add migration code for pbs import ([e64c1ad](https://bitbucket.org/teleclinicalcare/tcc-kiola-medication/commit/e64c1adb6156ef85c1304446de1378cf3377d9b9))
+
+
+### Bug Fixes
+
+* optimise medication import via moving compound creation to prescription creation. ([c17da85](https://bitbucket.org/teleclinicalcare/tcc-kiola-medication/commit/c17da8545e9c5a82aa09e216c746022b60984cdd))
+
 ## 0.1.0 (2020-12-14)
 
 
