@@ -75,11 +75,10 @@ class BasicPagination(PageNumberPagination):
     page_size_query_param = 'limit'
 
 class CompoundAPIView(APIView, PaginationHandlerMixin):
-
+    max_count = 80
     pagination_class = BasicPagination
     serializer_class = tcc_serializers.CompoundSerializer
     authentication_classes = [KiolaAuthentication,]
-    max_count = 80
 
     @swagger_auto_schema(
         tags=['Compound'], 
@@ -98,8 +97,10 @@ class CompoundAPIView(APIView, PaginationHandlerMixin):
 
         if id:
             qs = template.filter(uid=id)
-            serializer = self.serializer_class(qs, many=True)
-
+            if qs.count() > 0:
+                serializer = self.serializer_class(qs.last())
+            else:
+                raise exceptions.BadRequest("Given compound id '%s' does not exists " % id)
         else:
             query = request.GET
 
@@ -223,7 +224,7 @@ class CompoundAPIView(APIView, PaginationHandlerMixin):
             prn.value = med_type
             prn.save()
 
-        serializer = tcc_serializers.CompoundSerializer([compound], many=True)
+        serializer = tcc_serializers.CompoundSerializer(compound)
         return Response(serializer.data, status=status.HTTP_200_OK)
 
 
@@ -293,8 +294,9 @@ class MedObservationProfileAPIView(APIView):
 
 
 
-class PrescriptionAPIView(APIView):
-
+class PrescriptionAPIView(APIView, PaginationHandlerMixin):
+    max_count = 80
+    pagination_class = BasicPagination
     authentication_classes = [KiolaAuthentication,]
     render_classes = [JSONRenderer,]
     serializer_class = tcc_serializers.MedPrescriptionSerializer
@@ -350,10 +352,18 @@ class PrescriptionAPIView(APIView):
 
 
             except:
-                raise exceptions.BadRequest("Prescription with pk '%s' does not exist or is inactive" % prescr_id)
-            serializer = self.serializer_class([prescr], many=True)
+                raise exceptions.BadRequest("Prescription with id '%s' does not exist or is inactive" % prescr_id)
+            serializer = self.serializer_class(prescr)
 
         else:
+            query = request.GET
+
+            # set default value to limit param if not exist
+            # to ensure paging is enabled
+            if query.get('limit', None) is None:
+                request.query_params._mutable = True
+                request.query_params['limit'] = self.max_count
+                request.query_params._mutable = False
 
             qs = med_models.Prescription.objects.select_related(
                 'compound',
@@ -379,7 +389,14 @@ class PrescriptionAPIView(APIView):
                 'compound__name',
                 'status')
 
-            serializer = self.serializer_class(qs, many=True)
+            page = self.paginate_queryset(qs)
+
+            if page is not None:
+                serializer = self.get_paginated_response(self.serializer_class(page,
+                                                          many=True).data)
+
+            else:
+                serializer = self.serializer_class(qs, many=True)
 
         return Response(serializer.data, status=status.HTTP_200_OK)
 
@@ -512,7 +529,7 @@ class PrescriptionAPIView(APIView):
         record = models.MedicationRelatedHistoryData.objects.add_data_change_record(prescr, processed_data)
         # prepare object for response
         prescr = med_models.Prescription.objects.get(pk=prescr.pk)
-        serializer = self.serializer_class([prescr], many=True)
+        serializer = self.serializer_class(prescr)
 
         return Response(serializer.data, status=status.HTTP_200_OK)
 
@@ -543,8 +560,9 @@ def update_prescription_displayable_taking(prescription):
     prescription.save()
     return displayable_taking
 
-class PrescriptionHistoryAPIView(APIView):
-
+class PrescriptionHistoryAPIView(APIView, PaginationHandlerMixin):
+    max_count = 80
+    pagination_class = BasicPagination
     authentication_classes = [KiolaAuthentication,]
     render_classes = [JSONRenderer,]
     serializer_class = tcc_serializers.MedPrescriptionSerializer
@@ -574,7 +592,19 @@ class PrescriptionHistoryAPIView(APIView):
             print(err)
             raise exceptions.BadRequest("Prescription with id '%s' does not exist or is inactive" % id)
 
+        query = request.GET
+
+        # set default value to limit param if not exist
+        # to ensure paging is enabled
+        if query.get('limit', None) is None:
+            request.query_params._mutable = True
+            request.query_params['limit'] = self.max_count
+            request.query_params._mutable = False
+
         qs = models.MedicationRelatedHistoryData.objects.get_history_data(prescr)
+
+        page = self.paginate_queryset(qs)
+
 
 
         results = []
@@ -597,12 +627,18 @@ class PrescriptionHistoryAPIView(APIView):
                     'time': force_text(qs[i+1].created),
                     'changes': temp
                 })
+        if page is not None:
+            # queryset includes initial data record, so change history count should be -1
+            self.paginator.page.paginator.count = self.paginator.page.paginator.count - 1
+            return self.get_paginated_response(results)
 
         return Response(results, status=status.HTTP_200_OK)
 
 
 
-class MedicationAdverseReactionAPIView(APIView):
+class MedicationAdverseReactionAPIView(APIView, PaginationHandlerMixin):
+    max_count = 80
+    pagination_class = BasicPagination
 
     authentication_classes = [KiolaAuthentication,]
     render_classes = [JSONRenderer,]
@@ -635,9 +671,18 @@ class MedicationAdverseReactionAPIView(APIView):
             except Exception as err:
                 print(err)
                 raise exceptions.BadRequest("MedicationAdverseReaction with id '%s' does not exist" % reaction_id)
-            serializer = self.serializer_class([reaction_item], many=True)
+            serializer = self.serializer_class(reaction_item)
 
         else:
+            query = request.GET
+
+            # set default value to limit param if not exist
+            # to ensure paging is enabled
+            if query.get('limit', None) is None:
+                request.query_params._mutable = True
+                request.query_params['limit'] = self.max_count
+                request.query_params._mutable = False
+
             qs = models.MedicationAdverseReaction.objects.filter(
               compound__pk__in=med_models.Prescription.objects.select_related(
                 'compound',
@@ -645,7 +690,13 @@ class MedicationAdverseReactionAPIView(APIView):
                 subject=subject,
                 status__name=med_const.PRESCRIPTION_STATUS__ACTIVE).values_list('compound__pk', flat=True)
             )
-            serializer = self.serializer_class(qs, many=True)
+            page = self.paginate_queryset(qs)
+            if page is not None:
+                serializer = self.get_paginated_response(self.serializer_class(page,
+                                                          many=True).data)
+
+            else:
+                serializer = self.serializer_class(qs, many=True)
         return Response(serializer.data, status=status.HTTP_200_OK)
 
 
@@ -710,12 +761,14 @@ class MedicationAdverseReactionAPIView(APIView):
             reaction_item, created = models.MedicationAdverseReaction.objects.get_or_create(
                 compound=compound, reaction_type=reaction_type, reactions=reactions, editor=request.user, active=True)
 
-        serializer = self.serializer_class([reaction_item], many=True)
+        serializer = self.serializer_class(reaction_item)
 
         return Response(serializer.data, status=status.HTTP_200_OK)
         
 
-class TakingSchemaAPIView(APIView):
+class TakingSchemaAPIView(APIView, PaginationHandlerMixin):
+    max_count = 80
+    pagination_class = BasicPagination
 
     authentication_classes = [KiolaAuthentication,]
     render_classes = [JSONRenderer,]
@@ -751,9 +804,18 @@ class TakingSchemaAPIView(APIView):
             except Exception as err:
                 print(err)
                 raise exceptions.BadRequest("ScheduledTaking with id '%s' does not exist" % taking_id)
-            serializer = self.serializer_class([taking_item], many=True)
+            serializer = self.serializer_class(taking_item)
 
         else:
+            query = request.GET
+
+            # set default value to limit param if not exist
+            # to ensure paging is enabled
+            if query.get('limit', None) is None:
+                request.query_params._mutable = True
+                request.query_params['limit'] = self.max_count
+                request.query_params._mutable = False
+
             taking_qs = (
                 models.ScheduledTaking.objects.filter(
                     takingschema__prescriptionschema__prescription__subject=subject,
@@ -763,7 +825,14 @@ class TakingSchemaAPIView(APIView):
                     F('takingschema__prescriptionschema__prescription')
                 )
             )
-            serializer = self.serializer_class(taking_qs, many=True)
+            page = self.paginate_queryset(taking_qs)
+
+            if page is not None:
+                serializer = self.get_paginated_response(self.serializer_class(page,
+                                                          many=True).data)
+
+            else:
+                serializer = self.serializer_class(taking_qs, many=True)
 
         return Response(serializer.data, status=status.HTTP_200_OK)
 
@@ -805,9 +874,9 @@ class TakingSchemaAPIView(APIView):
 
         taking = process_taking_request(request, data, taking_id, prescr_id, schedule_type, schedule_time, frequency, reminder, start_date, end_date, dose, strength, unit, hint, active)
         
-        serializer = self.serializer_class([models.ScheduledTaking.objects.annotate(prescr_id=
+        serializer = self.serializer_class(models.ScheduledTaking.objects.annotate(prescr_id=
                     F('takingschema__prescriptionschema__prescription')
-                ).get(pk=taking.pk)], many=True)
+                ).get(pk=taking.pk))
 
         return Response(serializer.data, status=status.HTTP_200_OK)
 
