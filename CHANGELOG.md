@@ -2,6 +2,18 @@
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+### [0.1.3](https://bitbucket.org/teleclinicalcare/tcc-kiola-medication/compare/v0.1.2...v0.1.3) (2021-01-08)
+
+
+### Features
+
+* add management command for medication import ([e7326ea](https://bitbucket.org/teleclinicalcare/tcc-kiola-medication/commit/e7326ea946feebf40ece7b8d193f744cc0f4bcfa))
+
+
+### Bug Fixes
+
+* update api response data format ([01e6ee6](https://bitbucket.org/teleclinicalcare/tcc-kiola-medication/commit/01e6ee6efb15f67f7631437d035906b06b81e5b3))
+
 ### [0.1.2](https://bitbucket.org/teleclinicalcare/tcc-kiola-medication/compare/v0.1.1...v0.1.2) (2020-12-17)
 
 
