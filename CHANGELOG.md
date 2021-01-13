@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+## [0.2.0](https://bitbucket.org/teleclinicalcare/tcc-kiola-medication/compare/v0.1.3...v0.2.0) (2021-01-13)
+
+
+### Features
+
+* add PUT/DELETE request for updating/deleting resources. modify reaction resource request body ([d32681b](https://bitbucket.org/teleclinicalcare/tcc-kiola-medication/commit/d32681b884c6c6f59b0d3184cb6351b5ec8f0e28))
+
 ### [0.1.3](https://bitbucket.org/teleclinicalcare/tcc-kiola-medication/compare/v0.1.2...v0.1.3) (2021-01-08)
 
 
