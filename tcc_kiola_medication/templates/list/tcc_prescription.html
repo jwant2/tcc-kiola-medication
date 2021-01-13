@@ -121,7 +121,7 @@
                         <div class="space"></div>
                     </div><!-- /.row -->
                     {% if form.fid %}
-                    <h4 class="header blue bolder smaller">{% trans 'Schedule Taking' %}</h4>
+                    <h4 class="header blue bolder smaller">{% trans 'Schedule Takings' %}</h4>
                     <div class="row">
                         <div class="panel-heading">
                           <div class="clearfix">
@@ -130,6 +130,13 @@
                         </div>
                         <div class="col-sm-12">
                             <div class="panel panel-default">
+                              <div class="panel-heading">
+                                  <div class="row">
+                                      <div class="col-sm-3">
+                                          <h4>{% trans "Active schedule takings" %}</h4>
+                                      </div>
+                                  </div>
+                              </div>
                               <div class="panel-body no-padding" style="background-color:#F7F7F7">
                                     <table id="grid-basic" class="table table-bordered table-striped no-margin">
                                         <thead class="thin-border-bottom">
@@ -145,7 +152,7 @@
                                             </tr>
                                         </thead>
                                         <tbody id="grid-boday">
-                                            {% for obj in takings %} 
+                                            {% for obj in active_takings %} 
                                                 <tr>
                                                     <td>{{obj.frequency}}</td> <!-- frequency -->
                                                     <td>{{obj.timepoint}}</td> <!-- timepoint -->
@@ -177,6 +184,52 @@
                             </div> <!-- panel -->
                         </div> <!-- col -->
                     </div>  <!-- row -->
+
+                    <div class="row">
+                        <div class="col-sm-12">
+                            <div class="panel panel-default">
+                              <div class="panel-heading">
+                                  <div class="row">
+                                      <div class="col-sm-3">
+                                          <h4>{% trans "Inactive schedule takings" %}</h4>
+                                      </div>
+                                  </div>
+                              </div>
+                              <div class="panel-body no-padding" style="background-color:#F7F7F7">
+                                    <table id="grid-basic" class="table table-bordered table-striped no-margin">
+                                        <thead class="thin-border-bottom">
+                                            <tr>
+                                                <th data-column-id="frequency">{% trans 'Frequency' %}</th>
+                                                <th data-column-id="timepoint">{% trans 'Timepoint' %}</th>
+                                                <th data-column-id="time">{% trans 'Taking time' %}</th>
+                                                <th data-column-id="details">{% trans 'Strength/Dosage/Fomulation' %}</th>
+                                                <th data-column-id="start_date">{% trans 'Start date' %}</th>
+                                                <th data-column-id="end_date">{% trans 'End date' %}</th>
+                                                <th data-column-id="reminder">{% trans 'Reminder' %}</th>
+                                                <th data-column-id="action">{% trans 'Action' %}</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody id="grid-boday">
+                                            {% for obj in inactive_takings %} 
+                                                <tr>
+                                                    <td>{{obj.frequency}}</td> <!-- frequency -->
+                                                    <td>{{obj.timepoint}}</td> <!-- timepoint -->
+                                                    <td>{{obj.taking_time}}</td> <!-- time -->
+                                                    <td>{{obj.strength}}/{{obj.dosage}}/{{obj.unit}}</td> <!-- details  (Strength/Dosage/Fomulation)-->
+                                                    <td>{{obj.start_date}}</td> <!-- start_date -->
+                                                    <td>{{obj.end_date}}</td> <!-- end_date -->
+                                                    <td>{{obj.reminder}} </td> <!-- reminder -->
+                                                    <td></td> <!-- action -->
+                                                </tr>
+                                            {% endfor %}
+
+                                        </tbody>
+                                    </table>
+                              </div> <!-- panel body -->
+                            </div> <!-- panel -->
+                        </div> <!-- col -->
+                    </div>  <!-- row -->
+
 
                     {% endif %}
 
@@ -446,29 +499,20 @@ function editTaking(id) {
 
 
 function removeTaking(id) {
+  bootbox.confirm("{% trans 'Remove schedule taking ?'%}", function(result) {
+    if(result){
     $.ajax({
     headers: {
       Accept: "application/json; charset=utf-8",
     },
-    type: 'GET', 
+    type: 'DELETE', 
     url: './schedule/'+id+'/',
     context: $(this)
   })
   .done(function(data) {
-    data.start_date = parseDateString(data.start_date)
-    if (data.end_date) {
-        data.end_date = parseDateString(data.end_date)
-    }
-
-    $.each(data, function(key, value){
-      element = $('#schedule_taking_form').find('#id_'+key)
-      if (element.length) {
-          element.val(value)
-      }
-    });
-
-    $('#schedule_taking_form').find('#id_active').val(false)
-    upload_form($('#schedule_taking_form'), './schedule/'+id+'/')
+    $(window).off('beforeunload');
+    location.reload()
+    $('#myModal').modal('hide');
   })
  .fail(function(jqXHR, textStatus) {
       console.log('jqXHR', jqXHR)
@@ -483,7 +527,8 @@ function removeTaking(id) {
     $( ".submission-button" ).removeClass("disabled")
     $(".submission-busy").addClass("hidden")    
   }); 
-
+  }
+  });
   return false
 
 }

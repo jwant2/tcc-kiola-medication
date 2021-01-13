@@ -185,7 +185,7 @@ class MedicationTest(KiolaTest):
             accept="application/json")
 
         content = json.loads(response.content.decode("utf-8"))
-        self.assertEqual(len(content['results']), 7)
+        self.assertEqual(len(content['results']), 5)
         self.assertEqual(content['next'], None)
         self.assertEqual(content['previous'], None)
 
@@ -231,7 +231,6 @@ class MedicationTest(KiolaTest):
             accept="application/json")
 
         content = json.loads(response.content.decode("utf-8"))
-        self.assertEqual(len(content), 1)
         data =     {
         "id": "342225332",
         "name": "abacavir 20 mg/mL oral solution",
@@ -241,7 +240,7 @@ class MedicationTest(KiolaTest):
         ],
         "formulation": "Solution"
         }
-        self.assertEqual(content[0], data)
+        self.assertEqual(content, data)
 
     def test_prescription_api(self):
         c = self.client
@@ -274,10 +273,9 @@ class MedicationTest(KiolaTest):
             accept="application/json")
 
         content = json.loads(response.content.decode("utf-8"))
-        del content[0]["startDate"]
-        del content[0]["endDate"]
-        data = [
-          {
+        del content["startDate"]
+        del content["endDate"]
+        data = {
               "id": "1",
               "reason": "test reason",
               "hint": "Allergy 123",
@@ -290,9 +288,9 @@ class MedicationTest(KiolaTest):
               },
               "formulation": "Solution",
               "schedules": [],
-              "medicationType": "PRN"
+              "medicationType": "PRN",
+              "active":  True,
           }
-        ]
         self.assertEqual(content, data)
         # # test if compound created 
         # compound_exist = med_models.Compound.objects.filter(uid="342225332", source__version="test").count() == 1
@@ -303,7 +301,7 @@ class MedicationTest(KiolaTest):
         # test update single
         url = reverse("tcc_med_api:single-medication", kwargs={"apiv":1, "id":"1"})
         signature_url = f'http://testserver{url}'
-        method = "POST"
+        method = "PUT"
         remote_access_id, signature, senddate = Device.objects.get_signature(signature_url, method, self.device, self.subject.login)
         param = {
             "compound": {
@@ -329,10 +327,9 @@ class MedicationTest(KiolaTest):
 
         content = json.loads(response.content.decode("utf-8"))
 
-        del content[0]["startDate"]
-        del content[0]["endDate"]
-        data = [
-          {
+        del content["startDate"]
+        del content["endDate"]
+        data = {
               "id": "1",
               "reason": "test reason 1",
               "hint": "Allergy 123",
@@ -345,9 +342,9 @@ class MedicationTest(KiolaTest):
               },
               "formulation": "Solution",
               "schedules": [],
-              "medicationType": "PRN"
+              "medicationType": "PRN",
+              "active": True,
           }
-        ]
         self.assertEqual(content, data)
 
         # test update single with wrong compound id
@@ -414,10 +411,9 @@ class MedicationTest(KiolaTest):
             accept="application/json")
 
         content = json.loads(response.content.decode("utf-8"))
-        del content[0]["startDate"]
-        del content[0]["endDate"]
-        data = [
-          {
+        del content["startDate"]
+        del content["endDate"]
+        data = {
               "id": "1",
               "reason": "test reason 1",
               "hint": "Allergy 123",
@@ -430,9 +426,9 @@ class MedicationTest(KiolaTest):
               },
               "formulation": "Solution",
               "schedules": [],
-              "medicationType": "PRN"
+              "medicationType": "PRN",
+              "active": True,
           }
-        ]
         self.assertEqual(content, data)
 
         # test query all
@@ -479,7 +475,7 @@ class MedicationTest(KiolaTest):
             accept_language=None,
             accept="application/json")
         content = json.loads(response.content.decode("utf-8"))
-        self.assertEqual(len(content), 2)
+        self.assertEqual(len(content["results"]), 2)
 
         # test change history
         url = reverse("tcc_med_api:medication-history", kwargs={"apiv":1, "id":"1"})
@@ -499,7 +495,7 @@ class MedicationTest(KiolaTest):
             accept_language=None,
             accept="application/json")
         content = json.loads(response.content.decode("utf-8"))
-        del content[0]["time"]
+        del content["results"][0]["time"]
         data = [
             {
                 "changes": [
@@ -511,24 +507,13 @@ class MedicationTest(KiolaTest):
                 ]
             }
         ]
-        self.assertEqual(content, data)
+        self.assertEqual(content["results"], data)
 
         # test delete 
         url = reverse("tcc_med_api:single-medication", kwargs={"apiv":1, "id":"1"})
         signature_url = f'http://testserver{url}'
-        method = "POST"
+        method = "DELETE"
         remote_access_id, signature, senddate = Device.objects.get_signature(signature_url, method, self.device, self.subject.login)
-        param = {
-            "compound": {
-                "id": "342225332"
-            },
-            "startDate": "2020-01-01",
-            "endDate": "2020-01-01",
-            "reason": "test reason 1",
-            "hint": "Allergy 123",
-            "active": False,
-            "medicationType": "PRN"   
-        }
         response = do_request(
             c,
             method,
@@ -536,13 +521,13 @@ class MedicationTest(KiolaTest):
             remote_access_id,
             signature,
             senddate,
-            param=param,
             content_type="application/json",
             accept_language=None,
             accept="application/json")
 
 
         url = reverse("tcc_med_api:medication", kwargs={"apiv":1})
+        url += "?active=true"
         signature_url = f'http://testserver{url}'
         method = "GET"
         remote_access_id, signature, senddate = Device.objects.get_signature(signature_url, method, self.device, self.subject.login)
@@ -559,23 +544,13 @@ class MedicationTest(KiolaTest):
             accept_language=None,
             accept="application/json")
         content = json.loads(response.content.decode("utf-8"))
-        self.assertEqual(len(content), 1)
+        self.assertEqual(content["count"], 1)
 
         url = reverse("tcc_med_api:single-medication", kwargs={"apiv":1, "id":"2"})
         signature_url = f'http://testserver{url}'
-        method = "POST"
+        method = "DELETE"
         remote_access_id, signature, senddate = Device.objects.get_signature(signature_url, method, self.device, self.subject.login)
-        param = {
-            "compound": {
-                "id": "642059707"
-            },
-            "startDate": "2020-01-01",
-            "endDate": "2020-01-01",
-            "reason": "test reason",
-            "hint": "Allergy 123",
-            "active": False,
-            "medicationType": "PRN"   
-        }
+        param = {}
         response = do_request(
             c,
             method,
@@ -589,6 +564,7 @@ class MedicationTest(KiolaTest):
             accept="application/json")
 
         url = reverse("tcc_med_api:medication", kwargs={"apiv":1})
+        url += "?active=true"
         signature_url = f'http://testserver{url}'
         method = "GET"
         remote_access_id, signature, senddate = Device.objects.get_signature(signature_url, method, self.device, self.subject.login)
@@ -605,7 +581,7 @@ class MedicationTest(KiolaTest):
             accept_language=None,
             accept="application/json")
         content = json.loads(response.content.decode("utf-8"))
-        self.assertEqual(len(content), 0)
+        self.assertEqual(len(content["results"]), 0)
 
 
     def test_taking_api(self):
@@ -668,8 +644,7 @@ class MedicationTest(KiolaTest):
             accept_language=None,
             accept="application/json")
 
-        data = [
-              {
+        data = {
                   "id": "2",
                   "medicationId": "1",
                   "startDate": "2020-11-12",
@@ -683,10 +658,13 @@ class MedicationTest(KiolaTest):
                   "hint": "hint",
                   "time": "18:29:00",
                   "type": "custom",
-                  "actualTime": None
+                  "actualTime": None,
+                  "active": True,
               }
-          ]
+
         content = json.loads(response.content.decode("utf-8"))
+        del content['createdAt']
+        del content['updatedAt']
         self.assertEqual(content, data)
         # test update single
         param = {
@@ -704,7 +682,7 @@ class MedicationTest(KiolaTest):
         }
         url = reverse("tcc_med_api:single-taking", kwargs={"apiv":1,"id":"2"})
         signature_url = f'http://testserver{url}'
-        method = "POST"
+        method = "PUT"
         remote_access_id, signature, senddate = Device.objects.get_signature(signature_url, method, self.device, self.subject.login)
         response = do_request(
             c,
@@ -717,8 +695,7 @@ class MedicationTest(KiolaTest):
             content_type="application/json",
             accept_language=None,
             accept="application/json")
-        data = [
-            {
+        data = {
                 "id": "2",
                 "medicationId": "1",
                 "startDate": "2020-11-12",
@@ -732,10 +709,13 @@ class MedicationTest(KiolaTest):
                 "hint": "hint",
                 "time": "noon",
                 "type": "solar",
-                "actualTime": "12:00:00"
+                "actualTime": "12:00:00",
+                "active": True,
+
             }
-        ]
         content = json.loads(response.content.decode("utf-8"))
+        del content['createdAt']
+        del content['updatedAt']
         self.assertEqual(content, data)
         # test 400
         # test update single with wrong medication id
@@ -754,7 +734,7 @@ class MedicationTest(KiolaTest):
         }
         url = reverse("tcc_med_api:single-taking", kwargs={"apiv":1,"id":"2"})
         signature_url = f'http://testserver{url}'
-        method = "POST"
+        method = "PUT"
         remote_access_id, signature, senddate = Device.objects.get_signature(signature_url, method, self.device, self.subject.login)
         response = do_request(
             c,
@@ -782,7 +762,7 @@ class MedicationTest(KiolaTest):
         }
         url = reverse("tcc_med_api:single-taking", kwargs={"apiv":1,"id":"2"})
         signature_url = f'http://testserver{url}'
-        method = "POST"
+        method = "PUT"
         remote_access_id, signature, senddate = Device.objects.get_signature(signature_url, method, self.device, self.subject.login)
         response = do_request(
             c,
@@ -813,8 +793,7 @@ class MedicationTest(KiolaTest):
             content_type="application/json",
             accept_language=None,
             accept="application/json")
-        data = [
-            {
+        data = {
                 "id": "2",
                 "medicationId": "1",
                 "startDate": "2020-11-12",
@@ -828,10 +807,12 @@ class MedicationTest(KiolaTest):
                 "hint": "hint",
                 "time": "noon",
                 "type": "solar",
-                "actualTime": "12:00:00"
+                "actualTime": "12:00:00",
+                "active": True,
             }
-        ]
         content = json.loads(response.content.decode("utf-8"))
+        del content['createdAt']
+        del content['updatedAt']
         self.assertEqual(content, data)
         # test query all
         param = {
@@ -879,26 +860,13 @@ class MedicationTest(KiolaTest):
             accept_language=None,
             accept="application/json")
         content = json.loads(response.content.decode("utf-8"))
-        self.assertEqual(len(content), 2)
+        self.assertEqual(len(content["results"]), 2)
 
         # test delete 
-        param = {
-            "medicationId": 1,
-            "strength": "200mg",
-            "dosage": 2,
-            "startDate": "2020-11-12",
-            "endDate": "2020-11-22",
-            "reminder": False,
-            "formulation": "Tablet",
-            "frequency": "daily",
-            "hint": "hint",
-            "type": "custom",
-            "active": False,
-            "time": "18:29"
-        }
+        param = {}
         url = reverse("tcc_med_api:single-taking", kwargs={"apiv":1,"id":"2"})
         signature_url = f'http://testserver{url}'
-        method = "POST"
+        method = "DELETE"
         remote_access_id, signature, senddate = Device.objects.get_signature(signature_url, method, self.device, self.subject.login)
         response = do_request(
             c,
@@ -913,6 +881,7 @@ class MedicationTest(KiolaTest):
             accept="application/json")
 
         url = reverse("tcc_med_api:taking", kwargs={"apiv":1})
+        url += "?active=true"
         signature_url = f'http://testserver{url}'
         method = "GET"
         remote_access_id, signature, senddate = Device.objects.get_signature(signature_url, method, self.device, self.subject.login)
@@ -928,25 +897,12 @@ class MedicationTest(KiolaTest):
             accept_language=None,
             accept="application/json")
         content = json.loads(response.content.decode("utf-8"))
-        self.assertEqual(len(content), 1)
+        self.assertEqual(content["count"], 1)
 
-        param = {
-            "medicationId": 1,
-            "strength": "200mg",
-            "dosage": 2,
-            "startDate": "2020-11-12",
-            "endDate": "2020-11-22",
-            "reminder": False,
-            "formulation": "Tablet",
-            "frequency": "daily",
-            "hint": "hint",
-            "type": "solar",
-            "active": False,
-            "time": "noon"
-        }
+        param = {}
         url = reverse("tcc_med_api:single-taking", kwargs={"apiv":1,"id":"3"})
         signature_url = f'http://testserver{url}'
-        method = "POST"
+        method = "DELETE"
         remote_access_id, signature, senddate = Device.objects.get_signature(signature_url, method, self.device, self.subject.login)
         response = do_request(
             c,
@@ -961,6 +917,7 @@ class MedicationTest(KiolaTest):
             accept="application/json")
 
         url = reverse("tcc_med_api:taking", kwargs={"apiv":1})
+        url += "?active=true"
         signature_url = f'http://testserver{url}'
         method = "GET"
         remote_access_id, signature, senddate = Device.objects.get_signature(signature_url, method, self.device, self.subject.login)
@@ -976,7 +933,7 @@ class MedicationTest(KiolaTest):
             accept_language=None,
             accept="application/json")
         content = json.loads(response.content.decode("utf-8"))
-        self.assertEqual(len(content), 0)
+        self.assertEqual(content["count"], 0)
 
     def test_reaction_api(self):
         c = self.client
@@ -1009,7 +966,9 @@ class MedicationTest(KiolaTest):
 
         # test create single
         param = {
-            "medicationId": "1",
+            "compound": {
+                "id": "342225332"
+            },
             "reactionType": "Allergy",
             "reactions": "test reactions"
         }
@@ -1029,8 +988,7 @@ class MedicationTest(KiolaTest):
             accept_language=None,
             accept="application/json")
 
-        data = [
-            {
+        data = {
                 "compound": {
                     "id": "342225332",
                     "name": "abacavir 20 mg/mL oral solution"
@@ -1039,22 +997,24 @@ class MedicationTest(KiolaTest):
                 "reactions": "test reactions",
                 "active": True
             }
-        ]
+
         content = json.loads(response.content.decode("utf-8"))
-        uid = content[0]["uid"]
-        del content[0]["uid"]
-        del content[0]["createdAt"]
-        del content[0]["updatedAt"]
+        uid = content["id"]
+        del content["id"]
+        del content["createdAt"]
+        del content["updatedAt"]
         self.assertEqual(content, data)
         # test update single
         param = {
-            "medicationId": "1",
+            "compound": {
+                "id": "342225332"
+            },
             "reactionType": "Allergy",
             "reactions": "test reactions 11"
         }
         url = reverse("tcc_med_api:single-med_adverse_reaction", kwargs={"apiv":1, "id":uid})
         signature_url = f'http://testserver{url}'
-        method = "POST"
+        method = "PUT"
         remote_access_id, signature, senddate = Device.objects.get_signature(signature_url, method, self.device, self.subject.login)
         response = do_request(
             c,
@@ -1068,9 +1028,8 @@ class MedicationTest(KiolaTest):
             accept_language=None,
             accept="application/json")
 
-        data = [
-            {
-                "uid": uid,
+        data = {
+                "id": uid,
                 "compound": {
                     "id": "342225332",
                     "name": "abacavir 20 mg/mL oral solution"
@@ -1079,21 +1038,23 @@ class MedicationTest(KiolaTest):
                 "reactions": "test reactions 11",
                 "active": True
             }
-        ]
+
         content = json.loads(response.content.decode("utf-8"))
-        del content[0]["createdAt"]
-        del content[0]["updatedAt"]
+        del content["createdAt"]
+        del content["updatedAt"]
         self.assertEqual(content, data)
 
         # test 400 with invalid data
         param = {
-            "medicationId": "1",
+            "compound": {
+                "id": "342225332"
+            },
             "reactionType": "Allergy 111",
             "reactions": "test reactions"
         }
         url = reverse("tcc_med_api:single-med_adverse_reaction", kwargs={"apiv":1, "id":uid})
         signature_url = f'http://testserver{url}'
-        method = "POST"
+        method = "PUT"
         remote_access_id, signature, senddate = Device.objects.get_signature(signature_url, method, self.device, self.subject.login)
         response = do_request(
             c,
@@ -1115,7 +1076,7 @@ class MedicationTest(KiolaTest):
         }
         url = reverse("tcc_med_api:single-med_adverse_reaction", kwargs={"apiv":1, "id":uid})
         signature_url = f'http://testserver{url}'
-        method = "POST"
+        method = "PUT"
         remote_access_id, signature, senddate = Device.objects.get_signature(signature_url, method, self.device, self.subject.login)
         response = do_request(
             c,
@@ -1148,9 +1109,8 @@ class MedicationTest(KiolaTest):
             accept_language=None,
             accept="application/json")
 
-        data = [
-            {
-                "uid": uid,
+        data = {
+                "id": uid,
                 "compound": {
                     "id": "342225332",
                     "name": "abacavir 20 mg/mL oral solution"
@@ -1159,15 +1119,17 @@ class MedicationTest(KiolaTest):
                 "reactions": "test reactions 11",
                 "active": True
             }
-        ]
+
         content = json.loads(response.content.decode("utf-8"))
-        del content[0]["createdAt"]
-        del content[0]["updatedAt"]
+        del content["createdAt"]
+        del content["updatedAt"]
         self.assertEqual(content, data)
 
         # test query all
         param = {
-            "medicationId": "1",
+            "compound": {
+                "id": "342225332"
+            },
             "reactionType": "Allergy",
             "reactions": "test reactions 2"
         }
@@ -1187,7 +1149,7 @@ class MedicationTest(KiolaTest):
             accept_language=None,
             accept="application/json")
         content = json.loads(response.content.decode("utf-8"))
-        uid2 = content[0]["uid"]
+        uid2 = content["id"]
 
         url = reverse("tcc_med_api:med_adverse_reaction", kwargs={"apiv":1})
         signature_url = f'http://testserver{url}'
@@ -1205,17 +1167,12 @@ class MedicationTest(KiolaTest):
             accept_language=None,
             accept="application/json")
         content = json.loads(response.content.decode("utf-8"))
-        self.assertEqual(len(content), 2)
+        self.assertEqual(len(content["results"]), 2)
         # test delete 
-        param = {
-            "medicationId": "1",
-            "reactionType": "Allergy",
-            "active": False,
-            "reactions": "test reactions 2"
-        }
+        param = {}
         url = reverse("tcc_med_api:single-med_adverse_reaction", kwargs={"apiv":1, "id":uid2})
         signature_url = f'http://testserver{url}'
-        method = "POST"
+        method = "DELETE"
         remote_access_id, signature, senddate = Device.objects.get_signature(signature_url, method, self.device, self.subject.login)
         response = do_request(
             c,
@@ -1229,7 +1186,8 @@ class MedicationTest(KiolaTest):
             accept_language=None,
             accept="application/json")
 
-        url = reverse("tcc_med_api:single-med_adverse_reaction", kwargs={"apiv":1, "id": uid2})
+        url = reverse("tcc_med_api:med_adverse_reaction", kwargs={"apiv":1})
+        url += "?active=true"
         signature_url = f'http://testserver{url}'
         method = "GET"
         remote_access_id, signature, senddate = Device.objects.get_signature(signature_url, method, self.device, self.subject.login)
@@ -1244,33 +1202,15 @@ class MedicationTest(KiolaTest):
             content_type="application/json",
             accept_language=None,
             accept="application/json")
-        data = [
-            {
-                "uid": uid2,
-                "compound": {
-                    "id": "342225332",
-                    "name": "abacavir 20 mg/mL oral solution"
-                },
-                "reactionType": "Allergy",
-                "reactions": "test reactions 2",
-                "active": False
-            }
-        ]
+
         content = json.loads(response.content.decode("utf-8"))
-        del content[0]["createdAt"]
-        del content[0]["updatedAt"]
-        self.assertEqual(content, data)
+        self.assertEqual(content['count'], 1)
 
 
-        param = {
-            "medicationId": "1",
-            "reactionType": "Allergy",
-            "active": False,
-            "reactions": "test reactions 11"
-        }
+        param = {}
         url = reverse("tcc_med_api:single-med_adverse_reaction", kwargs={"apiv":1, "id":uid})
         signature_url = f'http://testserver{url}'
-        method = "POST"
+        method = "DELETE"
         remote_access_id, signature, senddate = Device.objects.get_signature(signature_url, method, self.device, self.subject.login)
         response = do_request(
             c,
@@ -1284,7 +1224,8 @@ class MedicationTest(KiolaTest):
             accept_language=None,
             accept="application/json")
 
-        url = reverse("tcc_med_api:single-med_adverse_reaction", kwargs={"apiv":1, "id":uid})
+        url = reverse("tcc_med_api:med_adverse_reaction", kwargs={"apiv":1})
+        url += "?active=true"
         signature_url = f'http://testserver{url}'
         method = "GET"
         remote_access_id, signature, senddate = Device.objects.get_signature(signature_url, method, self.device, self.subject.login)
@@ -1299,22 +1240,9 @@ class MedicationTest(KiolaTest):
             content_type="application/json",
             accept_language=None,
             accept="application/json")
-        data = [
-            {
-                "uid": uid,
-                "compound": {
-                    "id": "342225332",
-                    "name": "abacavir 20 mg/mL oral solution"
-                },
-                "reactionType": "Allergy",
-                "reactions": "test reactions 11",
-                "active": False
-            }
-        ]
+
         content = json.loads(response.content.decode("utf-8"))
-        del content[0]["createdAt"]
-        del content[0]["updatedAt"]
-        self.assertEqual(content, data)
+        self.assertEqual(content['count'], 0)
 
 
     def test_user_preference_api(self):

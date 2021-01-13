@@ -365,11 +365,11 @@ class PrescriptionAPIView(APIView, PaginationHandlerMixin):
                 request.query_params['limit'] = self.max_count
                 request.query_params._mutable = False
 
+            active = query.get('active', None)
+
             qs = med_models.Prescription.objects.select_related(
                 'compound',
-                'status') .filter(
-                subject=subject,
-                status__name=med_const.PRESCRIPTION_STATUS__ACTIVE) .prefetch_related(
+                'status').filter(subject=subject).prefetch_related(
                 Prefetch(
                     'prescriptionevent_set',
                     queryset=med_models.PrescriptionEvent.objects.filter(
@@ -388,7 +388,8 @@ class PrescriptionAPIView(APIView, PaginationHandlerMixin):
                 'compound__active_components') .order_by(
                 'compound__name',
                 'status')
-
+            if active == "true":
+                  qs = qs.filter(status__name=med_const.PRESCRIPTION_STATUS__ACTIVE)
             page = self.paginate_queryset(qs)
 
             if page is not None:
@@ -400,6 +401,57 @@ class PrescriptionAPIView(APIView, PaginationHandlerMixin):
 
         return Response(serializer.data, status=status.HTTP_200_OK)
 
+    @requires_api_login
+    def delete(self, request, subject_uid=None, id=None, *args, **kwargs):  
+        prescr_id = id
+        if not prescr_id:
+            raise exceptions.BadRequest("Invalid request. Missing resource id")
+
+        try:
+            if subject_uid is None:
+                subject = senses.Subject.objects.get(login=request.user)
+            else:
+                subject = senses.Subject.objects.get(uuid=subject_uid)
+        except senses.Subject.DoesNotExist:
+            raise exceptions.Forbidden("Unknown subject")
+        try:
+            prescription = med_models.Prescription.objects.get(subject=subject, pk=prescr_id, status__name=med_const.PRESCRIPTION_STATUS__ACTIVE)
+        except med_models.Prescription.DoesNotExist:
+            raise exceptions.NotFound("Prescription with id '%s' does not exist or is inactive" % prescr_id)
+
+        p_status = med_models.PrescriptionStatus.objects.get(name=med_const.PRESCRIPTION_STATUS__INACTIVE)
+
+        with transaction.atomic():
+
+            with reversionrevisions.create_revision():
+                reversionrevisions.set_user(get_system_user())
+            med_models.PrescriptionEvent.objects.create(prescription=prescription,
+                                                    timepoint=timezone.now(),
+                                                    etype=med_models.PrescriptionEventType.objects.get(name=med_const.EVENT_TYPE__CANCELED))
+            prescription.status = p_status
+            prescription.save()
+
+        return Response({"id": prescr_id}, status=status.HTTP_200_OK)
+
+    @requires_api_login
+    def put(self, request, subject_uid=None, id=None, *args, **kwargs):  
+        prescr_id = id
+        if not prescr_id:
+            raise exceptions.BadRequest("Invalid request. Missing resource id")
+        try:
+            if subject_uid is None:
+                subject = senses.Subject.objects.get(login=request.user)
+            else:
+                subject = senses.Subject.objects.get(uuid=subject_uid)
+        except senses.Subject.DoesNotExist:
+            raise exceptions.Forbidden("Unknown subject")
+
+        prescr = self._create_or_update(request, prescr_id, subject)
+        # prepare object for response
+        prescr = med_models.Prescription.objects.get(pk=prescr.pk)
+        serializer = self.serializer_class(prescr)
+
+        return Response(serializer.data, status=status.HTTP_200_OK)
 
     @swagger_auto_schema(
         tags=['Medication'], 
@@ -413,7 +465,8 @@ class PrescriptionAPIView(APIView, PaginationHandlerMixin):
     )
     @requires_api_login
     def post(self, request, subject_uid=None, id=None, *args, **kwargs):  
-
+        if id is not None:
+            raise exceptions.BadRequest("Creating new resource with given id is not supported.")
         try:
             if subject_uid is None:
                 subject = senses.Subject.objects.get(login=request.user)
@@ -421,11 +474,17 @@ class PrescriptionAPIView(APIView, PaginationHandlerMixin):
                 subject = senses.Subject.objects.get(uuid=subject_uid)
         except senses.Subject.DoesNotExist:
             raise exceptions.Forbidden("Unknown subject")
-        
-
         prescr_id = id
-        # prescr_id = data.get('id', None)
 
+        prescr = self._create_or_update(request, prescr_id, subject)
+        # prepare object for response
+        prescr = med_models.Prescription.objects.get(pk=prescr.pk)
+        serializer = self.serializer_class(prescr)
+
+        return Response(serializer.data, status=status.HTTP_200_OK)
+
+
+    def _create_or_update(self, request, prescr_id, subject): 
         # filter extra fields that are not allowed for storing history records
         def process_request_data(request_data):
             data = {
@@ -527,11 +586,8 @@ class PrescriptionAPIView(APIView, PaginationHandlerMixin):
         if processed_data.get('id', None) is None:
             processed_data['id'] = str(prescr.pk)
         record = models.MedicationRelatedHistoryData.objects.add_data_change_record(prescr, processed_data)
-        # prepare object for response
-        prescr = med_models.Prescription.objects.get(pk=prescr.pk)
-        serializer = self.serializer_class(prescr)
 
-        return Response(serializer.data, status=status.HTTP_200_OK)
+        return prescr
 
 def update_or_create_med_adverse_reaction(request, reactions_str: str, compound: med_models.Compound):
     reactions = reactions_str.split(',')
@@ -550,7 +606,7 @@ def update_or_create_med_type(request, medication_type: str, prescription: med_m
     return prn
 
 def update_prescription_displayable_taking(prescription):
-    takings = models.ScheduledTaking.objects.filter(takingschema__prescriptionschema__prescription=prescription)
+    takings = models.ScheduledTaking.objects.filter(takingschema__prescriptionschema__prescription=prescription, active=True)
     taking_strings = []
     for taking in takings:
         taking_strings.append(taking.get_displayable())
@@ -675,6 +731,7 @@ class MedicationAdverseReactionAPIView(APIView, PaginationHandlerMixin):
 
         else:
             query = request.GET
+            active = query.get('active', None)
 
             # set default value to limit param if not exist
             # to ensure paging is enabled
@@ -690,6 +747,8 @@ class MedicationAdverseReactionAPIView(APIView, PaginationHandlerMixin):
                 subject=subject,
                 status__name=med_const.PRESCRIPTION_STATUS__ACTIVE).values_list('compound__pk', flat=True)
             )
+            if active == "true":
+                qs = qs.filter(active=True)
             page = self.paginate_queryset(qs)
             if page is not None:
                 serializer = self.get_paginated_response(self.serializer_class(page,
@@ -699,6 +758,55 @@ class MedicationAdverseReactionAPIView(APIView, PaginationHandlerMixin):
                 serializer = self.serializer_class(qs, many=True)
         return Response(serializer.data, status=status.HTTP_200_OK)
 
+    @requires_api_login
+    def delete(self, request, subject_uid=None, id=None, *args, **kwargs):  
+        reaction_id = id
+        if not reaction_id:
+            raise exceptions.BadRequest("Invalid request. Missing resource id")
+
+        try:
+            if subject_uid is None:
+                subject = senses.Subject.objects.get(login=request.user)
+            else:
+                subject = senses.Subject.objects.get(uuid=subject_uid)
+        except senses.Subject.DoesNotExist:
+            raise exceptions.Forbidden("Unknown subject")
+        try:
+            reaction_item = models.MedicationAdverseReaction.objects.get(uid=reaction_id, active=True)
+        except:
+            raise exceptions.BadRequest("MedicationAdverseReaction with id '%s' does not exist or is inactive" % reaction_id)
+        with reversionrevisions.create_revision():
+            reversionrevisions.set_user(get_system_user())
+            reaction_item.active = False
+            reaction_item.save()
+
+        return Response({"id": reaction_id}, status=status.HTTP_200_OK)
+
+    @requires_api_login
+    def put(self, request, subject_uid=None, id=None, *args, **kwargs):  
+        reaction_id = id
+        if not reaction_id:
+            raise exceptions.BadRequest("Invalid request. Missing resource id")
+          
+        try:
+            if subject_uid is None:
+                subject = senses.Subject.objects.get(login=request.user)
+            else:
+                subject = senses.Subject.objects.get(uuid=subject_uid)
+        except senses.Subject.DoesNotExist:
+            raise exceptions.Forbidden("Unknown subject")
+
+        data = request.data
+        # reaction_id = data.get('uid', None)
+        compound = data.get('compound', None)
+        compound_id = compound.get('id', None) if compound else None
+        reaction_type_name = data.get('reactionType', None)
+        reactions = data.get('reactions', None)
+
+        reaction_item = self._create_or_update(request, reaction_id, compound_id, reaction_type_name, reactions)
+        serializer = self.serializer_class(reaction_item)
+
+        return Response(serializer.data, status=status.HTTP_200_OK)
 
     @swagger_auto_schema(
         tags=['Reaction'], 
@@ -712,6 +820,8 @@ class MedicationAdverseReactionAPIView(APIView, PaginationHandlerMixin):
     )
     @requires_api_login
     def post(self, request, subject_uid=None, id=None, *args, **kwargs):  
+        if id is not None:
+            raise exceptions.BadRequest("Creating new resource with given id is not supported.")
         try:
             if subject_uid is None:
                 subject = senses.Subject.objects.get(login=request.user)
@@ -723,27 +833,42 @@ class MedicationAdverseReactionAPIView(APIView, PaginationHandlerMixin):
         data = request.data
         # reaction_id = data.get('uid', None)
         reaction_id = id
-        prescr_id = data.get('medicationId', None)
+        compound = data.get('compound', None)
+        compound_id = compound.get('id', None) if compound else None
         reaction_type_name = data.get('reactionType', None)
         reactions = data.get('reactions', None)
-        active = data.get('active', None)
 
-        if not prescr_id or not reaction_type_name or not reactions:
-            raise exceptions.BadRequest("Invalid data '%s' " % data)
-        if active is not None and type(active) != bool:
-            raise exceptions.BadRequest("Invalid data '%s' " % data)
+        reaction_item = self._create_or_update(request, reaction_id, compound_id, reaction_type_name, reactions)
+        serializer = self.serializer_class(reaction_item)
 
+        return Response(serializer.data, status=status.HTTP_200_OK)
+
+    def _create_or_update(self, request, reaction_id, compound_id, reaction_type_name, reactions):
+        if not compound_id or not reaction_type_name or not reactions:
+            raise exceptions.BadRequest("Invalid data '%s' " % request.data)
+        
         try:
-            prescr = med_models.Prescription.objects.select_related('compound').get(pk=prescr_id, status__name=med_const.PRESCRIPTION_STATUS__ACTIVE)
+            source = med_models.CompoundSource.objects.get_default()
+            adapter = med_models.Compound.objects.get_adapter(source.pk)
+            compound, created = adapter.get_or_create(compound_id)
         except:
-            raise exceptions.BadRequest("Prescription with id '%s' does not exist or is inactive" % prescr_id)
-          
+            # check if patient created compound
+            try:
+                source = med_models.CompoundSource.objects.get(name=const.COMPOUND_SOURCE_NAME__TCC,
+                                      version=const.COMPOUND_SOURCE_VERSION__PATIENT)
+                compound = med_models.Compound.objects.get(uid=compound_id, source=source)
+            except:
+                raise exceptions.BadRequest("Compound with id '%s' does not exist" % compound_id)          
         try:
             reaction_type = models.AdverseReactionType.objects.get(name=reaction_type_name)
         except:
             raise exceptions.BadRequest("AdverseReactionType with name '%s' does not exist" % reaction_type_name)
 
-        compound = prescr.compound
+
+        with reversionrevisions.create_revision():
+            reversionrevisions.set_user(get_system_user())
+
+        
         if reaction_id:
             try:
                 reaction_item = models.MedicationAdverseReaction.objects.get(uid=reaction_id)
@@ -751,8 +876,6 @@ class MedicationAdverseReactionAPIView(APIView, PaginationHandlerMixin):
                 reaction_item.reaction_type = reaction_type
                 reaction_item.reactions = reactions
                 reaction_item.editor = request.user
-                if active is not None:
-                    reaction_item.active = active
                 reaction_item.save()
             except:
                 raise exceptions.BadRequest("MedicationAdverseReaction with id '%s' does not exist" % reaction_id)
@@ -760,11 +883,7 @@ class MedicationAdverseReactionAPIView(APIView, PaginationHandlerMixin):
         else:
             reaction_item, created = models.MedicationAdverseReaction.objects.get_or_create(
                 compound=compound, reaction_type=reaction_type, reactions=reactions, editor=request.user, active=True)
-
-        serializer = self.serializer_class(reaction_item)
-
-        return Response(serializer.data, status=status.HTTP_200_OK)
-        
+        return reaction_item
 
 class TakingSchemaAPIView(APIView, PaginationHandlerMixin):
     max_count = 80
@@ -808,6 +927,7 @@ class TakingSchemaAPIView(APIView, PaginationHandlerMixin):
 
         else:
             query = request.GET
+            active = query.get('active', None)
 
             # set default value to limit param if not exist
             # to ensure paging is enabled
@@ -825,6 +945,8 @@ class TakingSchemaAPIView(APIView, PaginationHandlerMixin):
                     F('takingschema__prescriptionschema__prescription')
                 )
             )
+            if active == "true":
+                taking_qs = taking_qs.filter(active=True)
             page = self.paginate_queryset(taking_qs)
 
             if page is not None:
@@ -835,6 +957,33 @@ class TakingSchemaAPIView(APIView, PaginationHandlerMixin):
                 serializer = self.serializer_class(taking_qs, many=True)
 
         return Response(serializer.data, status=status.HTTP_200_OK)
+
+    @requires_api_login
+    def delete(self, request, subject_uid=None, id=None, *args, **kwargs):  
+        taking_id = id
+        if not taking_id:
+            raise exceptions.BadRequest("Invalid request. Missing resource id")
+        try:
+            if subject_uid is None:
+                subject = senses.Subject.objects.get(login=request.user)
+            else:
+                subject = senses.Subject.objects.get(uuid=subject_uid)
+        except senses.Subject.DoesNotExist:
+            raise exceptions.Forbidden("Unknown subject")
+
+        taking = None
+        try:
+            taking = models.ScheduledTaking.objects.annotate(prescr_id=F('takingschema__prescriptionschema__prescription')).get(pk=taking_id, active=True)
+        except:
+            raise exceptions.BadRequest("Taking with id '%s' does not exist or is inactive" % taking_id)
+
+        with reversionrevisions.create_revision():
+            reversionrevisions.set_user(get_system_user())
+            taking.active = False
+            taking.save()
+        prescr = med_models.Prescription.objects.get(pk=taking.prescr_id)
+        update_prescription_displayable_taking(prescr)
+        return Response({"id": taking_id}, status=status.HTTP_200_OK)
 
 
     @swagger_auto_schema(
@@ -849,12 +998,10 @@ class TakingSchemaAPIView(APIView, PaginationHandlerMixin):
     )
     @requires_api_login
     def post(self, request, subject_uid=None, id=None, *args, **kwargs):
-
+        if id is not None:
+            raise exceptions.BadRequest("Creating new resource with given id is not supported.")
 
         data = request.data
-        # taking_id = data.get('id', "")
-
-        taking_id = id
         try:
             prescr_id = data.get('medicationId', "")
             schedule_type = data['type']
@@ -867,12 +1014,11 @@ class TakingSchemaAPIView(APIView, PaginationHandlerMixin):
             strength = data['strength']
             unit = data['formulation']
             hint = data.get('hint', "")
-            active = data.get('active', None)
 
         except: 
             raise exceptions.BadRequest("Invalid data '%s'. Missing some of the required fields " % data)
 
-        taking = process_taking_request(request, data, taking_id, prescr_id, schedule_type, schedule_time, frequency, reminder, start_date, end_date, dose, strength, unit, hint, active)
+        taking = process_taking_request(request, data, None, prescr_id, schedule_type, schedule_time, frequency, reminder, start_date, end_date, dose, strength, unit, hint)
         
         serializer = self.serializer_class(models.ScheduledTaking.objects.annotate(prescr_id=
                     F('takingschema__prescriptionschema__prescription')
@@ -880,9 +1026,40 @@ class TakingSchemaAPIView(APIView, PaginationHandlerMixin):
 
         return Response(serializer.data, status=status.HTTP_200_OK)
 
-def process_taking_request(request, data, taking_id, prescr_id, schedule_type, schedule_time, frequency, reminder, start_date, end_date, dose, strength, unit, hint, active, clinic_scheduled=False):
-        if active is not None and type(active) != bool:
-            raise exceptions.BadRequest("Invalid data '%s' " % data)
+    @requires_api_login
+    def put(self, request, subject_uid=None, id=None, *args, **kwargs):
+        data = request.data
+        # taking_id = data.get('id', "")
+
+        taking_id = id
+        if not taking_id:
+            raise exceptions.BadRequest("Invalid request. Missing resource id")
+
+        try:
+            prescr_id = data.get('medicationId', "")
+            schedule_type = data['type']
+            schedule_time = data['time']
+            frequency = data['frequency']
+            reminder = data['reminder']
+            start_date = data['startDate']
+            end_date = data.get('endDate', None)
+            dose = data['dosage']
+            strength = data['strength']
+            unit = data['formulation']
+            hint = data.get('hint', "")
+
+        except: 
+            raise exceptions.BadRequest("Invalid data '%s'. Missing some of the required fields " % data)
+
+        taking = process_taking_request(request, data, taking_id, prescr_id, schedule_type, schedule_time, frequency, reminder, start_date, end_date, dose, strength, unit, hint)
+        
+        serializer = self.serializer_class(models.ScheduledTaking.objects.annotate(prescr_id=
+                    F('takingschema__prescriptionschema__prescription')
+                ).get(pk=taking.pk))
+
+        return Response(serializer.data, status=status.HTTP_200_OK)
+
+def process_taking_request(request, data, taking_id, prescr_id, schedule_type, schedule_time, frequency, reminder, start_date, end_date, dose, strength, unit, hint, clinic_scheduled=False):
 
         taking = None
         if taking_id:
@@ -929,28 +1106,21 @@ def process_taking_request(request, data, taking_id, prescr_id, schedule_type, s
         if taking:
             if taking.pk not in takings:
                 raise exceptions.BadRequest("Taking with id '%s' does not match the gvien prescription (%s)" % (taking_id, prescr_id))
-            if active is not None and active is False:
-                schema = prescr_schema.taking_schema
-                schema.takings.remove(taking)
-                schema.save()
-                # order_taking = med_models.OrderedTaking.objects.get(taking=taking, schema=schema)
-                # order_taking.delete()
 
-            else:
 
-                taking.timepoint=timepoint
-                taking.taking_time=time
-                taking.start_date=datetime.strptime(start_date.split("T")[0], "%Y-%m-%d")
-                taking.end_date=datetime.strptime(end_date.split("T")[0], "%Y-%m-%d") if end_date else None
-                taking.editor=request.user
-                taking.unit=taking_unit
-                taking.hint=hint
-                taking.strength=strength
-                taking.dosage=dose
-                taking.reminder=reminder
-                taking.clinic_scheduled=clinic_scheduled
-                taking.frequency=models.TakingFrequency.objects.get(name=frequency)
-                taking.save() 
+            taking.timepoint=timepoint
+            taking.taking_time=time
+            taking.start_date=datetime.strptime(start_date.split("T")[0], "%Y-%m-%d")
+            taking.end_date=datetime.strptime(end_date.split("T")[0], "%Y-%m-%d") if end_date else None
+            taking.editor=request.user
+            taking.unit=taking_unit
+            taking.hint=hint
+            taking.strength=strength
+            taking.dosage=dose
+            taking.reminder=reminder
+            taking.clinic_scheduled=clinic_scheduled
+            taking.frequency=models.TakingFrequency.objects.get(name=frequency)
+            taking.save() 
 
         else:
             taking = models.ScheduledTaking.objects.create(
@@ -1061,6 +1231,10 @@ class UserPreferenceConfigAPIView(APIView):
             if config_item is None:
                 raise exceptions.BadRequest("Invalid data for type '%s" % item['type'])
             config_data[f'{const.USER_PREFERENCE_CONFIG_PREFIX}{item["type"]}'] = item
+
+
+        with reversionrevisions.create_revision():
+            reversionrevisions.set_user(get_system_user())
         result = models.UserPreferenceConfig.objects.set_value(const.USER_PREFERENCE_KEY__MEDICATION_TIMES, config_data, request.user)
         config_data = models.UserPreferenceConfig.objects.get_value(const.USER_PREFERENCE_KEY__MEDICATION_TIMES, request.user).values()
         return Response(config_data, status=status.HTTP_200_OK)
@@ -1135,8 +1309,10 @@ class TCCPrescriptionView(kiola_views.KiolaSubjectView):
             kwargs["taking_form"] = forms.ScheduleTakingForm(initial={"prescription_id": self.fid})
             prescription = med_models.Prescription.objects.get(pk=self.fid)
             subject = senses.Subject.objects.get(uuid=self.sid)
-            takings = models.ScheduledTaking.objects.filter(takingschema__prescriptionschema__prescription__pk=self.fid)
-            kwargs["takings"] = takings
+            active_takings = models.ScheduledTaking.objects.filter(takingschema__prescriptionschema__prescription__pk=self.fid, active=True)
+            kwargs["active_takings"] = active_takings
+            inactive_takings = models.ScheduledTaking.objects.filter(takingschema__prescriptionschema__prescription__pk=self.fid, active=False)
+            kwargs["inactive_takings"] = inactive_takings
             reactions = models.MedicationAdverseReaction.objects.filter(compound=prescription.compound, editor=subject.login)
             kwargs["reactions"] = reactions
 
@@ -1209,15 +1385,39 @@ class TakingSchemaResource(resource.Resource):
             strength = data['strength']
             unit = data['unit'].name
             hint = data.get('hint', "")
-            active = data.get('active')
         except Exception as err:
             print('err', err)
             raise exceptions.BadRequest("Invalid data '%s'. Missing some of the required fields " % data)
         
-        taking = process_taking_request(request, data, taking_id, prescr_id, schedule_type, schedule_time, frequency, reminder, start_date, end_date, dose, strength, unit, hint, active, clinic_scheduled=True)
+        taking = process_taking_request(request, data, taking_id, prescr_id, schedule_type, schedule_time, frequency, reminder, start_date, end_date, dose, strength, unit, hint, clinic_scheduled=True)
 
         return HttpResponse(status=status.HTTP_200_OK)
 
+    def delete(self, request, sid=None, id=None, fid=None, **kwargs):
+        taking_id = id
+        prescr_id = fid
+        if not taking_id:
+            raise exceptions.BadRequest("Invalid request. Missing resource id")
+        try:
+            subject = senses.Subject.objects.get(uuid=sid)
+        except senses.Subject.DoesNotExist:
+            raise exceptions.Forbidden("Unknown subject")
+        try:
+            prescr = med_models.Prescription.objects.get(pk=prescr_id, status__name=med_const.PRESCRIPTION_STATUS__ACTIVE, subject=subject)
+        except:
+            raise exceptions.BadRequest("Prescription with id '%s' does not exist or is inactive" % prescr_id)
+
+        taking = None
+        try:
+            taking = models.ScheduledTaking.objects.get(pk=taking_id, active=True)
+        except:
+            raise exceptions.BadRequest("Taking with id '%s' does not exist or is inactive" % taking_id)
+
+        taking.active = False
+        taking.save()
+        update_prescription_displayable_taking(prescr)
+        return HttpResponse(status=status.HTTP_200_OK)
+    
 
 # replace kiola_med.views.SISAutocompleteResource for adding PRN info
 class TCCAutocompleteResource(resource.Resource):

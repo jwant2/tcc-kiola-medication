@@ -14,6 +14,7 @@ from django.contrib.contenttypes.fields import GenericForeignKey
 from django.utils.translation import ugettext_lazy as _, ugettext_noop, get_language
 
 from kiola.kiola_med import models as med_models
+from kiola.utils.authorization import track_model
 from kiola.kiola_senses import models as senses
 from kiola.utils import service_providers
 from kiola.kiola_pharmacy import models as pharmacy_models
@@ -25,7 +26,7 @@ class AdverseReactionType(models.Model):
     description = models.CharField(max_length=255)
     def __str__(self):
         return self.name
-
+track_model(AdverseReactionType)
 class PatientAdverseReaction(models.Model):
     uid = models.UUIDField(unique=True, default=uuid.uuid4, editable=False)
     subject = models.ForeignKey(senses.Subject, on_delete=models.PROTECT)
@@ -71,12 +72,15 @@ class MedicationAdverseReaction(models.Model):
             "active": self.active,
         }
 
+track_model(MedicationAdverseReaction)
+
 class TakingFrequency(models.Model):
     name = models.CharField(max_length=100)
     description = models.CharField(max_length=255)
 
     def __str__(self):
         return self.name
+track_model(TakingFrequency)
 
 class ScheduledTaking(med_models.BaseTaking):
     TYPE_SHORT = const.TAKING_SCHEMA_TYPE__SCHEDULED
@@ -94,6 +98,9 @@ class ScheduledTaking(med_models.BaseTaking):
     editor = models.ForeignKey(get_user_model(), on_delete=models.CASCADE)
     clinic_scheduled = models.BooleanField(default=True)
     frequency = models.ForeignKey(TakingFrequency, on_delete=models.PROTECT)
+    created = models.DateTimeField(auto_now_add=True)
+    updated = models.DateTimeField(auto_now=True)    
+    active = models.BooleanField(default=True)
 
     def as_dict(self):
         return {
@@ -109,6 +116,9 @@ class ScheduledTaking(med_models.BaseTaking):
                 "frequency": self.frequency.name,
                 "editor": self.editor.username,
                 "clinic_scheduled": self.clinic_scheduled,
+                "created": self.created,
+                "updated": self.updated,
+                "active": self.active,
                 "reminder": self.reminder}
 
     def __str__(self):
@@ -129,7 +139,7 @@ class ScheduledTaking(med_models.BaseTaking):
                                         force_text(self.dosage),
                                         force_text(self.unit),
                                         )
-
+track_model(ScheduledTaking)
 
 class UserPreferenceConfigManager(PermissionModelManager):
 
@@ -177,7 +187,7 @@ class UserPreferenceConfig(models.Model):
     updated = models.DateTimeField(auto_now=True,help_text="Timestamp of last update to index element.")
     data = JSONField(default=element_default,help_text="The actual data of the index entry.",null=False,blank=False)
 
-
+track_model(UserPreferenceConfig)
 
 # class TccPrescriptionManager(PermissionModelManager):
 
@@ -208,7 +218,7 @@ class CompoundExtraInformation(models.Model):
         return force_text("{} - {} for {}").format(force_text(self.name),
                                                    force_text(self.value),
                                                    force_text(self.compound.name))
-
+track_model(CompoundExtraInformation)
 class PrescriptionExtraInformation(models.Model):
     
     prescription = models.ForeignKey(med_models.Prescription, on_delete=models.CASCADE)
@@ -231,7 +241,7 @@ class PrescriptionExtraInformation(models.Model):
                                                    force_text(self.value),
                                                    force_text(self.prescription))
 
-
+track_model(PrescriptionExtraInformation)
 class MedicationRelatedHistoryDataManager(PermissionModelManager):
 
     def add_data_change_record(self, related_object, request_data):
@@ -273,7 +283,7 @@ class MedicationRelatedHistoryData(models.Model):
         return force_text("{} - {} for {}").format(force_text(self.content_object),
                                                    force_text(self.data),
                                                    force_text(self.created))
-                                                   
+track_model(MedicationRelatedHistoryData)                                             
 
 def drug_search(q,by_id=False):
     imports = pharmacy_models.ImportHistory.objects.all().order_by("-pk")

@@ -73,10 +73,10 @@ class MedicationAdverseReactionSerializer(serializers.ModelSerializer):
     compound = serializers.SerializerMethodField()
     createdAt = serializers.CharField(source='created')
     updatedAt = serializers.CharField(source='updated')
-
+    id = serializers.CharField(source='uid')
     class Meta:
         model =  models.MedicationAdverseReaction
-        fields = ['uid', 'compound', 'reactionType', 'reactions', 'createdAt', 'updatedAt', 'active']
+        fields = ['id', 'compound', 'reactionType', 'reactions', 'createdAt', 'updatedAt', 'active']
 
     def get_compound(self, obj):
         return {
@@ -95,6 +95,7 @@ class MedPrescriptionSerializer(serializers.ModelSerializer):
     medicationType = serializers.SerializerMethodField()
     startDate = serializers.SerializerMethodField()
     endDate = serializers.SerializerMethodField()
+    active = serializers.SerializerMethodField()
 
     def get_compound(self, obj):
         return {
@@ -154,6 +155,10 @@ class MedPrescriptionSerializer(serializers.ModelSerializer):
         pre_evt = obj.prescriptionevent_set.filter(etype=med_models.PrescriptionEventType.objects.get(name=med_const.EVENT_TYPE__END)).first()
         return pre_evt.timepoint if pre_evt else None
 
+    def get_active(self, obj):
+        if obj.status.name == med_const.PRESCRIPTION_STATUS__ACTIVE:
+            return True
+        return False
 
     class Meta:
         model =  Prescription
@@ -166,7 +171,8 @@ class MedPrescriptionSerializer(serializers.ModelSerializer):
                     'schedules',
                     'startDate',
                     'endDate',
-                    'medicationType'
+                    'medicationType',
+                    'active'
                  ]
 
 
@@ -181,6 +187,8 @@ class ScheduledTakingSerializer(serializers.ModelSerializer):
     time = serializers.SerializerMethodField()
     actualTime = serializers.SerializerMethodField()
     type = serializers.SerializerMethodField()
+    createdAt = serializers.CharField(source='created')
+    updatedAt = serializers.CharField(source='updated')
 
     def get_type(self, obj):
         if obj.timepoint.name == "custom":
@@ -225,4 +233,7 @@ class ScheduledTakingSerializer(serializers.ModelSerializer):
             'time',
             'type',
             'actualTime',
+            'createdAt', 
+            'updatedAt',
+            'active',
         ]
