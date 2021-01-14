@@ -200,7 +200,7 @@ class CompoundAPIView(APIView, PaginationHandlerMixin):
                 unit.save
 
             # create active components
-            ac,  created = med_models.ActiveComponent.objects.get_or_create(name=compound_name)
+            ac,  created = med_models.ActiveComponent.objects.get_or_create(name=active_omponents)
             if created:
                 ac.name_ref = uid
                 ac.save()
@@ -536,7 +536,7 @@ class PrescriptionAPIView(APIView, PaginationHandlerMixin):
                 raise exceptions.BadRequest("Prescription with id '%s' does not exist or is inactive" % prescr_id)
 
             if prescr.compound.uid != compound_obj['id']:
-                raise exceptions.BadRequest("Compound with id '%s' does not match the compound of the given prescription with pk '%s'" % (compound_obj['id'], prescr_id))
+                raise exceptions.BadRequest("Compound with id '%s' does not match the compound of the given prescription with id '%s'" % (compound_obj['id'], prescr_id))
 
             with reversionrevisions.create_revision():
                 reversionrevisions.set_user(get_system_user())
@@ -563,11 +563,20 @@ class PrescriptionAPIView(APIView, PaginationHandlerMixin):
             p_status = med_models.PrescriptionStatus.objects.get(name="Active")
             with reversionrevisions.create_revision():
                 reversionrevisions.set_user(get_system_user())
-                adapter = med_models.Compound.objects.get_adapter(med_models.CompoundSource.objects.get(default=True).pk)
-                compound, created = adapter.get_or_create(compound_obj['id'])
-                # compound = med_models.Compound.objects.filter(uid=compound_obj['id'], source__default=True).last()
-                if not compound or compound.source.default is not True:
-                    raise exceptions.BadRequest("Compound with id '%s' does not exist or its source is inactive" % compound_obj['id'])
+                try:
+                    adapter = med_models.Compound.objects.get_adapter(med_models.CompoundSource.objects.get(default=True).pk)
+                    compound, created = adapter.get_or_create(compound_obj['id'])
+                except: 
+                    # check if patient created compound
+                    try:
+                        source = med_models.CompoundSource.objects.get(name=const.COMPOUND_SOURCE_NAME__TCC,
+                                              version=const.COMPOUND_SOURCE_VERSION__PATIENT)
+                        compound = med_models.Compound.objects.get(uid=compound_obj['id'], source=source)
+                    except:
+                        raise exceptions.BadRequest("Compound with id '%s' does not exist" % compound_obj['id'])         
+
+                if not compound:
+                    raise exceptions.BadRequest("Compound with id '%s' does not exist" % compound_obj['id'])
 
 
                 prescr, replaced = med_models.Prescription.objects.prescribe(subject=subject,

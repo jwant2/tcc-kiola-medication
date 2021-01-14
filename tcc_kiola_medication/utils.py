@@ -114,13 +114,16 @@ def tcc_render_sis_compound_info(context, compound_id, compound_source=None):
             except med_models.Compound.DoesNotExist:
                 drug_search = service_providers.service_registry.search("drug_search")
                 drugs = drug_search(q=compound_id, by_id=True)
-                new_compound = drugs[0]
-                context["compound_newer"] = {}
-                context["compound_newer"]["title"] = new_compound["title"]
-                context["compound_newer"]["unique_id"] = new_compound["unique_id"]
-                context["compound_newer"]["main_indications"] = list(new_compound["main_indications"].values())[0]
-                context["compound_newer"]["active_components"] = u", ".join(sorted(new_compound["active_components"].values()))
-                context["compound_newer"]["dosage_form"] = list(new_compound["dosage_form"].values())[0]
+                if len(drugs) > 0:
+                    new_compound = drugs[0]
+                    context["compound_newer"] = {}
+                    context["compound_newer"]["title"] = new_compound["title"]
+                    context["compound_newer"]["unique_id"] = new_compound["unique_id"]
+                    context["compound_newer"]["main_indications"] = list(new_compound["main_indications"].values())[0]
+                    context["compound_newer"]["active_components"] = u", ".join(sorted(new_compound["active_components"].values()))
+                    context["compound_newer"]["dosage_form"] = list(new_compound["dosage_form"].values())[0]
+                else:
+                    context["compound_newer_available"] = False
 
 
         context["title"] = compound.name
