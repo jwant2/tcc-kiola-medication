@@ -178,7 +178,11 @@ class CompoundAPIView(APIView, PaginationHandlerMixin):
         if exist > 0:
             raise exceptions.BadRequest("Given compound name '%s' already exists " % compound_name)
 
-        uid = shortuuid.uuid()
+        # get patient compound source
+        source = med_models.CompoundSource.objects.get(name=const.COMPOUND_SOURCE_NAME__TCC,
+                                  version=const.COMPOUND_SOURCE_VERSION__PATIENT)
+        current_num = med_models.Compound.objects.filter(source=source).count()
+        uid = f'{const.PATIENT_ENTERED_COMPOUND_UID_PREFIX}-{current_num+1}'
         dosageform=formulation
         dosageform_ref = dosageform[:3].upper()
         if dosageform == "":
@@ -194,11 +198,6 @@ class CompoundAPIView(APIView, PaginationHandlerMixin):
             if created:
                 unit.descrition=dosageform_ref
                 unit.save
-
-
-            # get patient compound source
-            source = med_models.CompoundSource.objects.get(name=const.COMPOUND_SOURCE_NAME__TCC,
-                                      version=const.COMPOUND_SOURCE_VERSION__PATIENT)
 
             # create active components
             ac,  created = med_models.ActiveComponent.objects.get_or_create(name=compound_name)
