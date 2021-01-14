@@ -526,7 +526,7 @@ class PrescriptionAPIView(APIView, PaginationHandlerMixin):
             raise exceptions.BadRequest("Invalid data '%s' for medicationType" % medication_type)
         elif not medication_type:
             raise exceptions.BadRequest("Invalid data '%s' for medicationType" % medication_type)
-              
+
         if active is not None and type(active) != bool:
             raise exceptions.BadRequest("Invalid data '%s' " % processed_data)
         if prescr_id:
@@ -539,10 +539,10 @@ class PrescriptionAPIView(APIView, PaginationHandlerMixin):
             if prescr.compound.uid != compound_obj['id']:
                 raise exceptions.BadRequest("Compound with id '%s' does not match the compound of the given prescription with pk '%s'" % (compound_obj['id'], prescr_id))
 
-            update_or_create_med_type(request, medication_type, prescr)
-
             with reversionrevisions.create_revision():
                 reversionrevisions.set_user(get_system_user())
+
+            update_or_create_med_type(request, medication_type, prescr)
 
             start = prescr.prescriptionevent_set.filter(etype=med_models.PrescriptionEventType.objects.get(name=med_const.EVENT_TYPE__PRESCRIBED))[0]
             start.timepoint = start_date
@@ -554,11 +554,11 @@ class PrescriptionAPIView(APIView, PaginationHandlerMixin):
 
             prescr.taking_hint = taking_hint
             prescr.taking_reason =  taking_reason
+
             if active is not None and active is False:
                 prescr_stauts_inactive = med_models.PrescriptionStatus.objects.get(name=med_const.PRESCRIPTION_STATUS__INACTIVE)
                 prescr.status = prescr_stauts_inactive
             prescr.save()
-
 
         else:
             p_status = med_models.PrescriptionStatus.objects.get(name="Active")
@@ -685,7 +685,7 @@ class PrescriptionHistoryAPIView(APIView, PaginationHandlerMixin):
                 })
         if page is not None:
             # queryset includes initial data record, so change history count should be -1
-            self.paginator.page.paginator.count = self.paginator.page.paginator.count - 1
+            self.paginator.page.paginator.count = len(results)
             return self.get_paginated_response(results)
 
         return Response(results, status=status.HTTP_200_OK)

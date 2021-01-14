@@ -69,4 +69,4 @@ def connect():
         connected = True
 
 
-connect()
+# connect()
