@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+### [0.2.1](https://bitbucket.org/teleclinicalcare/tcc-kiola-medication/compare/v0.2.0...v0.2.1) (2021-01-14)
+
+
+### Bug Fixes
+
+* disable prescription listener for Kiola's medication observation profile. fix permission issue with prescription PUT api. fix result counter of change histroy api. ([6bc2b8c](https://bitbucket.org/teleclinicalcare/tcc-kiola-medication/commit/6bc2b8c4bd798d4c692df030092a97582c9257e7))
+
 ## [0.2.0](https://bitbucket.org/teleclinicalcare/tcc-kiola-medication/compare/v0.1.3...v0.2.0) (2021-01-13)
 
 
