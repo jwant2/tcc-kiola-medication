@@ -748,13 +748,7 @@ class MedicationAdverseReactionAPIView(APIView, PaginationHandlerMixin):
                 request.query_params['limit'] = self.max_count
                 request.query_params._mutable = False
 
-            qs = models.MedicationAdverseReaction.objects.filter(
-              compound__pk__in=med_models.Prescription.objects.select_related(
-                'compound',
-                'status') .filter(
-                subject=subject,
-                status__name=med_const.PRESCRIPTION_STATUS__ACTIVE).values_list('compound__pk', flat=True)
-            )
+            qs = models.MedicationAdverseReaction.objects.filter(editor=subject.login)
             if active == "true":
                 qs = qs.filter(active=True)
             page = self.paginate_queryset(qs)
@@ -780,7 +774,7 @@ class MedicationAdverseReactionAPIView(APIView, PaginationHandlerMixin):
         except senses.Subject.DoesNotExist:
             raise exceptions.Forbidden("Unknown subject")
         try:
-            reaction_item = models.MedicationAdverseReaction.objects.get(uid=reaction_id, active=True)
+            reaction_item = models.MedicationAdverseReaction.objects.get(uid=reaction_id, editor=subject.login, active=True)
         except:
             raise exceptions.BadRequest("MedicationAdverseReaction with id '%s' does not exist or is inactive" % reaction_id)
         with reversionrevisions.create_revision():
@@ -854,19 +848,7 @@ class MedicationAdverseReactionAPIView(APIView, PaginationHandlerMixin):
     def _create_or_update(self, request, reaction_id, compound_id, reaction_type_name, reactions):
         if not compound_id or not reaction_type_name or not reactions:
             raise exceptions.BadRequest("Invalid data '%s' " % request.data)
-        
-        try:
-            source = med_models.CompoundSource.objects.get_default()
-            adapter = med_models.Compound.objects.get_adapter(source.pk)
-            compound, created = adapter.get_or_create(compound_id)
-        except:
-            # check if patient created compound
-            try:
-                source = med_models.CompoundSource.objects.get(name=const.COMPOUND_SOURCE_NAME__TCC,
-                                      version=const.COMPOUND_SOURCE_VERSION__PATIENT)
-                compound = med_models.Compound.objects.get(uid=compound_id, source=source)
-            except:
-                raise exceptions.BadRequest("Compound with id '%s' does not exist" % compound_id)          
+                 
         try:
             reaction_type = models.AdverseReactionType.objects.get(name=reaction_type_name)
         except:
@@ -876,19 +858,32 @@ class MedicationAdverseReactionAPIView(APIView, PaginationHandlerMixin):
         with reversionrevisions.create_revision():
             reversionrevisions.set_user(get_system_user())
 
-        
         if reaction_id:
             try:
-                reaction_item = models.MedicationAdverseReaction.objects.get(uid=reaction_id)
-                reaction_item.compound = compound
-                reaction_item.reaction_type = reaction_type
-                reaction_item.reactions = reactions
-                reaction_item.editor = request.user
-                reaction_item.save()
-            except:
-                raise exceptions.BadRequest("MedicationAdverseReaction with id '%s' does not exist" % reaction_id)
+                reaction_item = models.MedicationAdverseReaction.objects.get(uid=reaction_id, editor=request.user, active=True)
+            except Exception:
+                raise exceptions.BadRequest("MedicationAdverseReaction with id '%s' does not exist or is inactive" % reaction_id)
+            if reaction_item.compound.uid != compound_id:
+                raise exceptions.BadRequest("Compound id '%s' does not match the gvien reaction (%s)" % (compound_id, reaction_id))
+            
+            reaction_item.reaction_type = reaction_type
+            reaction_item.reactions = reactions
+            reaction_item.save()
 
         else:
+            try:
+                source = med_models.CompoundSource.objects.get_default()
+                adapter = med_models.Compound.objects.get_adapter(source.pk)
+                compound, created = adapter.get_or_create(compound_id)
+            except:
+                # check if patient created compound
+                try:
+                    source = med_models.CompoundSource.objects.get(name=const.COMPOUND_SOURCE_NAME__TCC,
+                                          version=const.COMPOUND_SOURCE_VERSION__PATIENT)
+                    compound = med_models.Compound.objects.get(uid=compound_id, source=source)
+                except:
+                    raise exceptions.BadRequest("Compound with id '%s' does not exist" % compound_id) 
+
             reaction_item, created = models.MedicationAdverseReaction.objects.get_or_create(
                 compound=compound, reaction_type=reaction_type, reactions=reactions, editor=request.user, active=True)
         return reaction_item
