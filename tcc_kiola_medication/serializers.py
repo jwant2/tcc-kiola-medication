@@ -19,13 +19,24 @@ class CompoundSerializer(serializers.ModelSerializer):
     activeComponents = serializers.SerializerMethodField()
     source = serializers.CharField(source='source.__str__')
     formulation = serializers.CharField(source='dosage_form')
+    medicationType = serializers.SerializerMethodField()
 
     class Meta:
         model =  med_models.Compound
-        fields = ['id','name', 'source','activeComponents','formulation']
+        fields = ['id','name', 'source','activeComponents','formulation', 'medicationType']
 
     def get_activeComponents(self, obj):
         return obj.active_components.all().values_list('name', flat=True)
+
+    def get_medicationType(self, obj):
+        extra_info = models.CompoundExtraInformation.objects\
+          .filter(compound__pk=obj.pk, name=const.COMPOUND_EXTRA_INFO_NAME__MEDICATION_TYPE)\
+          .order_by('pk')\
+          .last()
+        if not extra_info:
+            return const.MEDICATION_TYPE_VALUE__PRN
+        else:
+            return extra_info.value
 
 class PharmacyProductSerializer(serializers.ModelSerializer):
     id = serializers.CharField(source='unique_id')
@@ -117,7 +128,7 @@ class MedPrescriptionSerializer(serializers.ModelSerializer):
             if extra_info:
                 return extra_info.value
             else:
-                return None
+                return const.MEDICATION_TYPE_VALUE__PRN
         else:
             return extra_info.value
 
