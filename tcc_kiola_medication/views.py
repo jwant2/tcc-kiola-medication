@@ -1157,7 +1157,9 @@ def process_taking_request(request, data, taking_id, prescr_id, schedule_type, s
 
         return taking
 
-class UserPreferenceConfigAPIView(APIView):
+class UserPreferenceConfigAPIView(APIView, PaginationHandlerMixin):
+    max_count = 80
+    pagination_class = BasicPagination
     authentication_classes = [KiolaAuthentication,]
     render_classes = [JSONRenderer,]
 
@@ -1177,11 +1179,23 @@ class UserPreferenceConfigAPIView(APIView):
         except senses.Subject.DoesNotExist:
             raise exceptions.Forbidden("Unknown subject")
 
+        # set default value to limit param
+        # to ensure paging is enabled
+        request.query_params._mutable = True
+        request.query_params['limit'] = self.max_count
+        request.query_params._mutable = False
+
         data = models.UserPreferenceConfig.objects.get_value(const.USER_PREFERENCE_KEY__MEDICATION_TIMES, request.user)
         if data is None: 
             set_default_user_pref_med_time_values(request.user)
             data = models.UserPreferenceConfig.objects.get_value(const.USER_PREFERENCE_KEY__MEDICATION_TIMES, request.user)
         config_data = data.values()
+
+        page = self.paginate_queryset(models.UserPreferenceConfig.objects.filter(pk=1))
+        if page is not None:
+            self.paginator.page.paginator.count = len(config_data)
+            return self.get_paginated_response(config_data)
+
         return Response(config_data, status=status.HTTP_200_OK) 
 
 
@@ -1229,7 +1243,18 @@ class UserPreferenceConfigAPIView(APIView):
         
         med_pref_data = request.data
         config_data = models.UserPreferenceConfig.objects.get_value(const.USER_PREFERENCE_KEY__MEDICATION_TIMES, request.user)
+        dict_check_duplicates = dict()
         for item in med_pref_data:
+            # duplicate check for type value
+            if item["type"] not in dict_check_duplicates:
+                dict_check_duplicates[item["type"]] = item["type"]
+            else:
+                raise exceptions.BadRequest("Duplicate data '%s' for type" % item["type"])
+            # checking time string format
+            try:
+                time = datetime.strptime(item["actualTime"],"%H:%M")
+            except:
+                raise exceptions.BadRequest("actualTime data '%s' is invalid or not in 24 hr format" % item["actualTime"])
             config_item = config_data.get(f'{const.USER_PREFERENCE_CONFIG_PREFIX}{item["type"]}', None)
             if config_item is None:
                 raise exceptions.BadRequest("Invalid data for type '%s" % item['type'])

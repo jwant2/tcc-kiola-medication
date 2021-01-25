@@ -11,7 +11,7 @@ def addTimepointValues(apps, schema_editor):
 def addTakingFrequencyValues(apps, schema_editor):
     from tcc_kiola_medication import const, models
     
-    models.TakingFrequency.objects.get_or_create(name=const.TAKING_FREQUENCY_VALUE__ONCE_ONLY)
+    models.TakingFrequency.objects.get_or_create(name=const.TAKING_FREQUENCY_VALUE__ONCE)
     models.TakingFrequency.objects.get_or_create(name=const.TAKING_FREQUENCY_VALUE__DAILY)
     models.TakingFrequency.objects.get_or_create(name=const.TAKING_FREQUENCY_VALUE__WEEKLY)
     models.TakingFrequency.objects.get_or_create(name=const.TAKING_FREQUENCY_VALUE__FORNIGHTLY)

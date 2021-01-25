@@ -42,7 +42,7 @@ urlpatterns = [
     url(r"medication/(?P<id>\d+)/$", views.PrescriptionAPIView.as_view(), name="single-medication"),
     url(r"medication/(?P<id>\d+)/history/$", views.PrescriptionHistoryAPIView.as_view(), name="medication-history"),
 
-    url(r"user_preference/$", views.UserPreferenceConfigAPIView.as_view(), name="user_preference_config"),
+    url(r"user_preference/solar_option/$", views.UserPreferenceConfigAPIView.as_view(), name="user_preference_config"),
     url(r"schedule/$", views.TakingSchemaAPIView.as_view(), name="taking"),
     url(r"schedule/(?P<id>\d+)/$", views.TakingSchemaAPIView.as_view(), name="single-taking"),
     url(r"reaction/$", views.MedicationAdverseReactionAPIView.as_view(), name="med_adverse_reaction"),

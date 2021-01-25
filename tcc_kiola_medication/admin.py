@@ -83,3 +83,7 @@ class CompoundImportAdmin(KIOLAAdmin):
 
 admin.site.register(CompoundImport, CompoundImportAdmin)
 
+class TakingFrequencyAdmin(KIOLAAdmin):
+    list_display = ["name", "description"]
+
+admin.site.register(models.TakingFrequency, TakingFrequencyAdmin)

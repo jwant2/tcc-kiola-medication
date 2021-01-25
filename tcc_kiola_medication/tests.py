@@ -10,6 +10,7 @@ from django.conf import settings
 from django.core.files.uploadedfile import SimpleUploadedFile
 from django.urls import resolve, reverse
 from django.contrib.auth.models import User, Group, Permission
+from diplomat.models import ISOLanguage, ISOCountry
 
 from kiola.utils.tests import do_request, KiolaBaseTest
 from kiola.kiola_senses.tests import KiolaTest
@@ -52,7 +53,7 @@ class MedicationTest(KiolaTest):
             med_models.TakingTimepoint.objects.get_or_create(name=const.TAKING_TIMEPOINT__CUSTOM)
             med_models.TakingTimepoint.objects.get_or_create(name=const.TAKING_TIMEPOINT__AFTERNOON)
             
-            models.TakingFrequency.objects.get_or_create(name=const.TAKING_FREQUENCY_VALUE__ONCE_ONLY)
+            models.TakingFrequency.objects.get_or_create(name=const.TAKING_FREQUENCY_VALUE__ONCE)
             models.TakingFrequency.objects.get_or_create(name=const.TAKING_FREQUENCY_VALUE__DAILY)
             models.TakingFrequency.objects.get_or_create(name=const.TAKING_FREQUENCY_VALUE__WEEKLY)
             models.TakingFrequency.objects.get_or_create(name=const.TAKING_FREQUENCY_VALUE__FORNIGHTLY)
@@ -73,7 +74,14 @@ class MedicationTest(KiolaTest):
             models.AdverseReactionType.objects.get_or_create(
                 name=const.ADVERSE_REACTION_TYPE__UNKNOWN
             )
-
+            source, created = med_models.CompoundSource.objects.get_or_create(name=const.COMPOUND_SOURCE_NAME__TCC,
+                                      version=const.COMPOUND_SOURCE_VERSION__PATIENT,
+                                      description=const.COMPOUND_SOURCE_DESCRIPTION__PATIENT_ENTERED,
+                                      language=ISOLanguage.objects.get(alpha2='en'),
+                                      country=ISOCountry.objects.get(alpha2="AU"),
+                                      group="TCC",
+                                      default=False,
+                                    )
 
     def setUp(self):
         super().setUp()
@@ -238,7 +246,45 @@ class MedicationTest(KiolaTest):
         "activeComponents": [
             "abacavir"
         ],
+        'medicationType': 'PRN',
         "formulation": "Solution"
+        }
+        self.assertEqual(content, data)
+
+        # test compound create
+        param = {
+            "name": "brandmew12",
+            "activeComponents": "acName",
+            "medicationType": "PRN",
+            "formulation": "Tablet"
+        }
+        url = reverse("tcc_med_api:compound", kwargs={"apiv":1})
+        url += "?active_components=abacavir"
+        signature_url = f'http://testserver{url}'
+        method = "POST"
+        remote_access_id, signature, senddate = Device.objects.get_signature(signature_url, method, self.device, self.subject.login)
+        response = do_request(
+            c,
+            method,
+            url,
+            remote_access_id,
+            signature,
+            senddate,
+            param=param,
+            content_type="application/json",
+            accept_language=None,
+            accept="application/json")
+
+        content = json.loads(response.content.decode("utf-8"))
+        del content['id']
+        data =  {
+        "name": "brandmew12",
+        "source": "TCC Kiola Medication (patient)",
+        "activeComponents": [
+            "acName"
+        ],
+        'medicationType': 'PRN',
+        "formulation": "Tablet"
         }
         self.assertEqual(content, data)
 
@@ -1282,7 +1328,7 @@ class MedicationTest(KiolaTest):
                 "actualTime": "22:00"
             }
         ]
-        self.assertEqual(content, data)
+        self.assertEqual(content["results"], data)
 
         # test put
         param = [
@@ -1328,6 +1374,52 @@ class MedicationTest(KiolaTest):
         param = [
             {"type": "fornight", "actualTime": "11:00"},
             {"type": "afternoon", "actualTime": "12:00"}
+        ]
+        url = reverse("tcc_med_api:user_preference_config", kwargs={"apiv":1})
+        signature_url = f'http://testserver{url}'
+        method = "PUT"
+        remote_access_id, signature, senddate = Device.objects.get_signature(signature_url, method, self.device, self.subject.login)
+        response = do_request(
+            c,
+            method,
+            url,
+            remote_access_id,
+            signature,
+            senddate,
+            param=param,
+            content_type="application/json",
+            accept_language=None,
+            accept="application/json")
+        content = json.loads(response.content.decode("utf-8"))
+        self.assertEquals(response.status_code, 400)
+
+        # test put with duplicate type
+        param = [
+            {"type": "fornight", "actualTime": "11:00"},
+            {"type": "fornight", "actualTime": "12:00"}
+        ]
+        url = reverse("tcc_med_api:user_preference_config", kwargs={"apiv":1})
+        signature_url = f'http://testserver{url}'
+        method = "PUT"
+        remote_access_id, signature, senddate = Device.objects.get_signature(signature_url, method, self.device, self.subject.login)
+        response = do_request(
+            c,
+            method,
+            url,
+            remote_access_id,
+            signature,
+            senddate,
+            param=param,
+            content_type="application/json",
+            accept_language=None,
+            accept="application/json")
+        content = json.loads(response.content.decode("utf-8"))
+        self.assertEquals(response.status_code, 400)
+
+        # test put with invalid time
+        param = [
+            {"type": "fornight", "actualTime": "11:00"},
+            {"type": "afternoon", "actualTime": "12:00 pm"}
         ]
         url = reverse("tcc_med_api:user_preference_config", kwargs={"apiv":1})
         signature_url = f'http://testserver{url}'

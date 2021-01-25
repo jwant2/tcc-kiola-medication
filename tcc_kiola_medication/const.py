@@ -20,7 +20,7 @@ MEDICATION_TIMES_DEFAULT_VALUES = {
 TAKING_TIMEPOINT__AFTERNOON = ugettext_noop("afternoon")
 TAKING_TIMEPOINT__CUSTOM = ugettext_noop("custom")
 
-TAKING_FREQUENCY_VALUE__ONCE_ONLY = ugettext_noop("once only")
+TAKING_FREQUENCY_VALUE__ONCE = ugettext_noop("once")
 TAKING_FREQUENCY_VALUE__DAILY = ugettext_noop("daily")
 TAKING_FREQUENCY_VALUE__WEEKLY = ugettext_noop("weekly")
 TAKING_FREQUENCY_VALUE__FORNIGHTLY = ugettext_noop("fornighjtly")
