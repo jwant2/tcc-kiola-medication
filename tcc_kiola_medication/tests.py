@@ -56,7 +56,7 @@ class MedicationTest(KiolaTest):
             models.TakingFrequency.objects.get_or_create(name=const.TAKING_FREQUENCY_VALUE__ONCE)
             models.TakingFrequency.objects.get_or_create(name=const.TAKING_FREQUENCY_VALUE__DAILY)
             models.TakingFrequency.objects.get_or_create(name=const.TAKING_FREQUENCY_VALUE__WEEKLY)
-            models.TakingFrequency.objects.get_or_create(name=const.TAKING_FREQUENCY_VALUE__FORNIGHTLY)
+            models.TakingFrequency.objects.get_or_create(name=const.TAKING_FREQUENCY_VALUE__FORTNIGHTLY)
             models.TakingFrequency.objects.get_or_create(name=const.TAKING_FREQUENCY_VALUE__MONTHLY)
 
             models.AdverseReactionType.objects.get_or_create(

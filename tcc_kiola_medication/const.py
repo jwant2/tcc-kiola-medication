@@ -23,7 +23,7 @@ TAKING_TIMEPOINT__CUSTOM = ugettext_noop("custom")
 TAKING_FREQUENCY_VALUE__ONCE = ugettext_noop("once")
 TAKING_FREQUENCY_VALUE__DAILY = ugettext_noop("daily")
 TAKING_FREQUENCY_VALUE__WEEKLY = ugettext_noop("weekly")
-TAKING_FREQUENCY_VALUE__FORNIGHTLY = ugettext_noop("fornighjtly")
+TAKING_FREQUENCY_VALUE__FORTNIGHTLY = ugettext_noop("fortnightly")
 TAKING_FREQUENCY_VALUE__MONTHLY = ugettext_noop("monthly")
 
 TAKING_SCHEMA_TYPE__SCHEDULED = "S"

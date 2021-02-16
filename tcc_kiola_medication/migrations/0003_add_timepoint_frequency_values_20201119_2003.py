@@ -14,7 +14,7 @@ def addTakingFrequencyValues(apps, schema_editor):
     models.TakingFrequency.objects.get_or_create(name=const.TAKING_FREQUENCY_VALUE__ONCE)
     models.TakingFrequency.objects.get_or_create(name=const.TAKING_FREQUENCY_VALUE__DAILY)
     models.TakingFrequency.objects.get_or_create(name=const.TAKING_FREQUENCY_VALUE__WEEKLY)
-    models.TakingFrequency.objects.get_or_create(name=const.TAKING_FREQUENCY_VALUE__FORNIGHTLY)
+    models.TakingFrequency.objects.get_or_create(name=const.TAKING_FREQUENCY_VALUE__FORTNIGHTLY)
     models.TakingFrequency.objects.get_or_create(name=const.TAKING_FREQUENCY_VALUE__MONTHLY)
 
 def undo_noop(apps, schema_editor):

@@ -1,7 +1,8 @@
 from rest_framework import serializers
 import json
 # from .models import MedCompound
-from kiola.kiola_med.models import *
+# from kiola.kiola_med.models import *
+from django.utils.encoding import force_text
 from kiola.kiola_med import models as med_models, const as med_const
 from kiola.kiola_senses import models as sense_models
 from kiola.cares import models as cares_models
@@ -172,7 +173,7 @@ class MedPrescriptionSerializer(serializers.ModelSerializer):
         return False
 
     class Meta:
-        model =  Prescription
+        model = med_models.Prescription
         fields = [
                     'id',
                     'reason',

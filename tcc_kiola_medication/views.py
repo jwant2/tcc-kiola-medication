@@ -58,6 +58,7 @@ from kiola.kiola_senses import models as senses
 from kiola.utils.commons import get_system_user
 from kiola.utils import service_providers
 from kiola.kiola_med import models as med_models
+from kiola.kiola_med import views as med_views
 from kiola.kiola_med import const as med_const
 from kiola.kiola_med import utils as med_utils
 from kiola.utils import exceptions
@@ -620,7 +621,10 @@ def update_prescription_displayable_taking(prescription):
         taking_strings.append(taking.get_displayable())
     seperator = " | "
     displayable_taking = seperator.join(taking_strings)
-    prescription.displayable_taking = displayable_taking
+    if len(displayable_taking) < 200:
+        prescription.displayable_taking = displayable_taking
+    else:
+        prescription.displayable_taking = "TOO MANY TO DISPLAY"
     prescription.save()
     return displayable_taking
 
@@ -1267,6 +1271,28 @@ class UserPreferenceConfigAPIView(APIView, PaginationHandlerMixin):
         config_data = models.UserPreferenceConfig.objects.get_value(const.USER_PREFERENCE_KEY__MEDICATION_TIMES, request.user).values()
         return Response(config_data, status=status.HTTP_200_OK)
 
+class TCCPrescriptionListView(med_views.PrescriptionListView):
+    # handling too many schedules for displayable_taking 
+    def get_context_data(self, **kwargs):
+        context = super(TCCPrescriptionListView, self).get_context_data(**kwargs)
+        for prescr in context["inactive_prescriptions"]:
+            takings = models.ScheduledTaking.objects.filter(takingschema__prescriptionschema__prescription=prescr, active=True)
+            taking_strings = []
+            for taking in takings:
+                taking_strings.append(taking.get_displayable())
+            seperator = " | "
+            displayable_taking = seperator.join(taking_strings)
+            prescr.displayable_taking = displayable_taking
+        for prescr in context["active_prescriptions"]:
+            takings = models.ScheduledTaking.objects.filter(takingschema__prescriptionschema__prescription=prescr, active=True)
+            taking_strings = []
+            for taking in takings:
+                taking_strings.append(taking.get_displayable())
+            seperator = " | "
+            displayable_taking = seperator.join(taking_strings)
+            prescr.displayable_taking = displayable_taking
+
+        return context
 
 class TCCPrescriptionView(kiola_views.KiolaSubjectView):
     fid = None

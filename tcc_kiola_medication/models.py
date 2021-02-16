@@ -122,13 +122,12 @@ class ScheduledTaking(med_models.BaseTaking):
                 "reminder": self.reminder}
 
     def __str__(self):
-        return force_text("{} {} {} {} {} from {} edited by {}").format(force_text(self.timepoint),
+        return force_text("{} {} {} {} {}").format(force_text(self.taking_time),
                                                    force_text(self.strength),
                                                    force_text(self.dosage),
                                                    force_text(self.unit),
                                                    force_text(self.frequency),                                                   
-                                                   force_text(self.start_date),
-                                                   force_text(self.editor))
+                                                  )
 
     def get_displayable(self):
         return force_text("{} {} {} - {}/{}/{}").format(
