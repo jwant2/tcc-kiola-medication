@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+### [0.3.2](https://bitbucket.org/teleclinicalcare/tcc-kiola-medication/compare/v0.3.1...v0.3.2) (2021-02-17)
+
+
+### Bug Fixes
+
+* remove searching limit for compound api ([9c99be5](https://bitbucket.org/teleclinicalcare/tcc-kiola-medication/commit/9c99be560f9d281a8d0b7d1beee233d35e62dc88))
+
 ### [0.3.1](https://bitbucket.org/teleclinicalcare/tcc-kiola-medication/compare/v0.3.0...v0.3.1) (2021-02-16)
 
 
