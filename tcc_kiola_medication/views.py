@@ -117,23 +117,23 @@ class CompoundAPIView(APIView, PaginationHandlerMixin):
 
 
             if compound_name:
-                if len(compound_name) < 3:
-                    msg = {'message': "Please enter at least 3 characters for better search results."}
-                    return Response(msg, status=status.HTTP_200_OK)
+                # if len(compound_name) < 3:
+                #     msg = {'message': "Please enter at least 3 characters for better search results."}
+                #     return Response(msg, status=status.HTTP_200_OK)
                 qs = template.filter(name__icontains=compound_name)
 
             elif active_component:
-                if len(active_component) < 3:
-                    msg = {'message': "Please enter at least 3 characters for better search results."}
-                    return Response(msg, status=status.HTTP_200_OK)
+                # if len(active_component) < 3:
+                #     msg = {'message': "Please enter at least 3 characters for better search results."}
+                #     return Response(msg, status=status.HTTP_200_OK)
                 qs = template.filter(active_components__name__icontains=active_component)
 
             else:
                  qs = template.all()
 
-            if qs.count() > self.max_count and (compound_name or compound_name):
-                msg = {'message': "More than %(max)s results found (%(amount)s). Please refine your search.." % {'max': self.max_count, 'amount': qs.count()}}
-                return Response(msg, status=status.HTTP_200_OK)
+            # if qs.count() > self.max_count and (compound_name or compound_name):
+            #     msg = {'message': "More than %(max)s results found (%(amount)s). Please refine your search.." % {'max': self.max_count, 'amount': qs.count()}}
+            #     return Response(msg, status=status.HTTP_200_OK)
 
             qs = qs.filter(Q(source__default=True)|Q(source__version=const.COMPOUND_SOURCE_VERSION__PATIENT))
             page = self.paginate_queryset(qs)
