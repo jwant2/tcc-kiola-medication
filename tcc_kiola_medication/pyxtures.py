@@ -11,10 +11,12 @@ class Pyxture(BasePyxture):
 
     def default(self):
         self.setup_medication_observation_profile()
+        self.create_patient_enter_compound_source()
 
     def dev(self):
         self.setup_medication_observation_profile()
         self.create_patient_enter_compound_source()
+        
     def setup_medication_observation_profile(self):
 
 

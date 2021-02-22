@@ -122,7 +122,7 @@ class ScheduledTaking(med_models.BaseTaking):
                 "reminder": self.reminder}
 
     def __str__(self):
-        return force_text("{} {} {} {} {}").format(force_text(self.taking_time),
+        return force_text("{} {} {} {} {}").format(force_text(self.taking_time.strftime('%H:%M')),
                                                    force_text(self.strength),
                                                    force_text(self.dosage),
                                                    force_text(self.unit),

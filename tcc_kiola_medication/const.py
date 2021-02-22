@@ -1,4 +1,4 @@
-from django.utils.translation import ugettext_noop, pgettext
+
 from kiola.cares import const as cares_const
 from django.utils.translation import ugettext_lazy as _, ugettext_noop, pgettext_lazy, get_language
 
