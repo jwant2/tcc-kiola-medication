@@ -366,7 +366,10 @@ class PrescriptionAPIView(APIView, PaginationHandlerMixin):
                 request.query_params._mutable = False
 
             active = query.get('active', None)
-
+            if active:
+                  if active not in ['True', 'False', 'true', 'false']:
+                      raise exceptions.BadRequest("Invalid data '%s' for active. Should be 'true' or 'false'." % active)
+                  active = active.lower()
             qs = med_models.Prescription.objects.select_related(
                 'compound',
                 'status').filter(subject=subject).prefetch_related(
@@ -390,6 +393,8 @@ class PrescriptionAPIView(APIView, PaginationHandlerMixin):
                 'status')
             if active == "true":
                   qs = qs.filter(status__name=med_const.PRESCRIPTION_STATUS__ACTIVE)
+            if active == "false":
+                  qs = qs.filter(status__name=med_const.PRESCRIPTION_STATUS__INACTIVE)
             page = self.paginate_queryset(qs)
 
             if page is not None:
@@ -744,7 +749,10 @@ class MedicationAdverseReactionAPIView(APIView, PaginationHandlerMixin):
         else:
             query = request.GET
             active = query.get('active', None)
-
+            if active:
+                  if active not in ['True', 'False', 'true', 'false']:
+                      raise exceptions.BadRequest("Invalid data '%s' for active. Should be 'true' or 'false'." % active)
+                  active = active.lower()
             # set default value to limit param if not exist
             # to ensure paging is enabled
             if query.get('limit', None) is None:
@@ -755,11 +763,13 @@ class MedicationAdverseReactionAPIView(APIView, PaginationHandlerMixin):
             qs = models.MedicationAdverseReaction.objects.filter(editor=subject.login)
             if active == "true":
                 qs = qs.filter(active=True)
+            if active == "false":
+                qs = qs.filter(active=False)
+
             page = self.paginate_queryset(qs)
             if page is not None:
                 serializer = self.get_paginated_response(self.serializer_class(page,
                                                           many=True).data)
-
             else:
                 serializer = self.serializer_class(qs, many=True)
         return Response(serializer.data, status=status.HTTP_200_OK)
@@ -935,7 +945,10 @@ class TakingSchemaAPIView(APIView, PaginationHandlerMixin):
         else:
             query = request.GET
             active = query.get('active', None)
-
+            if active:
+                  if active not in ['True', 'False', 'true', 'false']:
+                      raise exceptions.BadRequest("Invalid data '%s' for active. Should be 'true' or 'false'." % active)
+                  active = active.lower()
             # set default value to limit param if not exist
             # to ensure paging is enabled
             if query.get('limit', None) is None:
@@ -954,8 +967,10 @@ class TakingSchemaAPIView(APIView, PaginationHandlerMixin):
             )
             if active == "true":
                 taking_qs = taking_qs.filter(active=True)
-            page = self.paginate_queryset(taking_qs)
+            if active == "false":
+                taking_qs = taking_qs.filter(active=False)
 
+            page = self.paginate_queryset(taking_qs)
             if page is not None:
                 serializer = self.get_paginated_response(self.serializer_class(page,
                                                           many=True).data)
@@ -1248,6 +1263,7 @@ class UserPreferenceConfigAPIView(APIView, PaginationHandlerMixin):
         med_pref_data = request.data
         config_data = models.UserPreferenceConfig.objects.get_value(const.USER_PREFERENCE_KEY__MEDICATION_TIMES, request.user)
         dict_check_duplicates = dict()
+        processed_items = []
         for item in med_pref_data:
             # duplicate check for type value
             if item["type"] not in dict_check_duplicates:
@@ -1263,12 +1279,18 @@ class UserPreferenceConfigAPIView(APIView, PaginationHandlerMixin):
             if config_item is None:
                 raise exceptions.BadRequest("Invalid data for type '%s" % item['type'])
             config_data[f'{const.USER_PREFERENCE_CONFIG_PREFIX}{item["type"]}'] = item
-
+            processed_items.append(item)
 
         with reversionrevisions.create_revision():
             reversionrevisions.set_user(get_system_user())
         result = models.UserPreferenceConfig.objects.set_value(const.USER_PREFERENCE_KEY__MEDICATION_TIMES, config_data, request.user)
         config_data = models.UserPreferenceConfig.objects.get_value(const.USER_PREFERENCE_KEY__MEDICATION_TIMES, request.user).values()
+
+        # update schedule taking
+        for item in processed_items:
+            time = datetime.strptime(item['actualTime'], "%H:%M")
+            models.ScheduledTaking.objects.filter(Q(timepoint__name=item['type'])).update(taking_time=time)
+
         return Response(config_data, status=status.HTTP_200_OK)
 
 class TCCPrescriptionListView(med_views.PrescriptionListView):
