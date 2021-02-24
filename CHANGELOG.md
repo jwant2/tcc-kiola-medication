@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+## [0.4.0](https://bitbucket.org/teleclinicalcare/tcc-kiola-medication/compare/v0.3.3...v0.4.0) (2021-02-24)
+
+
+### Features
+
+* add schedule update to PUT user_preference api. fix actual query filtering ([abbc961](https://bitbucket.org/teleclinicalcare/tcc-kiola-medication/commit/abbc9615f5a92f06222c3de9ebeadbc9fd984ac7))
+
 ### [0.3.3](https://bitbucket.org/teleclinicalcare/tcc-kiola-medication/compare/v0.3.2...v0.3.3) (2021-02-22)
 
 
