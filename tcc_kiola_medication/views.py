@@ -5,7 +5,7 @@ import csv, io
 import uuid
 import dateutil.parser
 import shortuuid
-
+from jsonschema import validate
 
 from django.http import HttpResponse, HttpResponseRedirect
 from django.shortcuts import get_object_or_404, render, redirect
@@ -67,7 +67,7 @@ import kiola.utils.forms as utils_forms
 from . import models, const, utils, docs, forms
 from . import serializers as tcc_serializers
 from .utils import PaginationHandlerMixin, set_default_user_pref_med_time_values
-
+from .schema import request_body_schema as request_schema
 
 get_for_model = ContentType.objects.get_for_model
 
@@ -167,14 +167,19 @@ class CompoundAPIView(APIView, PaginationHandlerMixin):
 
         data = request.data
         try:
-            active_omponents = data["activeComponents"]
-            compound_name = data['name']
-            formulation = data['formulation']
-            med_type = data['medicationType']
+            validate(instance=data, schema=request_schema.CreateCompoundBody)
+        except Exception as err: 
+            msg = err
+            if hasattr(err, 'message'):
+                msg = err.message
+            raise exceptions.BadRequest("Invalid data '%s'. Missing some of the required fields. Error: '%s' " % (request.data, msg))
 
-        except: 
-            raise exceptions.BadRequest("Invalid data '%s'. Missing some of the required fields " % data)
-
+        active_omponents = data["activeComponents"]
+        compound_name = data['name']
+        formulation = data['formulation']
+        med_type = data['medicationType']
+        seperator = ","
+        active_omponents = seperator.join(active_omponents)
         exist = med_models.Compound.objects.filter(name=compound_name).count()
         if exist > 0:
             raise exceptions.BadRequest("Given compound name '%s' already exists " % compound_name)
@@ -450,7 +455,13 @@ class PrescriptionAPIView(APIView, PaginationHandlerMixin):
                 subject = senses.Subject.objects.get(uuid=subject_uid)
         except senses.Subject.DoesNotExist:
             raise exceptions.Forbidden("Unknown subject")
-
+        try:
+            validate(instance=request.data, schema=request_schema.CreateMedicationBody)
+        except Exception as err: 
+            msg = err
+            if hasattr(err, 'message'):
+                msg = err.message
+            raise exceptions.BadRequest("Invalid data '%s'. Missing some of the required fields. Error: '%s' " % (request.data, msg))
         prescr = self._create_or_update(request, prescr_id, subject)
         # prepare object for response
         prescr = med_models.Prescription.objects.get(pk=prescr.pk)
@@ -479,8 +490,15 @@ class PrescriptionAPIView(APIView, PaginationHandlerMixin):
                 subject = senses.Subject.objects.get(uuid=subject_uid)
         except senses.Subject.DoesNotExist:
             raise exceptions.Forbidden("Unknown subject")
-        prescr_id = id
+        try:
+            validate(instance=request.data, schema=request_schema.CreateMedicationBody)
+        except Exception as err: 
+            msg = err
+            if hasattr(err, 'message'):
+                msg = err.message
+            raise exceptions.BadRequest("Invalid data '%s'. Missing some of the required fields. Error: '%s' " % (request.data, msg))
 
+        prescr_id = id
         prescr = self._create_or_update(request, prescr_id, subject)
         # prepare object for response
         prescr = med_models.Prescription.objects.get(pk=prescr.pk)
@@ -812,6 +830,14 @@ class MedicationAdverseReactionAPIView(APIView, PaginationHandlerMixin):
         except senses.Subject.DoesNotExist:
             raise exceptions.Forbidden("Unknown subject")
 
+        try:
+            validate(instance=request.data, schema=request_schema.CreateReactionBody)
+        except Exception as err: 
+            msg = err
+            if hasattr(err, 'message'):
+                msg = err.message
+            raise exceptions.BadRequest("Invalid data '%s'. Missing some of the required fields. Error: '%s' " % (request.data, msg))
+
         data = request.data
         # reaction_id = data.get('uid', None)
         compound = data.get('compound', None)
@@ -845,6 +871,13 @@ class MedicationAdverseReactionAPIView(APIView, PaginationHandlerMixin):
                 subject = senses.Subject.objects.get(uuid=subject_uid)
         except senses.Subject.DoesNotExist:
             raise exceptions.Forbidden("Unknown subject")
+        try:
+            validate(instance=request.data, schema=request_schema.CreateReactionBody)
+        except Exception as err: 
+            msg = err
+            if hasattr(err, 'message'):
+                msg = err.message
+            raise exceptions.BadRequest("Invalid data '%s'. Missing some of the required fields. Error: '%s' " % (request.data, msg))
 
         data = request.data
         # reaction_id = data.get('uid', None)
@@ -1022,6 +1055,13 @@ class TakingSchemaAPIView(APIView, PaginationHandlerMixin):
     def post(self, request, subject_uid=None, id=None, *args, **kwargs):
         if id is not None:
             raise exceptions.BadRequest("Creating new resource with given id is not supported.")
+        try:
+            validate(instance=request.data, schema=request_schema.CreateScheduleBody)
+        except Exception as err: 
+            msg = err
+            if hasattr(err, 'message'):
+                msg = err.message
+            raise exceptions.BadRequest("Invalid data '%s'. Missing some of the required fields. Error: '%s' " % (request.data, msg))
 
         data = request.data
         try:
@@ -1056,6 +1096,13 @@ class TakingSchemaAPIView(APIView, PaginationHandlerMixin):
         taking_id = id
         if not taking_id:
             raise exceptions.BadRequest("Invalid request. Missing resource id")
+        try:
+            validate(instance=request.data, schema=request_schema.CreateScheduleBody)
+        except Exception as err: 
+            msg = err
+            if hasattr(err, 'message'):
+                msg = err.message
+            raise exceptions.BadRequest("Invalid data '%s'. Missing some of the required fields. Error: '%s' " % (request.data, msg))
 
         try:
             prescr_id = data.get('medicationId', "")
@@ -1259,7 +1306,14 @@ class UserPreferenceConfigAPIView(APIView, PaginationHandlerMixin):
             subject = senses.Subject.objects.get(login=request.user)
         except senses.Subject.DoesNotExist:
             raise exceptions.Forbidden("Unknown subject")
-        
+        try:
+            validate(instance=request.data, schema=request_schema.UpdateUserPreferenceBody)
+        except Exception as err: 
+            msg = err
+            if hasattr(err, 'message'):
+                msg = err.message
+            raise exceptions.BadRequest("Invalid data '%s'. Missing some of the required fields. Error: '%s' " % (request.data, msg))
+
         med_pref_data = request.data
         config_data = models.UserPreferenceConfig.objects.get_value(const.USER_PREFERENCE_KEY__MEDICATION_TIMES, request.user)
         dict_check_duplicates = dict()
