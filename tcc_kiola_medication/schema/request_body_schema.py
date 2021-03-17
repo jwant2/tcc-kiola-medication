@@ -91,7 +91,7 @@ CreateScheduleBody =  {
     "else": {
         "properties": {"time": {"type": "string", "pattern": "^([01][0-9]|2[0-3]):([0-5][0-9])$"}}
     },
-    "required": ["dosage", "formulation", "frequency", "medicationId", 
+    "required": ["dosage", "frequency", "medicationId", 
                 "reminder", "startDate", "strength", "type", "time"] 
 }
 

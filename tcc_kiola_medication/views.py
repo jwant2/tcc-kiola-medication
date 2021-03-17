@@ -1074,7 +1074,8 @@ class TakingSchemaAPIView(APIView, PaginationHandlerMixin):
             end_date = data.get('endDate', None)
             dose = data['dosage']
             strength = data['strength']
-            unit = data['formulation']
+            # unit = data['formulation']
+            unit, created = med_models.TakingUnit.objects.get_or_create(name="Tablet") # temporary disable
             hint = data.get('hint', "")
 
         except: 
@@ -1114,7 +1115,8 @@ class TakingSchemaAPIView(APIView, PaginationHandlerMixin):
             end_date = data.get('endDate', None)
             dose = data['dosage']
             strength = data['strength']
-            unit = data['formulation']
+            # unit = data['formulation']
+            unit, created = med_models.TakingUnit.objects.get_or_create(name="Tablet") # temporary disable
             hint = data.get('hint', "")
 
         except: 
