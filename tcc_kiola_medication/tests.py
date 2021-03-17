@@ -254,7 +254,7 @@ class MedicationTest(KiolaTest):
         # test compound create
         param = {
             "name": "brandmew12",
-            "activeComponents": "acName",
+            "activeComponents": ["acName"],
             "medicationType": "PRN",
             "formulation": "Tablet"
         }
@@ -662,9 +662,9 @@ class MedicationTest(KiolaTest):
 
         # test create single
         param = {
-            "medicationId": 1,
+            "medicationId": "1",
             "strength": "200mg",
-            "dosage": 2,
+            "dosage": "2",
             "startDate": "2020-11-12",
             "endDate": "2020-11-22",
             "reminder": False,
@@ -714,9 +714,9 @@ class MedicationTest(KiolaTest):
         self.assertEqual(content, data)
         # test update single
         param = {
-            "medicationId": 1,
+            "medicationId": "1",
             "strength": "200mg",
-            "dosage": 2,
+            "dosage": "2",
             "startDate": "2020-11-12",
             "endDate": "2020-11-22",
             "reminder": False,
@@ -766,9 +766,9 @@ class MedicationTest(KiolaTest):
         # test 400
         # test update single with wrong medication id
         param = {
-            "medicationId": 2,
+            "medicationId": "2",
             "strength": "200mg",
-            "dosage": 2,
+            "dosage": "2",
             "startDate": "2020-11-12",
             "endDate": "2020-11-22",
             "reminder": False,
@@ -796,7 +796,7 @@ class MedicationTest(KiolaTest):
         self.assertEquals(response.status_code, 400)
         # test update single without require data 
         param = {
-            "medicationId": 1,
+            "medicationId": "1",
             "startDate": "2020-11-12",
             "endDate": "2020-11-22",
             "reminder": False,
@@ -862,9 +862,9 @@ class MedicationTest(KiolaTest):
         self.assertEqual(content, data)
         # test query all
         param = {
-            "medicationId": 1,
+            "medicationId": "1",
             "strength": "200mg",
-            "dosage": 2,
+            "dosage": "2",
             "startDate": "2020-11-12",
             "endDate": "2020-11-22",
             "reminder": False,
