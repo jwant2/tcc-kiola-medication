@@ -37,21 +37,7 @@ class TCCMosParser(BaseParser):
             data_set = file_data.read()
             io_string = io.StringIO(data_set)
         next(io_string)
-        # print('Checking data source version...')
-        # exist = med_models.CompoundSource.objects.filter(name=const.COMPOUND_SOURCE_NAME__TCC, version=self.version).count() > 0
-        # if exist:
-        #     msg = (f'Given data source version already exist!')
-        #     raise CommandError(msg)
 
-        # file_name = file_data.name.split("/")[-1]
-        # print('Creating import history record ...')
-        # # create a new ImportHistory
-        # with transaction.atomic():
-        #     ImportHistory.objects.filter(status="S").update(status="F")
-        # with transaction.atomic():
-        #     self.instance = ImportHistory.objects.create(status="S", source_file=file_name)
-        # if parser is None:
-        #     raise CommandError("Could not find suitable parser for '%s'" % source_type)
         with reversion.create_revision():
             reversion.set_user(get_system_user())
             print('Creating data source ...')
@@ -71,13 +57,17 @@ class TCCMosParser(BaseParser):
             counter = 0
             for column in csv.reader(io_string, delimiter=',', quotechar='"', quoting=csv.QUOTE_ALL):
                 try:
+                    check_exists = med_models.Compound.objects.filter(name=column[1], uid=column[4], source=source).count()
+                    if check_exists > 0: continue # skip duplicates
                     # process and create active components data
+                    try:
+                        ac, created = med_models.ActiveComponent.objects.get_or_create(name=column[0])
+                        if created:
+                            ac.name_ref=column[4]
+                            ac.save()
+                    except:
+                        ac = med_models.ActiveComponent.objects.filter(name=column[0]).first()
 
-                    ac,  created = med_models.ActiveComponent.objects.get_or_create(name=column[0])
-                    if created:
-                        ac.name_ref=column[4]
-                        ac.save()
-                    
                     # process SCH/PRN
                     prn_value = column[32]
                     if prn_value == "Yes":
@@ -111,9 +101,9 @@ class TCCMosParser(BaseParser):
                         name=column[1],
                         defaults = {'source':source,'name':column[1],'dosage_form':column[26]}
                       )
-                    active_components = compound.active_components.all()
-                    compound.active_components.add(ac)
-                    compound.save()
+                    if ac:
+                        compound.active_components.add(ac)
+                        compound.save()
 
                     # store PRN data
                     prn, created = models.CompoundExtraInformation.objects.get_or_create(compound=compound, name=const.COMPOUND_EXTRA_INFO_NAME__MEDICATION_TYPE)
@@ -139,7 +129,78 @@ class TCCMosParser(BaseParser):
 
 
 class TCCMGenericParser(BaseParser):
-    pass
+    
+    def parse(self):
+        with open(self.source_file, 'r') as csv_file:
+            file_data = csv_file
+            data_set = file_data.read()
+            io_string = io.StringIO(data_set)
+        next(io_string)
+
+        with reversion.create_revision():
+            reversion.set_user(get_system_user())
+            print('Creating data source ...')
+            # create new compound source
+            source, created = med_models.CompoundSource.objects.get_or_create(name=const.COMPOUND_SOURCE_NAME__TCC,
+                                      version=self.version,
+                                      language=ISOLanguage.objects.get(alpha2='en'),
+                                      country=ISOCountry.objects.get(alpha2="AU"),
+                                      group="TCC",
+                                      default=True,
+                                    )
+
+            formulations = {}
+            print('Importing data ...')
+            # FIXME: unable to handle any other PBS data format
+            # loop csv file data row by row
+            counter = 0
+            for column in csv.reader(io_string, delimiter=',', quotechar='"', quoting=csv.QUOTE_ALL):
+                if column[0] == "": 
+                    continue # skip empty line
+                uid = column[4]
+                name = column[0]
+                try:
+                    check_exists = med_models.Compound.objects.filter(name=name, source=source).count()
+                    if check_exists > 0: 
+                        continue # skip duplicate lines as we only need generic names
+                    # process and create active components data
+                    try:
+                        ac,  created = med_models.ActiveComponent.objects.get_or_create(name=column[0])
+                    except:
+                        ac = med_models.ActiveComponent.objects.filter(name=name).first()
+
+                    dosageform = "N/A"
+                    dosageform_ref = "N/A"
+
+                    # create or update medication product data
+                    Product.objects.update_or_create(
+                        unique_id=uid,
+                        defaults = {
+                            'title': name,
+                            'unique_id': uid,
+                            'meta_data':'{"active_components": {"1":"'+name+'"}, "SCH/PRN": "N/A", "source": {"name": "'+const.COMPOUND_SOURCE_NAME__TCC+'", "version": "'+self.version+'"}, "dosage_form": {"'+dosageform_ref+'": "'+dosageform+'"}}'
+                        }
+                    )
+                    # create or update compound data
+                    compound, created = med_models.Compound.objects.update_or_create(
+                        uid=uid,
+                        name=name,
+                        defaults = {'uid': uid, 'source':source, 'name': name, 'dosage_form':'N/A'}
+                      )
+                    if ac:
+                        compound.active_components.add(ac)
+                        compound.save()
+
+
+                    counter += 1
+                except Exception as error:
+                    # store error data row and error message in ImportHistory.details
+                    error_log = {'error_msg': str(error), 'error_data': column}
+                    self.error_logs.append(error_log)
+
+            print('Finalising import ...')
+            return counter, self.error_logs
+
 
 class MedicationDataImportParser(object):
 

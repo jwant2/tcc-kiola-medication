@@ -290,7 +290,9 @@ def drug_search(q,by_id=False):
         if imports[0].status != "C":
             raise service_providers.ServiceNotAvailable()
     data=[]
-    filter_params = []
+    source = med_models.CompoundSource.objects.get(default=True)
+    # only returns current version of compounds
+    filter_params = [Q(meta_data__contains = f'"version": "{source.version}"')]
     if ( by_id ):
         q = q.strip().lower()
         filter_params = [ Q ( unique_id = q ) ]

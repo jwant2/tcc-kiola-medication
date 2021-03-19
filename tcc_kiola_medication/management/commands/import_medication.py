@@ -60,8 +60,6 @@ class Command(BaseCommand):
             start = time.time()
             log.info("Starting import ... (this may take several minutes)")
             num_obj, errors = parser.parse()
-            print(f'num {num_obj}')
-            print(f' error {errors}')
             for error in errors:
                 log_details.append("Error in [%s]: %s" % (source, error))
             log.info("Processed %s objects in %s (%s errors)" % (num_obj, source, len(errors)))
@@ -74,4 +72,4 @@ class Command(BaseCommand):
             running_import.details = log_data
             running_import.ended = timezone.now()
             running_import.save()
-        print("Import success. Time elapsed: %s s" % round(stop - start, 2))
+        print("Import success. Processed %s objects Time elapsed: %s s" % (num_obj, round(stop - start, 2)))
