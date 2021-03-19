@@ -47,3 +47,11 @@ class TccKiolaMedicationConfig(AppConfig):
         from . import utils
 
         med_models.CompoundManager.adapters["TCC"] = utils.TCCAdapter
+        settings.LOGGING["loggers"].update(
+            {
+                "tcc_kiola_medication": {
+                    'handlers': ['syslog'],
+                    'level': 'INFO',
+                }
+            }
+        )
