@@ -988,6 +988,8 @@ class TakingSchemaAPIView(APIView, PaginationHandlerMixin):
                 request.query_params._mutable = True
                 request.query_params['limit'] = self.max_count
                 request.query_params._mutable = False
+            start_date = query.get('startDate', None)
+            end_date = query.get('endDate', None)
 
             taking_qs = (
                 models.ScheduledTaking.objects.filter(
@@ -998,6 +1000,19 @@ class TakingSchemaAPIView(APIView, PaginationHandlerMixin):
                     F('takingschema__prescriptionschema__prescription')
                 )
             )
+            if start_date:
+                try:
+                    start = dateutil.parser.parse(start_date)
+                except:
+                    raise exceptions.BadRequest("Invalid datetime format '%s' for startDate. " % start_date)
+                taking_qs = taking_qs.filter(start_date__gte=start)
+            if end_date:
+                try:
+                    end = dateutil.parser.parse(end_date)
+                except:
+                      raise exceptions.BadRequest("Invalid datetime format '%s' for endDate. " % end_date)
+                taking_qs = taking_qs.filter(end_date__lte=end)
+
             if active == "true":
                 taking_qs = taking_qs.filter(active=True)
             if active == "false":
