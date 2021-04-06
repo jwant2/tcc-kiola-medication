@@ -11,6 +11,7 @@ from django.core.files.uploadedfile import SimpleUploadedFile
 from django.urls import resolve, reverse
 from django.contrib.auth.models import User, Group, Permission
 from diplomat.models import ISOLanguage, ISOCountry
+from django.apps import apps
 
 from kiola.utils.tests import do_request, KiolaBaseTest
 from kiola.kiola_senses.tests import KiolaTest
@@ -32,10 +33,14 @@ class MedicationTest(KiolaTest):
     def setUpClass(cls):
         super(MedicationTest, cls).setUpClass()
         try:
-            settings.INSTALLED_APPS.remove("relief.services")
+            del apps.app_configs['services']
         except Exception as err:
             pass
-        ProjectPyxtureLoader().load()
+
+        apps_list = apps.get_app_configs()
+        with reversion.create_revision():
+            reversion.set_user(get_system_user())
+            ProjectPyxtureLoader().load(apps=apps_list)
         module_dir = os.path.dirname(__file__)  # get current directory
         file_path = os.path.join(module_dir, 'datafiles/test/mos_rx_300_rows.csv')
         with reversion.create_revision():
@@ -980,6 +985,573 @@ class MedicationTest(KiolaTest):
             accept="application/json")
         content = json.loads(response.content.decode("utf-8"))
         self.assertEqual(content["count"], 0)
+
+    def test_taking_query_api(self):
+        self.assertTrue(True)
+        c = self.client
+        # prepare prescription
+        url = reverse("tcc_med_api:medication", kwargs={"apiv":1})
+        signature_url = f'http://testserver{url}'
+        method = "POST"
+        remote_access_id, signature, senddate = Device.objects.get_signature(signature_url, method, self.device, self.subject.login)
+        param = {
+            "compound": {
+                "id": "342225332"
+            },
+            "startDate": "2020-01-01",
+            "endDate": "2022-01-01",
+            "reason": "test reason",
+            "hint": "Allergy 123",
+            "medicationType": "PRN"   
+        }
+        response = do_request(
+            c,
+            method,
+            url,
+            remote_access_id,
+            signature,
+            senddate,
+            param=param,
+            content_type="application/json",
+            accept_language=None,
+            accept="application/json")
+
+        # create test schedules
+        # daily
+        param = {
+            "medicationId": "1",
+            "strength": "200mg",
+            "dosage": "2",
+            "startDate": "2020-11-12",
+            "endDate": "2020-11-22",
+            "reminder": False,
+            "formulation": "Tablet",
+            "frequency": "daily",
+            "hint": "hint",
+            "type": "custom",
+            "time": "18:29"
+        }
+        url = reverse("tcc_med_api:taking", kwargs={"apiv":1})
+        signature_url = f'http://testserver{url}'
+        method = "POST"
+        remote_access_id, signature, senddate = Device.objects.get_signature(signature_url, method, self.device, self.subject.login)
+        response = do_request(
+            c,
+            method,
+            url,
+            remote_access_id,
+            signature,
+            senddate,
+            param=param,
+            content_type="application/json",
+            accept_language=None,
+            accept="application/json")
+        # weekly 1
+        param = {
+            "medicationId": "1",
+            "strength": "200mg",
+            "dosage": "2",
+            "startDate": "2020-11-12",
+            "endDate": "2020-11-22",
+            "reminder": False,
+            "formulation": "Tablet",
+            "frequency": "weekly",
+            "hint": "hint",
+            "type": "custom",
+            "time": "18:29"
+        }
+        response = do_request(
+            c,
+            method,
+            url,
+            remote_access_id,
+            signature,
+            senddate,
+            param=param,
+            content_type="application/json",
+            accept_language=None,
+            accept="application/json")
+        # weekly 2
+        param = {
+            "medicationId": "1",
+            "strength": "200mg",
+            "dosage": "2",
+            "startDate": "2020-11-20",
+            "endDate": "2020-11-22",
+            "reminder": False,
+            "formulation": "Tablet",
+            "frequency": "weekly",
+            "hint": "hint",
+            "type": "custom",
+            "time": "18:29"
+        }
+        response = do_request(
+            c,
+            method,
+            url,
+            remote_access_id,
+            signature,
+            senddate,
+            param=param,
+            content_type="application/json",
+            accept_language=None,
+            accept="application/json")
+        # fortnightly 1
+        param = {
+            "medicationId": "1",
+            "strength": "200mg",
+            "dosage": "2",
+            "startDate": "2020-11-13",
+            "endDate": "2020-11-22",
+            "reminder": False,
+            "formulation": "Tablet",
+            "frequency": "fortnightly",
+            "hint": "hint",
+            "type": "custom",
+            "time": "18:29"
+        }
+        response = do_request(
+            c,
+            method,
+            url,
+            remote_access_id,
+            signature,
+            senddate,
+            param=param,
+            content_type="application/json",
+            accept_language=None,
+            accept="application/json")
+
+        # fortnightly 2
+        param = {
+            "medicationId": "1",
+            "strength": "200mg",
+            "dosage": "2",
+            "startDate": "2020-11-20",
+            "endDate": "2021-11-22",
+            "reminder": False,
+            "formulation": "Tablet",
+            "frequency": "fortnightly",
+            "hint": "hint",
+            "type": "custom",
+            "time": "18:29"
+        }
+        response = do_request(
+            c,
+            method,
+            url,
+            remote_access_id,
+            signature,
+            senddate,
+            param=param,
+            content_type="application/json",
+            accept_language=None,
+            accept="application/json")
+
+        # monthly
+        param = {
+            "medicationId": "1",
+            "strength": "200mg",
+            "dosage": "2",
+            "startDate": "2020-11-14",
+            "endDate": "2021-11-22",
+            "reminder": False,
+            "formulation": "Tablet",
+            "frequency": "monthly",
+            "hint": "hint",
+            "type": "custom",
+            "time": "18:29"
+        }
+        response = do_request(
+            c,
+            method,
+            url,
+            remote_access_id,
+            signature,
+            senddate,
+            param=param,
+            content_type="application/json",
+            accept_language=None,
+            accept="application/json")
+
+
+        # once
+        param = {
+            "medicationId": "1",
+            "strength": "200mg",
+            "dosage": "2",
+            "startDate": "2020-11-05",
+            "endDate": "2020-11-22",
+            "reminder": False,
+            "formulation": "Tablet",
+            "frequency": "once",
+            "hint": "hint",
+            "type": "custom",
+            "time": "18:29"
+        }
+        response = do_request(
+            c,
+            method,
+            url,
+            remote_access_id,
+            signature,
+            senddate,
+            param=param,
+            content_type="application/json",
+            accept_language=None,
+            accept="application/json")
+
+        # test startDate
+        url = reverse("tcc_med_api:taking", kwargs={"apiv":1})
+        url += "?startDate=2020-11-10"
+        signature_url = f'http://testserver{url}'
+        method = "GET"
+        remote_access_id, signature, senddate = Device.objects.get_signature(signature_url, method, self.device, self.subject.login)
+        response = do_request(
+            c,
+            method,
+            url,
+            remote_access_id,
+            signature,
+            senddate,
+            param={},
+            content_type="application/json",
+            accept_language=None,
+            accept="application/json")
+        content = json.loads(response.content.decode("utf-8"))
+        self.assertEqual(content["count"], 6)
+
+
+        # test endDate
+        url = reverse("tcc_med_api:taking", kwargs={"apiv":1})
+        url += "?endDate=2020-12-10"
+        signature_url = f'http://testserver{url}'
+        method = "GET"
+        remote_access_id, signature, senddate = Device.objects.get_signature(signature_url, method, self.device, self.subject.login)
+        response = do_request(
+            c,
+            method,
+            url,
+            remote_access_id,
+            signature,
+            senddate,
+            param={},
+            content_type="application/json",
+            accept_language=None,
+            accept="application/json")
+        content = json.loads(response.content.decode("utf-8"))
+        self.assertEqual(content["count"], 5)
+
+        # test startDate and endDate
+        url = reverse("tcc_med_api:taking", kwargs={"apiv":1})
+        url += "?startDate=2020-11-10&endDate=2020-12-10"
+        signature_url = f'http://testserver{url}'
+        method = "GET"
+        remote_access_id, signature, senddate = Device.objects.get_signature(signature_url, method, self.device, self.subject.login)
+        response = do_request(
+            c,
+            method,
+            url,
+            remote_access_id,
+            signature,
+            senddate,
+            param={},
+            content_type="application/json",
+            accept_language=None,
+            accept="application/json")
+        content = json.loads(response.content.decode("utf-8"))
+        self.assertEqual(content["count"], 4)
+
+        # test givenDate with once
+        url = reverse("tcc_med_api:taking", kwargs={"apiv":1})
+        url += "?date=2020-11-05"
+        signature_url = f'http://testserver{url}'
+        method = "GET"
+        remote_access_id, signature, senddate = Device.objects.get_signature(signature_url, method, self.device, self.subject.login)
+        response = do_request(
+            c,
+            method,
+            url,
+            remote_access_id,
+            signature,
+            senddate,
+            param={},
+            content_type="application/json",
+            accept_language=None,
+            accept="application/json")
+        content = json.loads(response.content.decode("utf-8"))
+        self.assertEqual(content["count"], 1)
+
+        url = reverse("tcc_med_api:taking", kwargs={"apiv":1})
+        url += "?date=2020-11-06"
+        signature_url = f'http://testserver{url}'
+        method = "GET"
+        remote_access_id, signature, senddate = Device.objects.get_signature(signature_url, method, self.device, self.subject.login)
+        response = do_request(
+            c,
+            method,
+            url,
+            remote_access_id,
+            signature,
+            senddate,
+            param={},
+            content_type="application/json",
+            accept_language=None,
+            accept="application/json")
+        content = json.loads(response.content.decode("utf-8"))
+        self.assertEqual(content["count"], 0)
+
+        # test givenDate with daily
+        url = reverse("tcc_med_api:taking", kwargs={"apiv":1})
+        url += "?date=2020-11-11"
+        signature_url = f'http://testserver{url}'
+        method = "GET"
+        remote_access_id, signature, senddate = Device.objects.get_signature(signature_url, method, self.device, self.subject.login)
+        response = do_request(
+            c,
+            method,
+            url,
+            remote_access_id,
+            signature,
+            senddate,
+            param={},
+            content_type="application/json",
+            accept_language=None,
+            accept="application/json")
+        content = json.loads(response.content.decode("utf-8"))
+        self.assertEqual(content["count"], 0)
+
+        url = reverse("tcc_med_api:taking", kwargs={"apiv":1})
+        url += "?date=2020-11-12"
+        signature_url = f'http://testserver{url}'
+        method = "GET"
+        remote_access_id, signature, senddate = Device.objects.get_signature(signature_url, method, self.device, self.subject.login)
+        response = do_request(
+            c,
+            method,
+            url,
+            remote_access_id,
+            signature,
+            senddate,
+            param={},
+            content_type="application/json",
+            accept_language=None,
+            accept="application/json")
+        content = json.loads(response.content.decode("utf-8"))
+        self.assertEqual(content["count"], 2)
+
+        url = reverse("tcc_med_api:taking", kwargs={"apiv":1})
+        url += "?date=2020-11-15"
+        signature_url = f'http://testserver{url}'
+        method = "GET"
+        remote_access_id, signature, senddate = Device.objects.get_signature(signature_url, method, self.device, self.subject.login)
+        response = do_request(
+            c,
+            method,
+            url,
+            remote_access_id,
+            signature,
+            senddate,
+            param={},
+            content_type="application/json",
+            accept_language=None,
+            accept="application/json")
+        content = json.loads(response.content.decode("utf-8"))
+        self.assertEqual(content["count"], 1)
+
+        # test givenDate with weekly
+        url = reverse("tcc_med_api:taking", kwargs={"apiv":1})
+        url += "?date=2020-11-12"
+        signature_url = f'http://testserver{url}'
+        method = "GET"
+        remote_access_id, signature, senddate = Device.objects.get_signature(signature_url, method, self.device, self.subject.login)
+        response = do_request(
+            c,
+            method,
+            url,
+            remote_access_id,
+            signature,
+            senddate,
+            param={},
+            content_type="application/json",
+            accept_language=None,
+            accept="application/json")
+        content = json.loads(response.content.decode("utf-8"))
+        self.assertEqual(content["count"], 2)
+
+        url = reverse("tcc_med_api:taking", kwargs={"apiv":1})
+        url += "?date=2020-11-15"
+        signature_url = f'http://testserver{url}'
+        method = "GET"
+        remote_access_id, signature, senddate = Device.objects.get_signature(signature_url, method, self.device, self.subject.login)
+        response = do_request(
+            c,
+            method,
+            url,
+            remote_access_id,
+            signature,
+            senddate,
+            param={},
+            content_type="application/json",
+            accept_language=None,
+            accept="application/json")
+        content = json.loads(response.content.decode("utf-8"))
+        self.assertEqual(content["count"], 1)
+
+        url = reverse("tcc_med_api:taking", kwargs={"apiv":1})
+        url += "?date=2020-11-19"
+        signature_url = f'http://testserver{url}'
+        method = "GET"
+        remote_access_id, signature, senddate = Device.objects.get_signature(signature_url, method, self.device, self.subject.login)
+        response = do_request(
+            c,
+            method,
+            url,
+            remote_access_id,
+            signature,
+            senddate,
+            param={},
+            content_type="application/json",
+            accept_language=None,
+            accept="application/json")
+        content = json.loads(response.content.decode("utf-8"))
+        self.assertEqual(content["count"], 2)
+
+        # test givenDate with fortnightly
+        url = reverse("tcc_med_api:taking", kwargs={"apiv":1})
+        url += "?date=2020-11-13"
+        signature_url = f'http://testserver{url}'
+        method = "GET"
+        remote_access_id, signature, senddate = Device.objects.get_signature(signature_url, method, self.device, self.subject.login)
+        response = do_request(
+            c,
+            method,
+            url,
+            remote_access_id,
+            signature,
+            senddate,
+            param={},
+            content_type="application/json",
+            accept_language=None,
+            accept="application/json")
+        content = json.loads(response.content.decode("utf-8"))
+        self.assertEqual(content["count"], 2)
+
+        url = reverse("tcc_med_api:taking", kwargs={"apiv":1})
+        url += "?date=2020-11-20"
+        signature_url = f'http://testserver{url}'
+        method = "GET"
+        remote_access_id, signature, senddate = Device.objects.get_signature(signature_url, method, self.device, self.subject.login)
+        response = do_request(
+            c,
+            method,
+            url,
+            remote_access_id,
+            signature,
+            senddate,
+            param={},
+            content_type="application/json",
+            accept_language=None,
+            accept="application/json")
+        content = json.loads(response.content.decode("utf-8"))
+        self.assertEqual(content["count"], 3)
+
+
+        url = reverse("tcc_med_api:taking", kwargs={"apiv":1})
+        url += "?date=2020-11-27"
+        signature_url = f'http://testserver{url}'
+        method = "GET"
+        remote_access_id, signature, senddate = Device.objects.get_signature(signature_url, method, self.device, self.subject.login)
+        response = do_request(
+            c,
+            method,
+            url,
+            remote_access_id,
+            signature,
+            senddate,
+            param={},
+            content_type="application/json",
+            accept_language=None,
+            accept="application/json")
+        content = json.loads(response.content.decode("utf-8"))
+        self.assertEqual(content["count"], 0)
+
+        # test givenDate with monthly
+        url = reverse("tcc_med_api:taking", kwargs={"apiv":1})
+        url += "?date=2020-11-14"
+        signature_url = f'http://testserver{url}'
+        method = "GET"
+        remote_access_id, signature, senddate = Device.objects.get_signature(signature_url, method, self.device, self.subject.login)
+        response = do_request(
+            c,
+            method,
+            url,
+            remote_access_id,
+            signature,
+            senddate,
+            param={},
+            content_type="application/json",
+            accept_language=None,
+            accept="application/json")
+        content = json.loads(response.content.decode("utf-8"))
+        self.assertEqual(content["count"], 2)
+
+        url = reverse("tcc_med_api:taking", kwargs={"apiv":1})
+        url += "?date=2020-12-14"
+        signature_url = f'http://testserver{url}'
+        method = "GET"
+        remote_access_id, signature, senddate = Device.objects.get_signature(signature_url, method, self.device, self.subject.login)
+        response = do_request(
+            c,
+            method,
+            url,
+            remote_access_id,
+            signature,
+            senddate,
+            param={},
+            content_type="application/json",
+            accept_language=None,
+            accept="application/json")
+        content = json.loads(response.content.decode("utf-8"))
+        self.assertEqual(content["count"], 1)
+
+        url = reverse("tcc_med_api:taking", kwargs={"apiv":1})
+        url += "?date=2021-01-13"
+        signature_url = f'http://testserver{url}'
+        method = "GET"
+        remote_access_id, signature, senddate = Device.objects.get_signature(signature_url, method, self.device, self.subject.login)
+        response = do_request(
+            c,
+            method,
+            url,
+            remote_access_id,
+            signature,
+            senddate,
+            param={},
+            content_type="application/json",
+            accept_language=None,
+            accept="application/json")
+        content = json.loads(response.content.decode("utf-8"))
+        self.assertEqual(content["count"], 1)
+
+        url = reverse("tcc_med_api:taking", kwargs={"apiv":1})
+        url += "?date=2021-02-12"
+        signature_url = f'http://testserver{url}'
+        method = "GET"
+        remote_access_id, signature, senddate = Device.objects.get_signature(signature_url, method, self.device, self.subject.login)
+        response = do_request(
+            c,
+            method,
+            url,
+            remote_access_id,
+            signature,
+            senddate,
+            param={},
+            content_type="application/json",
+            accept_language=None,
+            accept="application/json")
+        content = json.loads(response.content.decode("utf-8"))
+        self.assertEqual(content["count"], 2)
 
     def test_reaction_api(self):
         c = self.client
