@@ -1012,7 +1012,7 @@ class TakingSchemaAPIView(APIView, PaginationHandlerMixin):
                     end = dateutil.parser.parse(end_date)
                 except:
                       raise exceptions.BadRequest("Invalid datetime format '%s' for endDate. " % end_date)
-                taking_qs = taking_qs.filter(end_date__lte=end)
+                taking_qs = taking_qs.filter(Q(end_date__lte=end) | Q(end_date=None))
 
             if active == "true":
                 taking_qs = taking_qs.filter(active=True)
@@ -1025,7 +1025,7 @@ class TakingSchemaAPIView(APIView, PaginationHandlerMixin):
                     given = dateutil.parser.parse(given_date)
                 except:
                       raise exceptions.BadRequest("Invalid datetime format '%s' for endDate. " % given_date)
-                taking_qs = taking_qs.filter(end_date__gte=given, start_date__lte=given)
+                taking_qs = taking_qs.filter(Q(end_date__gte=given, start_date__lte=given) | Q(start_date__lte=given, end_date=None))
                 taking_qs = self._filter_schedule_for_given_date(given, taking_qs)
 
             page = self.paginate_queryset(taking_qs)

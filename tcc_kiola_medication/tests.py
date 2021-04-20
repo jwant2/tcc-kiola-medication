@@ -1553,6 +1553,54 @@ class MedicationTest(KiolaTest):
         content = json.loads(response.content.decode("utf-8"))
         self.assertEqual(content["count"], 2)
 
+        # test givenDate with endDate:null
+        param = {
+            "medicationId": "1",
+            "strength": "200mg",
+            "dosage": "2",
+            "startDate": "2021-04-12",
+            "reminder": False,
+            "formulation": "Tablet",
+            "frequency": "daily",
+            "hint": "hint",
+            "type": "custom",
+            "time": "18:29"
+        }
+        url = reverse("tcc_med_api:taking", kwargs={"apiv":1})
+        signature_url = f'http://testserver{url}'
+        method = "POST"
+        remote_access_id, signature, senddate = Device.objects.get_signature(signature_url, method, self.device, self.subject.login)
+        response = do_request(
+            c,
+            method,
+            url,
+            remote_access_id,
+            signature,
+            senddate,
+            param=param,
+            content_type="application/json",
+            accept_language=None,
+            accept="application/json")
+
+        url = reverse("tcc_med_api:taking", kwargs={"apiv":1})
+        url += "?date=2021-08-12"
+        signature_url = f'http://testserver{url}'
+        method = "GET"
+        remote_access_id, signature, senddate = Device.objects.get_signature(signature_url, method, self.device, self.subject.login)
+        response = do_request(
+            c,
+            method,
+            url,
+            remote_access_id,
+            signature,
+            senddate,
+            param={},
+            content_type="application/json",
+            accept_language=None,
+            accept="application/json")
+        content = json.loads(response.content.decode("utf-8"))
+        self.assertEqual(content["count"], 1)
+
     def test_reaction_api(self):
         c = self.client
         # prepare prescription
