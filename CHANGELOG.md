@@ -2,6 +2,21 @@
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+### [0.4.3-dev.2](https://bitbucket.org/teleclinicalcare/tcc-kiola-medication/compare/v0.4.3-dev.1...v0.4.3-dev.2) (2021-04-20)
+
+
+### Bug Fixes
+
+* fixed endDate:null for schedule query api not handled properly. ([1b4fc69](https://bitbucket.org/teleclinicalcare/tcc-kiola-medication/commit/1b4fc6941e46b0c04a6c86c219c195a1b3a6d9b4))
+
+### [0.4.3-dev.1](https://bitbucket.org/teleclinicalcare/tcc-kiola-medication/compare/v0.4.3-dev.0...v0.4.3-dev.1) (2021-04-06)
+
+
+### Features
+
+* add date query to schedule endpoint ([ae1f4e2](https://bitbucket.org/teleclinicalcare/tcc-kiola-medication/commit/ae1f4e21bb3e766727d34ea5e7b7a74342569951))
+* add startDate and endDate query params to schedule query api ([a7044c0](https://bitbucket.org/teleclinicalcare/tcc-kiola-medication/commit/a7044c0f88205d081e283c0020a49b15b3fe1c86))
+
 ### [0.4.3-dev.0](https://bitbucket.org/teleclinicalcare/tcc-kiola-medication/compare/v0.4.2...v0.4.3-dev.0) (2021-03-22)
 
 
