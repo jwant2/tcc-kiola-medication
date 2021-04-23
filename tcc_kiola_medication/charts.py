@@ -39,9 +39,9 @@ class TCCMedicationComplianceChart(cares_charts.ChartBase):
     plots = [base_charts.TimePlot, ]
 
     series = [
-        const.MDC_DEV_SPEC_PROFILE_TCC_MED_PRESCIPTION_OBSERVATION_ACTION_ENUM_TAKE,
-        const.MDC_DEV_SPEC_PROFILE_TCC_MED_PRESCIPTION_OBSERVATION_ACTION_ENUM_UNDO,
-        const.MDC_DEV_SPEC_PROFILE_TCC_MED_PRESCIPTION_OBSERVATION_ACTION_ENUM_NOT_TAKE,
+        const.MDC_DEV_SPEC_PROFILE_TCC_MED_PRESCRIPTION_OBSERVATION_ACTION_ENUM_TAKE,
+        const.MDC_DEV_SPEC_PROFILE_TCC_MED_PRESCRIPTION_OBSERVATION_ACTION_ENUM_UNDO,
+        const.MDC_DEV_SPEC_PROFILE_TCC_MED_PRESCRIPTION_OBSERVATION_ACTION_ENUM_NOT_TAKE,
       ]
 
     chart_options = {"plotOptions": {
@@ -67,7 +67,7 @@ class TCCMedicationComplianceChart(cares_charts.ChartBase):
     })
 
     series_options = [{
-        "name": f'Medication compliance {_(const.MDC_DEV_SPEC_PROFILE_TCC_MED_PRESCIPTION_OBSERVATION_ACTION_ENUM_TAKE)}',
+        "name": f'Medication compliance {_(const.MDC_DEV_SPEC_PROFILE_TCC_MED_PRESCRIPTION_OBSERVATION_ACTION_ENUM_TAKE)}',
         "lineWidth": 0,
         "color": "#87B87F",
         "marker": {
@@ -79,7 +79,7 @@ class TCCMedicationComplianceChart(cares_charts.ChartBase):
 
     },
     {
-        "name": f'Medication compliance {_(const.MDC_DEV_SPEC_PROFILE_TCC_MED_PRESCIPTION_OBSERVATION_ACTION_ENUM_UNDO)}',
+        "name": f'Medication compliance {_(const.MDC_DEV_SPEC_PROFILE_TCC_MED_PRESCRIPTION_OBSERVATION_ACTION_ENUM_UNDO)}',
             "lineWidth": 0,
             "color": "#FFB752",
             "marker": {
@@ -91,7 +91,7 @@ class TCCMedicationComplianceChart(cares_charts.ChartBase):
 
     },
     {
-        "name": f'Medication compliance {_(const.MDC_DEV_SPEC_PROFILE_TCC_MED_PRESCIPTION_OBSERVATION_ACTION_ENUM_NOT_TAKE)}',
+        "name": f'Medication compliance {_(const.MDC_DEV_SPEC_PROFILE_TCC_MED_PRESCRIPTION_OBSERVATION_ACTION_ENUM_NOT_TAKE)}',
             "lineWidth": 0,
             "color": "red",
             "marker": {
@@ -116,18 +116,18 @@ class TCCMedicationComplianceChart(cares_charts.ChartBase):
         for counter, series in enumerate(self.series):
             observations = (
                 senses.EnumerationObservation.objects.filter(
-                  parent__profile__name=const.MDC_DEV_SPEC_PROFILE_TCC_MED_PRESCIPTION_OBSERVATION,
+                  parent__profile__name=const.MDC_DEV_SPEC_PROFILE_TCC_MED_PRESCRIPTION_OBSERVATION,
                   started__range=period,
-                  profile__name=const.MDC_DEV_SPEC_PROFILE_TCC_MED_PRESCIPTION_OBSERVATION_ACTION, 
+                  profile__name=const.MDC_DEV_SPEC_PROFILE_TCC_MED_PRESCRIPTION_OBSERVATION_ACTION, 
                   value=series,
                   subject=subject).order_by("started")
                   .annotate(schedule=Subquery(senses.DateTimeSimpleObservation.objects.filter(parent__pk=OuterRef('parent__pk'), 
-                                  profile__name=const.MDC_DEV_SPEC_PROFILE_TCC_MED_PRESCIPTION_OBSERVATION_SCHEDULE_TIME
+                                  profile__name=const.MDC_DEV_SPEC_PROFILE_TCC_MED_PRESCRIPTION_OBSERVATION_SCHEDULE_TIME
                                   ).values('value')
                             )
                   )
                   .annotate(prescr_id=Subquery(senses.TextObservation.objects.filter(parent__pk=OuterRef('parent__pk'), 
-                                  profile__name=const.MDC_DEV_SPEC_PROFILE_TCC_MED_PRESCIPTION_OBSERVATION_MEDICATION_ID, 
+                                  profile__name=const.MDC_DEV_SPEC_PROFILE_TCC_MED_PRESCRIPTION_OBSERVATION_MEDICATION_ID, 
                                   ).values('value')
                             )   
                   )
