@@ -202,6 +202,13 @@ class ScheduledTakingSerializer(serializers.ModelSerializer):
     createdAt = serializers.CharField(source='created')
     updatedAt = serializers.CharField(source='updated')
 
+    def to_representation(self, instance):
+        ret = super().to_representation(instance)
+        def value_is_not_none(x):
+            key, value = x
+            return value is not None
+        return OrderedDict(filter(value_is_not_none, ret.items()))
+
     def get_type(self, obj):
         if obj.timepoint.name == "custom":
             return obj.timepoint.name 
