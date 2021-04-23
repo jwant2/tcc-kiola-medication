@@ -1,6 +1,7 @@
 
 import copy
 import math
+from kiola.kiola_senses.models.base import IN_PROGRESS
 import numpy
 import datetime
 from operator import itemgetter
@@ -17,6 +18,7 @@ from django.db.models import Q, Prefetch, Subquery, OuterRef, F
 from django.utils.encoding import force_text
 
 from kiola.kiola_senses import models as senses
+from kiola.kiola_senses.models import  base
 from kiola.kiola_senses import const as senses_const
 from kiola.kiola_charts import charts as base_charts
 from kiola.cares import charts as cares_charts
@@ -115,18 +117,19 @@ class TCCMedicationComplianceChart(cares_charts.ChartBase):
         # get chart data for each series
         for counter, series in enumerate(self.series):
             observations = (
-                senses.EnumerationObservation.objects.filter(
+                senses.EnumerationObservation.accepted.filter(
                   parent__profile__name=const.MDC_DEV_SPEC_PROFILE_TCC_MED_PRESCIPTION_OBSERVATION,
                   started__range=period,
                   profile__name=const.MDC_DEV_SPEC_PROFILE_TCC_MED_PRESCIPTION_OBSERVATION_ACTION, 
                   value=series,
-                  subject=subject).order_by("started")
-                  .annotate(schedule=Subquery(senses.DateTimeSimpleObservation.objects.filter(parent__pk=OuterRef('parent__pk'), 
+                  status=base.COMPLETED, # filter invalid observation
+                  subject=subject).order_by("started") 
+                  .annotate(schedule=Subquery(senses.DateTimeSimpleObservation.accepted.filter(parent__pk=OuterRef('parent__pk'), 
                                   profile__name=const.MDC_DEV_SPEC_PROFILE_TCC_MED_PRESCIPTION_OBSERVATION_SCHEDULE_TIME
                                   ).values('value')
                             )
                   )
-                  .annotate(prescr_id=Subquery(senses.TextObservation.objects.filter(parent__pk=OuterRef('parent__pk'), 
+                  .annotate(prescr_id=Subquery(senses.TextObservation.accepted.filter(parent__pk=OuterRef('parent__pk'), 
                                   profile__name=const.MDC_DEV_SPEC_PROFILE_TCC_MED_PRESCIPTION_OBSERVATION_MEDICATION_ID, 
                                   ).values('value')
                             )   
@@ -136,9 +139,13 @@ class TCCMedicationComplianceChart(cares_charts.ChartBase):
 
             chart_data = []
             for observation in observations:
+                try: 
+                    compound = med_models.Prescription.objects.get(pk=observation.prescr_id).compound.name
+                except med_models.Prescription.DoesNotExist:
+                    compound = None # this means observation data is invalid
                 pointdata = {"x": observation.parent.started.replace(hour=0, minute=0, second=0),
                              "y": observation.parent.started,
-                             "compound": med_models.Prescription.objects.get(pk=observation.prescr_id).compound.name,
+                             "compound": compound,
                              "schedule": observation.schedule,
                              "actual": observation.parent.started,
                              "action": observation.value.upper()
