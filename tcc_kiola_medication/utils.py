@@ -4,11 +4,17 @@ from . import models, const
 from kiola.kiola_med import utils as med_utils, models as med_models
 from kiola.kiola_med.templatetags import med as med_tags
 from kiola.utils import service_providers
+from kiola.utils.commons import get_system_user
+from kiola.utils import const as kiola_const
+from kiola.kiola_clients import signals
+
+from tcc_hf import utils as hf_utils
 
 from django.utils.translation import ugettext_lazy as _
 from datetime import datetime
 from django.utils.encoding import force_text
 from django.core import exceptions as djexceptions
+from django.db.models import Q, F
 
 class PaginationHandlerMixin(object):
     @property
@@ -206,3 +212,51 @@ class TCCAdapter(med_utils.CompoundAdapterBase):
             compound = compounds[0]
 
         return compound, created
+
+
+def filter_schedule_for_given_date(given_date, qs):
+    '''
+    Return schedules that should be taken on the given date
+    '''
+    filtered_ids = []
+    current_date = given_date.date()
+    for taking in qs:
+        date =  taking.start_date
+        if taking.frequency.name == const.TAKING_FREQUENCY_VALUE__ONCE \
+            and current_date == date:
+            filtered_ids.append(taking.id)
+        elif taking.frequency.name == const.TAKING_FREQUENCY_VALUE__DAILY:
+            filtered_ids.append(taking.id)
+        elif taking.frequency.name == const.TAKING_FREQUENCY_VALUE__WEEKLY \
+            and current_date.weekday() == date.weekday():
+            filtered_ids.append(taking.id)
+        elif taking.frequency.name == const.TAKING_FREQUENCY_VALUE__FORTNIGHTLY \
+            and (current_date - date).days % 14 == 0 and current_date.weekday() == date.weekday():
+            filtered_ids.append(taking.id)
+        elif taking.frequency.name == const.TAKING_FREQUENCY_VALUE__MONTHLY \
+            and (current_date - date).days % 30 == 0:
+            filtered_ids.append(taking.id)
+    return models.ScheduledTaking.objects.filter(id__in=filtered_ids).annotate(prescr_id=
+                F('takingschema__prescriptionschema__prescription')
+    )
+
+
+
+def send_medication_reminder_notification(subject, taking, time, compound_name):
+    # send out medication reminder notification to patient
+    feedback_body = const.MEDICATION_REMINDER__MESSAGE_BODY % (compound_name, time)
+    message = hf_utils.create_feedback_FCM(get_system_user(), subject, feedback_body)
+    data = {
+      "type": "feedback",
+      "feedbackId": message.id,
+      "text": feedback_body
+    }
+    signal_results = signals.sensor_event_created.send_robust(
+        taking,
+        data=data,
+        subject="TCC Cardiac - Medication Reminder",
+        recipient=subject.login,
+        valid_in_hours=24,
+        backend="FCM_NO_ENCRYPTION",
+        mime_type=kiola_const.MIME_TYPE__APPLICATION_JSON,
+    )
