@@ -26,31 +26,46 @@ class Pyxture(BasePyxture):
         )
 
         med_ob, created = senses_models.ExtensibleRootObservationProfile.objects.get_or_create(
-            name=const.MDC_DEV_SPEC_PROFILE_TCC_MED_PRESCIPTION_OBSERVATION
+            name=const.MDC_DEV_SPEC_PROFILE_TCC_MED_PRESCRIPTION_OBSERVATION
         )
 
 
         self._create_enum_observation(
             parent=med_ob,
-            obs_name=const.MDC_DEV_SPEC_PROFILE_TCC_MED_PRESCIPTION_OBSERVATION_ACTION,
+            obs_name=const.MDC_DEV_SPEC_PROFILE_TCC_MED_PRESCRIPTION_OBSERVATION_ACTION,
             num_occurences=senses_const.ONE,
-            enum_type=const.MDC_DEV_SPEC_PROFILE_TCC_MED_PRESCIPTION_OBSERVATION_ACTION_ENUMTYPE,
+            enum_type=const.MDC_DEV_SPEC_PROFILE_TCC_MED_PRESCRIPTION_OBSERVATION_ACTION_ENUMTYPE,
             enum_list=[
-                const.MDC_DEV_SPEC_PROFILE_TCC_MED_PRESCIPTION_OBSERVATION_ACTION_ENUM_TAKE,
-                const.MDC_DEV_SPEC_PROFILE_TCC_MED_PRESCIPTION_OBSERVATION_ACTION_ENUM_NOT_TAKE,
-                const.MDC_DEV_SPEC_PROFILE_TCC_MED_PRESCIPTION_OBSERVATION_ACTION_ENUM_UNDO,
+                const.MDC_DEV_SPEC_PROFILE_TCC_MED_PRESCRIPTION_OBSERVATION_ACTION_ENUM_TAKE,
+                const.MDC_DEV_SPEC_PROFILE_TCC_MED_PRESCRIPTION_OBSERVATION_ACTION_ENUM_NOT_TAKE,
+                const.MDC_DEV_SPEC_PROFILE_TCC_MED_PRESCRIPTION_OBSERVATION_ACTION_ENUM_UNDO,
             ]
         )
         self._create_datetime_observation(
             parent=med_ob,
-            obs_name=const.MDC_DEV_SPEC_PROFILE_TCC_MED_PRESCIPTION_OBSERVATION_SCHEDULE_TIME,
-            num_occurences=senses_const.ZERO_OR_ONE
+            obs_name=const.MDC_DEV_SPEC_PROFILE_TCC_MED_PRESCRIPTION_OBSERVATION_SCHEDULE_TIME,
+            num_occurences=senses_const.ONE
         )
 
         # Reference to previous AE Observaton ID
         self._create_text_observation(
             parent=med_ob,
-            obs_name=const.MDC_DEV_SPEC_PROFILE_TCC_MED_PRESCIPTION_OBSERVATION_MEDICATION_ID,
+            obs_name=const.MDC_DEV_SPEC_PROFILE_TCC_MED_PRESCRIPTION_OBSERVATION_MEDICATION_ID,
+            num_occurences=senses_const.ONE
+        )
+        self._create_text_observation(
+            parent=med_ob,
+            obs_name=const.MDC_DEV_SPEC_PROFILE_TCC_MED_PRESCRIPTION_OBSERVATION_SCHEDULE_ID,
+            num_occurences=senses_const.ONE
+        )
+        self._create_text_observation(
+            parent=med_ob,
+            obs_name=const.MDC_DEV_SPEC_PROFILE_TCC_MED_PRESCRIPTION_OBSERVATION_SCHEDULE_ACTION_TIME,
+            num_occurences=senses_const.ONE
+        )
+        self._create_text_observation(
+            parent=med_ob,
+            obs_name=const.MDC_DEV_SPEC_PROFILE_TCC_MED_PRESCRIPTION_OBSERVATION_SCHEDULE_ACTION_DATE,
             num_occurences=senses_const.ONE
         )
 
@@ -63,7 +78,7 @@ class Pyxture(BasePyxture):
 
         self._add_frontends_to_profile(med_ob)
 
-        senses_models.ObservationProfile.objects.activate(name=const.MDC_DEV_SPEC_PROFILE_TCC_MED_PRESCIPTION_OBSERVATION)
+        senses_models.ObservationProfile.objects.activate(name=const.MDC_DEV_SPEC_PROFILE_TCC_MED_PRESCRIPTION_OBSERVATION)
 
 
     def _add_frontends_to_profile(self, profile):
