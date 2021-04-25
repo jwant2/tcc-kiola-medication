@@ -3,7 +3,6 @@ import random
 from datetime import datetime, timedelta, date, time
 from django.db.models import Q, F, Prefetch, OuterRef, Subquery
 from django.utils import timezone
-
 from reversion import revisions as reversion
 from django_cron import CronJobBase, Schedule
 from django.utils.timezone import now, get_current_timezone, make_aware
@@ -33,7 +32,6 @@ class ScheduleTakingReminderJob(CronJobBase):
         '''
         schedule_time = now.replace(hour=time.hour, minute=time.minute, second=time.second)
         time_diff = (now - schedule_time).seconds / 60
-        print(f'schedule_time {schedule_time} - now {now} = diff {time_diff}')
         # skip checking 
         if time_diff < const.MEDICATION_REMINDER_TIME_MINUTES or time_diff > 60: return False
         text = const.MEDICATION_REMINDER__MESSAGE_BODY % (compound_name, time)
@@ -44,7 +42,6 @@ class ScheduleTakingReminderJob(CronJobBase):
           created__gte=schedule_time,
           messagebody__body=text
         )
-        print(messages)
         if messages.count() > 0: 
             return False
         return True
@@ -77,18 +74,14 @@ class ScheduleTakingReminderJob(CronJobBase):
             )
             takings = utils.filter_schedule_for_given_date(now, schedule_takings)
             for taking in takings:
-                print("taking", taking)
-                prescription = med_models.Prescription.objects.prefetch_related("subject", "compound").get(pk=taking.prescr_id)
-                subject = prescription.subject
-                print('subject', subject)
-                time = self._get_taking_time(subject, taking)
-                print('time', time)
-                should_send = self._should_send_reminder(subject, prescription.compound.name, time, now)
-                if should_send:
+                try:
+                    prescription = med_models.Prescription.objects.prefetch_related("subject", "compound").get(pk=taking.prescr_id)
+                    subject = prescription.subject
+                    time = self._get_taking_time(subject, taking)
+                    should_send = self._should_send_reminder(subject, prescription.compound.name, time, now)
+                    if not should_send: continue
                     try:
                         utils.send_medication_reminder_notification(subject, taking, time, prescription.compound.name)
-                        ## check last submit observation alert
-
                     except Exception as error:
                         self.err_str += f" failed to send medication reminder {str(taking)} - {str(error)} \n"
                         print(f" failed to send medication reminder {str(taking)} - {str(error)}", error)
@@ -97,5 +90,12 @@ class ScheduleTakingReminderJob(CronJobBase):
                         self.err_str += "" + traceback.format_exc()
                         print(traceback.format_exc())
 
+                except Exception as error:
+                    self.err_str += f" failed to process medication reminder {str(taking)} - {str(error)} \n"
+                    print(f" failed to process medication reminder {str(taking)} - {str(error)}", error)
+                    import traceback
+
+                    self.err_str += "" + traceback.format_exc()
+                    print(traceback.format_exc())
 
         return self.err_str

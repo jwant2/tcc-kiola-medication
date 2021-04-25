@@ -3,6 +3,7 @@ from datetime import datetime
 from typing import Tuple
 import pytz
 import os
+from freezegun import freeze_time
 
 from django.test import TestCase
 from reversion import revisions as reversion
@@ -12,6 +13,8 @@ from django.urls import resolve, reverse
 from django.contrib.auth.models import User, Group, Permission
 from diplomat.models import ISOLanguage, ISOCountry
 from django.apps import apps
+from django_cron import CronJobManager
+from django.utils import timezone
 
 from kiola.utils.tests import do_request, KiolaBaseTest
 from kiola.kiola_senses.tests import KiolaTest
@@ -23,10 +26,11 @@ from kiola.kiola_med import models as med_models
 from kiola.kiola_pharmacy import models as pharmacy_models
 from kiola.cares.const import USER_GROUP__COORDINATORS
 from kiola.kiola_senses.models_devices import Device, SensorCategory, Device2User, DeviceSpecificSensorSetting
+from tcc_kiola_notification import models as notif_models
 
 # Create your tests here.
 from .forms import CompoundImportHistoryForm, ScheduleTakingForm
-from . import models, const
+from . import models, const, cron
 
 class MedicationTest(KiolaTest):
     @classmethod
@@ -709,7 +713,6 @@ class MedicationTest(KiolaTest):
                   "hint": "hint",
                   "time": "18:29:00",
                   "type": "custom",
-                  "actualTime": None,
                   "active": True,
               }
 
@@ -2058,3 +2061,513 @@ class MedicationTest(KiolaTest):
             accept="application/json")
         content = json.loads(response.content.decode("utf-8"))
         self.assertEquals(response.status_code, 400)
+
+
+    def test_medication_reminder(self):
+        c = self.client
+        # prepare prescription
+        url = reverse("tcc_med_api:medication", kwargs={"apiv":1})
+        signature_url = f'http://testserver{url}'
+        method = "POST"
+        remote_access_id, signature, senddate = Device.objects.get_signature(signature_url, method, self.device, self.subject.login)
+        param = {
+            "compound": {
+                "id": "342225332"
+            },
+            "startDate": "2020-01-01",
+            "endDate": "2022-01-01",
+            "reason": "test reason",
+            "hint": "Allergy 123",
+            "medicationType": "PRN"   
+        }
+        response = do_request(
+            c,
+            method,
+            url,
+            remote_access_id,
+            signature,
+            senddate,
+            param=param,
+            content_type="application/json",
+            accept_language=None,
+            accept="application/json")
+
+
+        url = reverse("tcc_med_api:medication", kwargs={"apiv":1})
+        signature_url = f'http://testserver{url}'
+        method = "POST"
+        remote_access_id, signature, senddate = Device.objects.get_signature(signature_url, method, self.device, self.subject.login)
+        param = {
+            "compound": {
+                "id": "342283573"
+            },
+            "startDate": "2020-01-01",
+            "endDate": "2022-01-01",
+            "reason": "test reason",
+            "hint": "Allergy 123",
+            "medicationType": "PRN"   
+        }
+        response = do_request(
+            c,
+            method,
+            url,
+            remote_access_id,
+            signature,
+            senddate,
+            param=param,
+            content_type="application/json",
+            accept_language=None,
+            accept="application/json")
+        # create test schedules
+        # daily
+        param = {
+            "medicationId": "1",
+            "strength": "200mg",
+            "dosage": "2",
+            "startDate": "2020-11-10",
+            "endDate": "2020-11-22",
+            "reminder": True,
+            "formulation": "Tablet",
+            "frequency": "daily",
+            "hint": "hint",
+            "type": "custom",
+            "time": "18:29"
+        }
+        url = reverse("tcc_med_api:taking", kwargs={"apiv":1})
+        signature_url = f'http://testserver{url}'
+        method = "POST"
+        remote_access_id, signature, senddate = Device.objects.get_signature(signature_url, method, self.device, self.subject.login)
+        response = do_request(
+            c,
+            method,
+            url,
+            remote_access_id,
+            signature,
+            senddate,
+            param=param,
+            content_type="application/json",
+            accept_language=None,
+            accept="application/json")
+        # weekly 1
+        param = {
+            "medicationId": "1",
+            "strength": "200mg",
+            "dosage": "2",
+            "startDate": "2020-11-12",
+            "endDate": "2020-11-22",
+            "reminder": True,
+            "formulation": "Tablet",
+            "frequency": "weekly",
+            "hint": "hint",
+            "type": "custom",
+            "time": "18:29"
+        }
+        response = do_request(
+            c,
+            method,
+            url,
+            remote_access_id,
+            signature,
+            senddate,
+            param=param,
+            content_type="application/json",
+            accept_language=None,
+            accept="application/json")
+        # weekly 2
+        param = {
+            "medicationId": "1",
+            "strength": "200mg",
+            "dosage": "2",
+            "startDate": "2020-11-20",
+            "endDate": "2020-11-22",
+            "reminder": False,
+            "formulation": "Tablet",
+            "frequency": "weekly",
+            "hint": "hint",
+            "type": "custom",
+            "time": "18:29"
+        }
+        response = do_request(
+            c,
+            method,
+            url,
+            remote_access_id,
+            signature,
+            senddate,
+            param=param,
+            content_type="application/json",
+            accept_language=None,
+            accept="application/json")
+
+
+        # once
+        param = {
+            "medicationId": "1",
+            "strength": "200mg",
+            "dosage": "2",
+            "startDate": "2020-11-05",
+            "endDate": "2020-11-22",
+            "reminder": True,
+            "formulation": "Tablet",
+            "frequency": "once",
+            "hint": "hint",
+            "type": "custom",
+            "time": "18:29"
+        }
+        response = do_request(
+            c,
+            method,
+            url,
+            remote_access_id,
+            signature,
+            senddate,
+            param=param,
+            content_type="application/json",
+            accept_language=None,
+            accept="application/json")
+        import dateutil.parser
+
+        # test once
+        time_now = dateutil.parser.parse("2020-11-05T18:30:00+11:00")
+        with freeze_time(time_now):
+            time_now = timezone.now()
+            # test reminder not generated becaused it is not 10 mins after due
+            with CronJobManager(cron.ScheduleTakingReminderJob, silent=False) as manager:
+                cmd_res = manager.run(True)
+            items = notif_models.NotificationItem.objects.filter(created__gte=time_now).count()
+            self.assertEqual(items, 0) # reminder message
+
+        time_now = dateutil.parser.parse("2020-11-05T18:40:00+11:00")
+        with freeze_time(time_now):
+            time_now = timezone.now()
+            # test reminder is generated 
+            with CronJobManager(cron.ScheduleTakingReminderJob, silent=False) as manager:
+                cmd_res = manager.run(True)
+            items = notif_models.NotificationItem.objects.filter(created__gte=time_now).count()
+            self.assertEqual(items, 1) 
+
+        time_now = dateutil.parser.parse("2020-11-05T18:45:00+11:00")
+        with freeze_time(time_now):
+            time_now = timezone.now()
+            # test reminder should not be generated twice
+            with CronJobManager(cron.ScheduleTakingReminderJob, silent=False) as manager:
+                cmd_res = manager.run(True)
+            items = notif_models.NotificationItem.objects.filter(created__gte=time_now).count()
+            self.assertEqual(items, 0) 
+
+        # test daily
+        time_now = dateutil.parser.parse("2020-11-11T18:40:00+11:00")
+        with freeze_time(time_now):
+            time_now = timezone.now()
+            with CronJobManager(cron.ScheduleTakingReminderJob, silent=False) as manager:
+                cmd_res = manager.run(True)
+            items = notif_models.NotificationItem.objects.filter(created__gte=time_now).count()
+            self.assertEqual(items, 1) 
+
+        # test weekly
+        time_now = dateutil.parser.parse("2020-11-15T18:40:00+11:00")
+        with freeze_time(time_now):
+            time_now = timezone.now()
+            with CronJobManager(cron.ScheduleTakingReminderJob, silent=False) as manager:
+                cmd_res = manager.run(True)
+            items = notif_models.NotificationItem.objects.filter(created__gte=time_now).count()
+            self.assertEqual(items, 1) 
+
+        time_now = dateutil.parser.parse("2020-11-19T18:40:00+11:00")
+        with freeze_time(time_now):
+            time_now = timezone.now()
+            items = notif_models.NotificationItem.objects.filter(created__gte=time_now).count()
+            self.assertEqual(items, 0) 
+            with CronJobManager(cron.ScheduleTakingReminderJob, silent=False) as manager:
+                cmd_res = manager.run(True)
+            items = notif_models.NotificationItem.objects.filter(created__gte=time_now).count()
+            self.assertEqual(items, 1) 
+
+        time_now = dateutil.parser.parse("2020-11-20T18:40:00+11:00")
+        with freeze_time(time_now):
+            time_now = timezone.now()
+            items = notif_models.NotificationItem.objects.filter(created__gte=time_now).count()
+            self.assertEqual(items, 0) 
+            with CronJobManager(cron.ScheduleTakingReminderJob, silent=False) as manager:
+                cmd_res = manager.run(True)
+            items = notif_models.NotificationItem.objects.filter(created__gte=time_now).count()
+            self.assertEqual(items, 1) 
+
+        # fortnightly 1
+        param = {
+            "medicationId": "1",
+            "strength": "200mg",
+            "dosage": "2",
+            "startDate": "2020-11-13",
+            "endDate": "2020-11-30",
+            "reminder": True,
+            "formulation": "Tablet",
+            "frequency": "fortnightly",
+            "hint": "hint",
+            "type": "custom",
+            "time": "19:29"
+        }
+        response = do_request(
+            c,
+            method,
+            url,
+            remote_access_id,
+            signature,
+            senddate,
+            param=param,
+            content_type="application/json",
+            accept_language=None,
+            accept="application/json")
+
+        # fortnightly 2
+        param = {
+            "medicationId": "1",
+            "strength": "200mg",
+            "dosage": "2",
+            "startDate": "2020-11-20",
+            "endDate": "2021-11-30",
+            "reminder": False,
+            "formulation": "Tablet",
+            "frequency": "fortnightly",
+            "hint": "hint",
+            "type": "custom",
+            "time": "19:29"
+        }
+        response = do_request(
+            c,
+            method,
+            url,
+            remote_access_id,
+            signature,
+            senddate,
+            param=param,
+            content_type="application/json",
+            accept_language=None,
+            accept="application/json")
+
+        # test fortnightly
+        time_now = dateutil.parser.parse("2020-11-13T19:40:00+11:00")
+        with freeze_time(time_now):
+            time_now = timezone.now()
+            items = notif_models.NotificationItem.objects.filter(created__gte=time_now).count()
+            self.assertEqual(items, 3) 
+            with CronJobManager(cron.ScheduleTakingReminderJob, silent=False) as manager:
+                cmd_res = manager.run(True)
+            items = notif_models.NotificationItem.objects.filter(created__gte=time_now).count()
+            self.assertEqual(items, 4) 
+
+        time_now = dateutil.parser.parse("2020-11-20T19:40:00+11:00")
+        with freeze_time(time_now):
+            time_now = timezone.now()
+            items = notif_models.NotificationItem.objects.filter(created__gte=time_now).count()
+            self.assertEqual(items, 0) 
+            with CronJobManager(cron.ScheduleTakingReminderJob, silent=False) as manager:
+                cmd_res = manager.run(True)
+            items = notif_models.NotificationItem.objects.filter(created__gte=time_now).count()
+            self.assertEqual(items, 0) 
+
+        time_now = dateutil.parser.parse("2020-11-27T19:40:00+11:00")
+        with freeze_time(time_now):
+            time_now = timezone.now()
+            items = notif_models.NotificationItem.objects.filter(created__gte=time_now).count()
+            self.assertEqual(items, 0) 
+            with CronJobManager(cron.ScheduleTakingReminderJob, silent=False) as manager:
+                cmd_res = manager.run(True)
+            items = notif_models.NotificationItem.objects.filter(created__gte=time_now).count()
+            self.assertEqual(items, 1) 
+
+        # monthly
+        param = {
+            "medicationId": "1",
+            "strength": "200mg",
+            "dosage": "2",
+            "startDate": "2020-11-24",
+            "endDate": "2020-12-29",
+            "reminder": True,
+            "formulation": "Tablet",
+            "frequency": "monthly",
+            "hint": "hint",
+            "type": "custom",
+            "time": "21:29"
+        }
+        response = do_request(
+            c,
+            method,
+            url,
+            remote_access_id,
+            signature,
+            senddate,
+            param=param,
+            content_type="application/json",
+            accept_language=None,
+            accept="application/json")
+
+        param = {
+            "medicationId": "1",
+            "strength": "200mg",
+            "dosage": "2",
+            "startDate": "2020-12-10",
+            "endDate": "2021-01-02",
+            "reminder": True,
+            "formulation": "Tablet",
+            "frequency": "daily",
+            "hint": "hint",
+            "type": "custom",
+            "time": "21:29"
+        }
+        url = reverse("tcc_med_api:taking", kwargs={"apiv":1})
+        signature_url = f'http://testserver{url}'
+        method = "POST"
+        remote_access_id, signature, senddate = Device.objects.get_signature(signature_url, method, self.device, self.subject.login)
+        response = do_request(
+            c,
+            method,
+            url,
+            remote_access_id,
+            signature,
+            senddate,
+            param=param,
+            content_type="application/json",
+            accept_language=None,
+            accept="application/json")
+
+        param = {
+            "medicationId": "2",
+            "strength": "200mg",
+            "dosage": "2",
+            "startDate": "2020-12-10",
+            "endDate": "2021-01-02",
+            "reminder": True,
+            "formulation": "Tablet",
+            "frequency": "daily",
+            "hint": "hint",
+            "type": "custom",
+            "time": "21:29"
+        }
+        url = reverse("tcc_med_api:taking", kwargs={"apiv":1})
+        signature_url = f'http://testserver{url}'
+        method = "POST"
+        remote_access_id, signature, senddate = Device.objects.get_signature(signature_url, method, self.device, self.subject.login)
+        response = do_request(
+            c,
+            method,
+            url,
+            remote_access_id,
+            signature,
+            senddate,
+            param=param,
+            content_type="application/json",
+            accept_language=None,
+            accept="application/json")
+
+        # test monthly
+        time_now = dateutil.parser.parse("2020-11-24T21:40:00+11:00")
+        with freeze_time(time_now):
+            time_now = timezone.now()
+            items = notif_models.NotificationItem.objects.filter(created__gte=time_now).count()
+            self.assertEqual(items, 1) 
+            with CronJobManager(cron.ScheduleTakingReminderJob, silent=False) as manager:
+                cmd_res = manager.run(True)
+            items = notif_models.NotificationItem.objects.filter(created__gte=time_now).count()
+            self.assertEqual(items, 2) 
+
+        time_now = dateutil.parser.parse("2020-12-24T21:40:00+11:00")
+        with freeze_time(time_now):
+            time_now = timezone.now()
+            items = notif_models.NotificationItem.objects.filter(created__gte=time_now).count()
+            self.assertEqual(items, 0) 
+            with CronJobManager(cron.ScheduleTakingReminderJob, silent=False) as manager:
+                cmd_res = manager.run(True)
+            # same med same time will only generate 1 messages
+            items = notif_models.NotificationItem.objects.filter(created__gte=time_now).count()
+            self.assertEqual(items, 2) 
+
+        time_now = dateutil.parser.parse("2021-01-23T21:40:00+11:00")
+        with freeze_time(time_now):
+            time_now = timezone.now()
+            items = notif_models.NotificationItem.objects.filter(created__gte=time_now).count()
+            self.assertEqual(items, 0) 
+            with CronJobManager(cron.ScheduleTakingReminderJob, silent=False) as manager:
+                cmd_res = manager.run(True)
+            items = notif_models.NotificationItem.objects.filter(created__gte=time_now).count()
+            self.assertEqual(items, 0) 
+
+        # test solar
+
+        param = {
+            "medicationId": "1",
+            "strength": "200mg",
+            "dosage": "2",
+            "startDate": "2021-01-10",
+            "endDate": "2021-01-22",
+            "reminder": True,
+            "formulation": "Tablet",
+            "frequency": "daily",
+            "hint": "hint",
+            "type": "solar",
+            "time": "noon"
+        }
+        url = reverse("tcc_med_api:taking", kwargs={"apiv":1})
+        signature_url = f'http://testserver{url}'
+        method = "POST"
+        remote_access_id, signature, senddate = Device.objects.get_signature(signature_url, method, self.device, self.subject.login)
+        response = do_request(
+            c,
+            method,
+            url,
+            remote_access_id,
+            signature,
+            senddate,
+            param=param,
+            content_type="application/json",
+            accept_language=None,
+            accept="application/json")
+
+        param = {
+            "medicationId": "1",
+            "strength": "200mg",
+            "dosage": "2",
+            "startDate": "2021-01-10",
+            "endDate": "2021-01-22",
+            "reminder": True,
+            "formulation": "Tablet",
+            "frequency": "daily",
+            "hint": "hint",
+            "type": "solar",
+            "time": "afternoon"
+        }
+        url = reverse("tcc_med_api:taking", kwargs={"apiv":1})
+        signature_url = f'http://testserver{url}'
+        method = "POST"
+        remote_access_id, signature, senddate = Device.objects.get_signature(signature_url, method, self.device, self.subject.login)
+        response = do_request(
+            c,
+            method,
+            url,
+            remote_access_id,
+            signature,
+            senddate,
+            param=param,
+            content_type="application/json",
+            accept_language=None,
+            accept="application/json")
+
+        time_now = dateutil.parser.parse("2021-01-11T12:11:00+11:00")
+        with freeze_time(time_now):
+            time_now = timezone.now()
+            items = notif_models.NotificationItem.objects.filter(created__gte=time_now).count()
+            self.assertEqual(items, 0) 
+            with CronJobManager(cron.ScheduleTakingReminderJob, silent=False) as manager:
+                cmd_res = manager.run(True)
+            items = notif_models.NotificationItem.objects.filter(created__gte=time_now).count()
+            self.assertEqual(items, 1) 
+
+        time_now = dateutil.parser.parse("2021-01-11T18:11:00+11:00")
+        with freeze_time(time_now):
+            time_now = timezone.now()
+            items = notif_models.NotificationItem.objects.filter(created__gte=time_now).count()
+            self.assertEqual(items, 0) 
+            with CronJobManager(cron.ScheduleTakingReminderJob, silent=False) as manager:
+                cmd_res = manager.run(True)
+            items = notif_models.NotificationItem.objects.filter(created__gte=time_now).count()
+            self.assertEqual(items, 1) 
