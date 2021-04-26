@@ -2,6 +2,20 @@
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+## [0.5.0](https://bitbucket.org/teleclinicalcare/tcc-kiola-medication/compare/v0.4.3-dev.2...v0.5.0) (2021-04-26)
+
+
+### Features
+
+* add new fields to med obs ([898d3e7](https://bitbucket.org/teleclinicalcare/tcc-kiola-medication/commit/898d3e74bcc43ffb5dda380e1bbdccce8f122fe7))
+* implement medication reminder push notification ([3e81e77](https://bitbucket.org/teleclinicalcare/tcc-kiola-medication/commit/3e81e77de1b57d973baa4d7a252f4ade9f49ea6e))
+
+
+### Bug Fixes
+
+* fix med chart not rendering due to invalid obs ([fe59327](https://bitbucket.org/teleclinicalcare/tcc-kiola-medication/commit/fe593273442f69a69afeaa7390be9a27641113a3))
+* **tcc-medications:** edit schedule not working ([804ee6d](https://bitbucket.org/teleclinicalcare/tcc-kiola-medication/commit/804ee6d9342d90e2c99bb9ca059ed966f5679621)), closes [#214](https://bitbucket.org/teleclinicalcare/tcc-kiola-medication/issues/214)
+
 ### [0.4.3-dev.2](https://bitbucket.org/teleclinicalcare/tcc-kiola-medication/compare/v0.4.3-dev.1...v0.4.3-dev.2) (2021-04-20)
 
 
