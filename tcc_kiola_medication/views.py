@@ -1026,7 +1026,7 @@ class TakingSchemaAPIView(APIView, PaginationHandlerMixin):
                 except:
                       raise exceptions.BadRequest("Invalid datetime format '%s' for endDate. " % given_date)
                 taking_qs = taking_qs.filter(Q(end_date__gte=given, start_date__lte=given) | Q(start_date__lte=given, end_date=None))
-                taking_qs = self._filter_schedule_for_given_date(given, taking_qs)
+                taking_qs = utils.filter_schedule_for_given_date(given, taking_qs)
 
             page = self.paginate_queryset(taking_qs)
             if page is not None:
@@ -1038,31 +1038,6 @@ class TakingSchemaAPIView(APIView, PaginationHandlerMixin):
 
         return Response(serializer.data, status=status.HTTP_200_OK)
 
-    def _filter_schedule_for_given_date(self, given_date, qs):
-        '''
-        Return schedules that should be taken on the given date
-        '''
-        filtered_ids = []
-        current_date = given_date.date()
-        for taking in qs:
-            date =  taking.start_date
-            if taking.frequency.name == const.TAKING_FREQUENCY_VALUE__ONCE \
-                and current_date == date:
-                filtered_ids.append(taking.id)
-            elif taking.frequency.name == const.TAKING_FREQUENCY_VALUE__DAILY:
-                filtered_ids.append(taking.id)
-            elif taking.frequency.name == const.TAKING_FREQUENCY_VALUE__WEEKLY \
-                and current_date.weekday() == date.weekday():
-                filtered_ids.append(taking.id)
-            elif taking.frequency.name == const.TAKING_FREQUENCY_VALUE__FORTNIGHTLY \
-                and (current_date - date).days % 14 == 0 and current_date.weekday() == date.weekday():
-                filtered_ids.append(taking.id)
-            elif taking.frequency.name == const.TAKING_FREQUENCY_VALUE__MONTHLY \
-                and (current_date - date).days % 30 == 0:
-                filtered_ids.append(taking.id)
-        return models.ScheduledTaking.objects.filter(id__in=filtered_ids).annotate(prescr_id=
-                    F('takingschema__prescriptionschema__prescription')
-                )
 
     @requires_api_login
     def delete(self, request, subject_uid=None, id=None, *args, **kwargs):  
