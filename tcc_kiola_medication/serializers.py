@@ -1,13 +1,16 @@
-from rest_framework import serializers
 import json
 from collections import OrderedDict
-# from .models import MedCompound
-# from kiola.kiola_med.models import *
-from django.utils.encoding import force_text
-from kiola.kiola_med import models as med_models, const as med_const
+
+from django.db.models import F
+from rest_framework import serializers
+
+from kiola.kiola_med import const as med_const
+from kiola.kiola_med import models as med_models
 from kiola.kiola_senses import models as sense_models
-from kiola.cares import models as cares_models
-from . import models, const
+
+from . import const, models
+from .utils import filter_none_values
+
 
 class CompoundaSerializer(serializers.ModelSerializer):
     id = serializers.CharField(source='pk')
@@ -61,7 +64,7 @@ class PharmacyProductSerializer(serializers.ModelSerializer):
     def get_formulation(self, obj):
         meta_data = json.loads(obj.meta_data)
         return list(meta_data["dosage_form"].values())[0]
-    
+
     def get_source(self, obj):
         meta_data = json.loads(obj.meta_data)
         source = meta_data.get("source", None)
@@ -76,7 +79,7 @@ class PrescriptionSerializer(serializers.ModelSerializer):
 
 class PatientAdverseReactionSerializer(serializers.ModelSerializer):
     reactionType = serializers.CharField(source='reaction_type.name')
-    
+
     class Meta:
         model =  models.PatientAdverseReaction
         fields = ['uid','substance','reactionType', 'reactions', 'created', 'updated', 'active']
@@ -104,11 +107,15 @@ class MedPrescriptionSerializer(serializers.ModelSerializer):
     formulation = serializers.CharField(source='compound.dosage_form')
     reason = serializers.CharField(source='taking_reason')
     hint = serializers.CharField(source='taking_hint')
-    schedules = serializers.SerializerMethodField()
+    schedule = serializers.SerializerMethodField()
     medicationType = serializers.SerializerMethodField()
     startDate = serializers.SerializerMethodField()
     endDate = serializers.SerializerMethodField()
     active = serializers.SerializerMethodField()
+
+    def to_representation(self, instance):
+        ret = super().to_representation(instance)
+        return OrderedDict(filter_none_values(ret.items()))
 
     def get_compound(self, obj):
         return {
@@ -148,17 +155,13 @@ class MedPrescriptionSerializer(serializers.ModelSerializer):
     def get_activeComponents(self, obj):
         return obj.compound.active_components.all().values_list('name', flat=True)
 
-    def get_schedules(self, obj):
-
+    def get_schedule(self, obj):
         takings_ids = obj.prescriptionschema_set.all().values_list('taking_schema__takings__pk', flat=True)
-        takings = models.ScheduledTaking.objects.filter(pk__in=takings_ids)
-        processed = []
-        for taking in takings:
-            processed.append({
-              "id": taking.pk,
-              "display": force_text(taking)
-              })
-        return processed
+        takings = models.ScheduledTaking.objects.filter(pk__in=takings_ids).annotate(
+            prescr_id=F('takingschema__prescriptionschema__prescription')
+        )
+        serializer = ScheduledTakingSerializer(takings, many=True)
+        return serializer.data
 
     def get_startDate(self, obj):
         pre_evt = obj.prescriptionevent_set.filter(etype=med_models.PrescriptionEventType.objects.get(name=med_const.EVENT_TYPE__PRESCRIBED)).first()
@@ -181,7 +184,7 @@ class MedPrescriptionSerializer(serializers.ModelSerializer):
                     'hint',
                     'compound',
                     'formulation',
-                    'schedules',
+                    'schedule',
                     'startDate',
                     'endDate',
                     'medicationType',
@@ -205,14 +208,11 @@ class ScheduledTakingSerializer(serializers.ModelSerializer):
 
     def to_representation(self, instance):
         ret = super().to_representation(instance)
-        def value_is_not_none(x):
-            key, value = x
-            return value is not None
-        return OrderedDict(filter(value_is_not_none, ret.items()))
+        return OrderedDict(filter_none_values(ret.items()))
 
     def get_type(self, obj):
         if obj.timepoint.name == "custom":
-            return obj.timepoint.name 
+            return obj.timepoint.name
         else:
             return "solar"
 
@@ -253,7 +253,7 @@ class ScheduledTakingSerializer(serializers.ModelSerializer):
             'time',
             'type',
             'actualTime',
-            'createdAt', 
+            'createdAt',
             'updatedAt',
             'active',
         ]

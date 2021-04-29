@@ -1,20 +1,29 @@
+from datetime import datetime
 
-
-from . import models, const 
-from kiola.kiola_med import utils as med_utils, models as med_models
-from kiola.kiola_med.templatetags import med as med_tags
-from kiola.utils import service_providers
-from kiola.utils.commons import get_system_user
-from kiola.utils import const as kiola_const
-from kiola.kiola_clients import signals
+from django.core import exceptions as djexceptions
+from django.db.models import F
+from django.utils.encoding import force_text
 
 from tcc_hf import utils as hf_utils
 
-from django.utils.translation import ugettext_lazy as _
-from datetime import datetime
-from django.utils.encoding import force_text
-from django.core import exceptions as djexceptions
-from django.db.models import Q, F
+from kiola.kiola_clients import signals
+from kiola.kiola_med import models as med_models
+from kiola.kiola_med import utils as med_utils
+from kiola.kiola_med.templatetags import med as med_tags
+from kiola.utils import const as kiola_const
+from kiola.utils import service_providers
+from kiola.utils.commons import get_system_user
+
+from . import const, models
+
+
+def value_is_not_none(item):
+    _, value = item
+    return value is not None
+
+def filter_none_values(items):
+    return filter(value_is_not_none, items)
+
 
 class PaginationHandlerMixin(object):
     @property
@@ -159,6 +168,7 @@ class TCCAdapter(med_utils.CompoundAdapterBase):
 
     def get_or_create(self, compound_id):
         from . import models
+
         # FIXME:cgo: we should filter for uid only here?
         # how to check if compound source is of same type?
         # -> use same name or add new attribute compound source type?
