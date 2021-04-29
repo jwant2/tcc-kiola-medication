@@ -342,7 +342,7 @@ class MedicationTest(KiolaTest):
                   ]
               },
               "formulation": "Solution",
-              "schedules": [],
+              "schedule": [],
               "medicationType": "PRN",
               "active":  True,
           }
@@ -396,7 +396,7 @@ class MedicationTest(KiolaTest):
                   ]
               },
               "formulation": "Solution",
-              "schedules": [],
+              "schedule": [],
               "medicationType": "PRN",
               "active": True,
           }
@@ -480,7 +480,7 @@ class MedicationTest(KiolaTest):
                   ]
               },
               "formulation": "Solution",
-              "schedules": [],
+              "schedule": [],
               "medicationType": "PRN",
               "active": True,
           }
