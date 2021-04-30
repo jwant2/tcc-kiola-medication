@@ -82,14 +82,26 @@ class Pyxture(BasePyxture):
 
 
     def _add_frontends_to_profile(self, profile):
+        '''
+        Set up api query permissions for root observation profiles and their children profiles
+        '''
         # add frontends by default: webinterface and mobilemonitor (and api, already set)
         web = senses_models.Frontend.objects.get(name=senses_const.FRONTEND__WEBFRONTEND)
         mm = senses_models.Frontend.objects.get(name=cares_const.FRONTEND__MOBILE_MONITOR)
         cwd = senses_models.Frontend.objects.get(name=cares_const.FRONTEND__CARES_WEB_DEVICE)
+        api = senses_models.Frontend.objects.get(name=senses_const.FRONTEND__API)
 
+        profile.frontends.add(api)
         profile.frontends.add(web)
         profile.frontends.add(mm)
         profile.frontends.add(cwd)
+
+        children = profile.children.all()
+        for child in children:
+            child.frontends.add(web)
+            child.frontends.add(api)
+            child.frontends.add(mm)
+            child.frontends.add(cwd)
 
     def _create_enum_observation(self, parent, obs_name, num_occurences, enum_type, enum_list):
         new_enumtype, _created = senses_models.EnumerationType.objects.get_or_create_from_list(
