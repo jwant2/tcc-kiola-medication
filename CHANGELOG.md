@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+### [0.5.2](https://bitbucket.org/teleclinicalcare/tcc-kiola-medication/compare/v0.5.1...v0.5.2) (2021-05-03)
+
+
+### Bug Fixes
+
+* fixed med observation data can not be queried via API ([1c57925](https://bitbucket.org/teleclinicalcare/tcc-kiola-medication/commit/1c579256620034397413dd8b48eab6f906b6e4c8))
+
 ### [0.5.1](https://bitbucket.org/teleclinicalcare/tcc-kiola-medication/compare/v0.5.0...v0.5.1) (2021-04-29)
 
 
