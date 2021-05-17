@@ -59,3 +59,41 @@ CHART_CATEGORY__TCC_MEDICATION = ugettext_noop("TCC_MEDICATION")
 MEDICATION_REMINDER_TIME_MINUTES = 10
 
 MEDICATION_REMINDER__MESSAGE_BODY = "Please take your medication - %s. It was due on %s"
+
+
+DEFAULT_MEDICATION_LIST = [
+  'amiodarone', 
+  'amlodipine', 
+  'apixaban', 
+  'aspirin', 
+  'bisoprolol', 
+  'candesartan', 
+  'carvedilol', 
+  'clopidogrel', 
+  'dabigatran', 
+  'digoxin', 
+  'diltiazem', 
+  'empagliflozin', 
+  'frusemide', 
+  'furosemide (frusemide)', 
+  'hydrochlorothiazide', 
+  'indapamide', 
+  'irbesartan', 
+  'isosorbide mononitrate',
+  'lercanidipine', 
+  'lisinopril', 
+  'metoprolol', 
+  'nebivolol', 
+  'nicorandil', 
+  'perindopril', 
+  'ramipril', 
+  'rivaroxaban', 
+  'sacubitril-valsartan', 
+  'sotalol', 
+  'spironolactone', 
+  'ticagrelor', 
+  'trandolapril', 
+  'valsartan', 
+  'verapamil', 
+  'warfarin'
+]
