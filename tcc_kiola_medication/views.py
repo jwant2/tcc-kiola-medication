@@ -6,6 +6,7 @@ import uuid
 import dateutil.parser
 import shortuuid
 from jsonschema import validate
+from itertools import chain
 
 from django.http import HttpResponse, HttpResponseRedirect
 from django.shortcuts import get_object_or_404, render, redirect
@@ -95,7 +96,6 @@ class CompoundAPIView(APIView, PaginationHandlerMixin):
         
         template = med_models.Compound.objects.select_related('source')
 
-
         if id:
             qs = template.filter(uid=id)
             if qs.count() > 0:
@@ -136,6 +136,10 @@ class CompoundAPIView(APIView, PaginationHandlerMixin):
             #     return Response(msg, status=status.HTTP_200_OK)
 
             qs = qs.filter(Q(source__default=True)|Q(source__version=const.COMPOUND_SOURCE_VERSION__PATIENT))
+            # attemp to put the default med list at front
+            default_list = qs.filter(name__in=const.DEFAULT_MEDICATION_LIST).order_by('name')
+            rest_list = qs.exclude(id__in=default_list.values_list('id', flat=True)).order_by('name')
+            qs = list(chain(default_list, rest_list))
             page = self.paginate_queryset(qs)
 
             if page is not None:
