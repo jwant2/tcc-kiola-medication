@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+## [0.6.0](https://bitbucket.org/teleclinicalcare/tcc-kiola-medication/compare/v0.5.2...v0.6.0) (2021-05-18)
+
+
+### Features
+
+* put the default meds at the front of the query results ([607f700](https://bitbucket.org/teleclinicalcare/tcc-kiola-medication/commit/607f70057d76dff3c02da6ca428b15ff1b074e12))
+
 ### [0.5.2](https://bitbucket.org/teleclinicalcare/tcc-kiola-medication/compare/v0.5.1...v0.5.2) (2021-05-03)
 
 
