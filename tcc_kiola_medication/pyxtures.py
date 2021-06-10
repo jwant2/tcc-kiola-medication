@@ -5,18 +5,25 @@ from kiola.cares import const as cares_const
 from kiola.utils.pyxtures import Pyxture as BasePyxture
 from kiola.kiola_med import models as med_models, const as med_const
 from diplomat.models import ISOLanguage, ISOCountry
+from kiola.kiola_configuration import models as configuration
+from kiola.kiola_configuration import const as configuration_const
+from reversion import revisions as reversionrevisions
 
-from . import const
+from . import const, models
 class Pyxture(BasePyxture):
 
     def default(self):
         self.setup_medication_observation_profile()
         self.create_patient_enter_compound_source()
+        self.create_default_medication_list()
+        self.set_up_extra_meds()
 
     def dev(self):
         self.setup_medication_observation_profile()
         self.create_patient_enter_compound_source()
-        
+        self.create_default_medication_list()
+        self.set_up_extra_meds()
+
     def setup_medication_observation_profile(self):
 
 
@@ -145,3 +152,46 @@ class Pyxture(BasePyxture):
                                   group="TCC",
                                   default=False,
                                 )
+
+    def create_default_medication_list(self):
+        configuration.ConfigurationType.objects.get_or_create(name=configuration_const.CONFIGURATION_TYPE__JSON,
+                                                              converter=configuration_const.CONFIGURATION_TYPE__JSON)
+        configuration.ConfigurationItem.objects.set_configuration(const.TCC_MEDS_CONFIGURATION_CATEGORY,
+                                                                  const.TCC_MEDS_DEFAULT_MEDICINE_LIST,
+                                                                  const.DEFAULT_MEDICATION_LIST,
+                                                                  config_type=configuration_const.CONFIGURATION_TYPE__JSON)
+    def set_up_extra_meds(self):
+        # get patient compound source
+        source = med_models.CompoundSource.objects.get(name=const.COMPOUND_SOURCE_NAME__TCC,
+                                  version=const.COMPOUND_SOURCE_VERSION__PATIENT)
+        current_num = med_models.Compound.objects.filter(source=source).count()
+        uid = f'{const.PATIENT_ENTERED_COMPOUND_UID_PREFIX}-{current_num+1}'
+        # create or update compound data
+        unit, created = med_models.TakingUnit.objects.get_or_create(name='Injection')
+        if created:
+            unit.descrition='INJ'
+            unit.save
+
+        # create active components
+        ac,  created = med_models.ActiveComponent.objects.get_or_create(name='evolocumab')
+        if created:
+            ac.name_ref = uid
+            ac.save()
+
+        # create or update compound data
+        compound, created = med_models.Compound.objects.get_or_create(
+            uid=uid,
+            name='evolocumab',
+            source=source,
+            dosage_form='Injection',
+            dosage_form_ref='INJ',
+            registration_number='system',
+          )
+        active_components = compound.active_components.all()
+        compound.active_components.add(ac)
+        compound.save()
+
+        prn, created = models.CompoundExtraInformation.objects.get_or_create(compound=compound, name=const.COMPOUND_EXTRA_INFO_NAME__MEDICATION_TYPE)
+        if created:
+            prn.value = 'Regular'
+            prn.save()

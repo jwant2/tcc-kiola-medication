@@ -64,6 +64,8 @@ from kiola.kiola_med import const as med_const
 from kiola.kiola_med import utils as med_utils
 from kiola.utils import exceptions
 import kiola.utils.forms as utils_forms
+from kiola.kiola_configuration import models as configuration
+from kiola.kiola_configuration import utils as configuration_utils
 
 from . import models, const, utils, docs, forms
 from . import serializers as tcc_serializers
@@ -92,16 +94,31 @@ class CompoundAPIView(APIView, PaginationHandlerMixin):
         }
     )
     @requires_api_login
-    def get(self, request, subject_uid=None, id=None, *args, **kwargs):
+    def get(self, request, subject_uid=None, id=None, default=None, *args, **kwargs):
         
         template = med_models.Compound.objects.select_related('source')
-
         if id:
             qs = template.filter(uid=id)
             if qs.count() > 0:
                 serializer = self.serializer_class(qs.last())
             else:
                 raise exceptions.BadRequest("Given compound id '%s' does not exists " % id)
+        elif default is not None:
+            query = request.GET
+            request.query_params._mutable = True
+            request.query_params['limit'] = self.max_count
+            request.query_params._mutable = False
+            default_meds_config = configuration_utils.get_configuration_for_category(
+                const.TCC_MEDS_CONFIGURATION_CATEGORY
+            ).get(const.TCC_MEDS_DEFAULT_MEDICINE_LIST)
+            qs = template.filter(name__in=default_meds_config).order_by('name')
+            qs = qs.filter(Q(source__default=True)|Q(source__version=const.COMPOUND_SOURCE_VERSION__PATIENT))
+            page = self.paginate_queryset(qs)
+            if page is not None:
+                serializer = self.get_paginated_response(self.serializer_class(page,
+                                                          many=True).data)
+            else:
+                serializer = self.serializer_class(qs, many=True)
         else:
             query = request.GET
 
@@ -137,7 +154,8 @@ class CompoundAPIView(APIView, PaginationHandlerMixin):
 
             qs = qs.filter(Q(source__default=True)|Q(source__version=const.COMPOUND_SOURCE_VERSION__PATIENT))
             # attemp to put the default med list at front
-            default_list = qs.filter(name__in=const.DEFAULT_MEDICATION_LIST).order_by('name')
+            default_meds_config = configuration_utils.get_configuration_for_category(const.TCC_MEDS_CONFIGURATION_CATEGORY).get(const.TCC_MEDS_DEFAULT_MEDICINE_LIST)
+            default_list = qs.filter(name__in=default_meds_config).order_by('name')
             rest_list = qs.exclude(id__in=default_list.values_list('id', flat=True)).order_by('name')
             qs = list(chain(default_list, rest_list))
             page = self.paginate_queryset(qs)

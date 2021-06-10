@@ -61,6 +61,8 @@ MEDICATION_REMINDER_TIME_MINUTES = 10
 MEDICATION_REMINDER__MESSAGE_BODY = "Please take your medication - %s. It was due on %s"
 
 
+TCC_MEDS_CONFIGURATION_CATEGORY = 'TCC.Medication'
+TCC_MEDS_DEFAULT_MEDICINE_LIST = ugettext_noop("TCC_MEDS_DEFAULT_MEDICINE_LIST")
 DEFAULT_MEDICATION_LIST = [
   'amiodarone', 
   'amlodipine', 
@@ -95,5 +97,17 @@ DEFAULT_MEDICATION_LIST = [
   'trandolapril', 
   'valsartan', 
   'verapamil', 
-  'warfarin'
+  'warfarin',
+  'rosuvastatin',
+  'atorvastatin',
+  'pravastatin',
+  'simvastatin',
+  'fluvastatin',
+  'ezetimibe',
+  'ezetimibe-atorvastatin',
+  'ezetimibe-rosuvastatin',
+  'ezetimibe-simvastatin',
+  'fenofibrate',
+  'omega-3 fatty acids',
+  'evolocumab',
 ]
