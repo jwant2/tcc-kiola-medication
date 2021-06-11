@@ -32,6 +32,7 @@ urlpatterns = [
     # url(r'adverse_reaction/(?P<pk>\d+)/$', views.AdverseReactionAPIView.as_view(), name="signle-adverse_reaction"),
     # url(r"observation_profile/", views.MedObservationProfileAPIView.as_view(), name='obs_profiles'),
     url(r'tcc/$', views.TCCAutocompleteResource.as_view()),
+    url(r"compound/(?P<default>default)/$", views.CompoundAPIView.as_view(), name='compound-default'),
     url(r"compound/$", views.CompoundAPIView.as_view(), name='compound'),
     url(r"compound/(?P<id>[a-zA-Z0-9\-_]*)/$", views.CompoundAPIView.as_view(), name='single-compound'),
     # url(r"compound/search/$", views.CompoundSearchAPIView.as_view(), name='compound_search'),
