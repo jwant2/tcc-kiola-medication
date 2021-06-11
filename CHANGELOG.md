@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+### [0.6.1](https://bitbucket.org/teleclinicalcare/tcc-kiola-medication/compare/v0.6.0...v0.6.1) (2021-06-11)
+
+
+### Features
+
+* update default med list and add compound-default endponit ([30ac747](https://bitbucket.org/teleclinicalcare/tcc-kiola-medication/commit/30ac747a8e38455c3e31a8db3dba4e1500907954))
+
 ## [0.6.0](https://bitbucket.org/teleclinicalcare/tcc-kiola-medication/compare/v0.5.2...v0.6.0) (2021-05-18)
 
 
