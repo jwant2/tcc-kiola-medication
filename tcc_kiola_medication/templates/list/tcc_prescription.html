@@ -29,7 +29,7 @@
             <div class="alert alert-info">
             <p style="font-weight: bold"> Fields with  <b>*</b> are mandatory.</p>
             </div>
-          <form class="form-horizontal" method="post" autocomplete="off">
+          <form class="form-horizontal" method="post" autocomplete="off" id="prescription_form">
           {% csrf_token %} 
             <div class="panel-heading">
                 {% for hidden in form.hidden_fields %}
@@ -83,35 +83,10 @@
                     <h4 class="header blue bolder smaller">{% trans 'Prescription' %}</h4>
                     <div class="row">
                         {% include "forms/form_standard_field.html" with field=form.ev__prescription_startdate help_text_col=True %}
+                        {% include "forms/form_standard_field.html" with field=form.strength css_class="input-xlarge" input_col="col-sm-5" %}
+                        {% include "forms/form_standard_field.html" with field=form.dosage css_class="input-xlarge" input_col="col-sm-5" %}
+                        {% include "forms/form_standard_field.html" with field=form.unit css_class="input-xlarge" input_col="col-sm-5" %}
                         {% include "forms/form_standard_field.html" with field=form.taking_reason css_class="input-xlarge" input_col="col-sm-5" %}
-                        {% comment %} <div class="panel panel-default">
-                          <div class="panel-body" style="background-color:#F7F7F7"> {% endcomment %}
-   
-                          {% comment %} <div class="form-group">
-                              <label class="col-sm-3 control-label no-padding-right" for="id_{{form.first_name.name}}">{% trans 'Taking schema' %}</label>
-                              <div class="col-sm-9">
-                                  {% include "forms/form_field_error.html" with field=form.taking__morning  %}
-                                  {% render_field form.taking__morning placeholder=form.taking__morning.label class+="input-mini" %}&nbsp;/&nbsp; 
-                                  {% include "forms/form_field_error.html" with field=form.taking__noon %}
-                                  {% render_field form.taking__noon placeholder=form.taking__noon.label class+="input-mini" %}&nbsp;/&nbsp;
-                                  {% include "forms/form_field_error.html" with field=form.taking__evening %}
-                                  {% render_field form.taking__evening placeholder=form.taking__evening.label class+="input-mini" %}&nbsp;/&nbsp;
-                                  {% include "forms/form_field_error.html" with field=form.taking__night %}
-                                  {% render_field form.taking__night placeholder=form.taking__night.label class+="input-mini" %}&nbsp;
-                                  {% include "forms/form_field_error.html" with field=form.taking__unit %}
-                                  {% render_field form.taking__unit class+="input-small" %}
-                              </div>
-                          </div> {% endcomment %}
-                          {% comment %} <div class="form-group">
-                          <div class="col-sm-3 control-label no-padding-right"><span><strong>{% trans 'or' %}</strong></span></div>
-                          <div class="col-sm-9">&nbsp;</div>
-                          </div> {% endcomment %}
-                          {% comment %} {% include "forms/form_standard_field.html" with field=form.taking__text css_class="input-xlarge" input_col="col-sm-5" %} {% endcomment %}
-      
-                          {% comment %} </div>
-                        </div> {% endcomment %}
-
-
                         
                         {% include "forms/form_standard_field.html" with field=form.taking_hint  input_col="col-sm-5" %}
                         {% include "forms/form_standard_field.html" with field=form.ev__prescription_enddate  %}
@@ -536,6 +511,9 @@ function removeTaking(id) {
 $("#new_taking").on(ace.click_event, function (e) {
     e.preventDefault();
     $('#schedule_taking_form').find("input, textarea, select").val(undefined);
+    $('#schedule_taking_form').find("#id_strength").val($('#prescription_form').find("#id_strength").val())
+    $('#schedule_taking_form').find("#id_dosage").val($('#prescription_form').find("#id_dosage").val())
+    $('#schedule_taking_form').find("#id_unit").val($('#prescription_form').find("#id_unit").val())
     $('#schedule_taking_form').find("#id_reminder").prop('checked', false);
     $('#schedule_taking_form').find("#id_reminder").removeAttr('value');
     output = parseDateString()

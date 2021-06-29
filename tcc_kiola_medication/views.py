@@ -1406,10 +1406,81 @@ class UserPreferenceConfigAPIView(APIView, PaginationHandlerMixin):
 
         return Response(config_data, status=status.HTTP_200_OK)
 
-class TCCPrescriptionListView(med_views.PrescriptionListView):
-    # handling too many schedules for displayable_taking 
+class TCCPrescriptionListView(kiola_views.KiolaSubjectListView):
+    title = _("Prescriptions")
+    template_name = 'lists/prescription_list.html'
+    context_object_name = 'active_prescriptions'
+
+    @property
+    def addurl_name(self):
+        try:
+            if med_models.CompoundSource.objects.get_default():
+                return 'med:prescription_add'
+        except ValueError:
+            pass
+        return ""
+
+        
+    def get_queryset(self):
+        sid = self.kwargs.get('sid')
+        subject = senses.Subject.objects.get(uuid=sid)
+        qs = models.TCCPrescription.objects.select_related(
+            'compound',
+            'status') .filter(
+            subject=subject,
+            status__name=med_const.PRESCRIPTION_STATUS__ACTIVE) .prefetch_related(
+            Prefetch(
+                'prescriptionevent_set',
+                queryset=med_models.PrescriptionEvent.objects.filter(
+                    etype__name__in=[
+                        med_const.EVENT_TYPE__PRESCRIBED,
+                        med_const.EVENT_TYPE__END,
+                    ]) .select_related("etype") .order_by("timepoint")),
+            Prefetch(
+                'prescriptionevent_set',
+                queryset=med_models.PrescriptionEvent.objects.filter(
+                    etype__name__in=[
+                        med_const.EVENT_TYPE__ADDED,
+                    ]) .select_related("etype") .order_by("timepoint"),
+                to_attr="added_on"),
+            'compound__indications',
+            'compound__active_components') .order_by(
+            'compound__name',
+            'status')
+
+        return qs
+
     def get_context_data(self, **kwargs):
         context = super(TCCPrescriptionListView, self).get_context_data(**kwargs)
+        sid = self.kwargs.get('sid')
+        subject = senses.Subject.objects.get(uuid=sid)
+        inactive_qs = models.TCCPrescription.objects.select_related(
+            'compound',
+            'status') .filter(
+            subject=subject,
+            status__name=med_const.PRESCRIPTION_STATUS__INACTIVE) .prefetch_related(
+            Prefetch(
+                'prescriptionevent_set',
+                queryset=med_models.PrescriptionEvent.objects.filter(
+                    etype__name__in=[
+                        med_const.EVENT_TYPE__ADDED,
+                        med_const.EVENT_TYPE__CANCELED,
+                        med_const.EVENT_TYPE__REPLACED]) .select_related("etype") .order_by("timepoint")),
+            Prefetch(
+                'prescriptionevent_set',
+                queryset=med_models.PrescriptionEvent.objects.filter(
+                    etype__name__in=[
+                        med_const.EVENT_TYPE__PRESCRIBED,
+                        med_const.EVENT_TYPE__END,
+                    ]) .select_related("etype") .order_by("timepoint"),
+                to_attr="prescribed_info"),
+            'compound__indications',
+            'compound__active_components') .order_by(
+            'compound__name',
+            'status')
+        context["inactive_prescriptions"] = inactive_qs
+
+        # handling too many schedules for displayable_taking 
         for prescr in context["inactive_prescriptions"]:
             takings = models.ScheduledTaking.objects.filter(takingschema__prescriptionschema__prescription=prescr, active=True)
             taking_strings = []
@@ -1427,6 +1498,15 @@ class TCCPrescriptionListView(med_views.PrescriptionListView):
             displayable_taking = seperator.join(taking_strings)
             prescr.displayable_taking = displayable_taking
 
+        context["status"] = {"inactive": med_const.PRESCRIPTION_STATUS__INACTIVE,
+                             "hidden": med_const.PRESCRIPTION_STATUS__HIDDEN}
+        context["enddatekey"] = med_const.EVENT_TYPE__END
+        context["prescription_profiles_active"] = settings.KIOLA_PRESCRIPTION_PROFILES_ENABLED
+        pprelation = med_models.PrescriptionProfileRelation.objects.filter(active=True,
+                                                                       root_profile__subject=subject)
+        context["active_profile_relation"] = pprelation
+        if len(pprelation) > 0:
+            context["active_profile_ids"] = pprelation[0].prescriptions.all().values_list("pk", flat=True)
         return context
 
 class TCCPrescriptionView(kiola_views.KiolaSubjectView):
@@ -1493,9 +1573,14 @@ class TCCPrescriptionView(kiola_views.KiolaSubjectView):
         if kwargs["form"].initial.get('status', None) not in [med_models.PrescriptionStatus.objects.get(name=med_const.PRESCRIPTION_STATUS__ACTIVE).pk, None]:
             messages.warning(self.request, _("Prescription is readonly"))
 
-
         if self.fid:
-            kwargs["taking_form"] = forms.ScheduleTakingForm(initial={"prescription_id": self.fid})
+            prescr = models.TCCPrescription.objects.select_related("unit").get(id=self.fid)
+            kwargs["taking_form"] = forms.ScheduleTakingForm(initial={
+                "prescription_id": self.fid, 
+                "dosage": prescr.dosage, 
+                "strength": prescr.strength,
+                "unit": prescr.unit.name
+            })
             prescription = models.TCCPrescription.objects.get(pk=self.fid)
             subject = senses.Subject.objects.get(uuid=self.sid)
             active_takings = models.ScheduledTaking.objects.filter(takingschema__prescriptionschema__prescription__pk=self.fid, active=True)
@@ -1528,6 +1613,7 @@ class TakingSchemaResource(resource.Resource):
 
 
         class Serializer(drf_serializers.ModelSerializer):
+            unit = drf_serializers.CharField(source='unit.name')
             class Meta:
                 model =  models.ScheduledTaking
                 fields = "__all__"
