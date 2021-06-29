@@ -28,14 +28,17 @@ CreateMedicationBody = {
         },
         "reason": {"type" : "string"},
         "hint": {"type" : "string"},
+        "strength": {"type" : "string"},
+        "dosage": {"type" : "string"},
         "medicationType": {
             "type": "string",
             "enum": ["PRN", "Regular"]
         },
+        "formulation": {"type" : "string"},
         "startDate":{"type" : "string"},
         "endDate": {"type" : "string"},
     },
-    "required": ["compound", "startDate", "medicationType"]  
+    "required": ["compound", "startDate", "medicationType", "strength", "dosage", "formulation"]  
 }
 
 CreateReactionBody = {

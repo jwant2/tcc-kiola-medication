@@ -348,11 +348,10 @@ class PrescriptionAPIView(APIView, PaginationHandlerMixin):
         except senses.Subject.DoesNotExist:
             raise exceptions.Forbidden("Unknown subject")
 
-        # prescr_id = request.GET.get('id', None)
         prescr_id = id
         if prescr_id:
             try:
-                prescr = med_models.Prescription.objects.select_related(
+                prescr = models.TCCPrescription.objects.select_related(
                 'compound',
                 'status') .filter(
                 pk=prescr_id,
@@ -397,7 +396,7 @@ class PrescriptionAPIView(APIView, PaginationHandlerMixin):
                   if active not in ['True', 'False', 'true', 'false']:
                       raise exceptions.BadRequest("Invalid data '%s' for active. Should be 'true' or 'false'." % active)
                   active = active.lower()
-            qs = med_models.Prescription.objects.select_related(
+            qs = models.TCCPrescription.objects.select_related(
                 'compound',
                 'status').filter(subject=subject).prefetch_related(
                 Prefetch(
@@ -447,8 +446,8 @@ class PrescriptionAPIView(APIView, PaginationHandlerMixin):
         except senses.Subject.DoesNotExist:
             raise exceptions.Forbidden("Unknown subject")
         try:
-            prescription = med_models.Prescription.objects.get(subject=subject, pk=prescr_id, status__name=med_const.PRESCRIPTION_STATUS__ACTIVE)
-        except med_models.Prescription.DoesNotExist:
+            prescription = models.TCCPrescription.objects.get(subject=subject, pk=prescr_id, status__name=med_const.PRESCRIPTION_STATUS__ACTIVE)
+        except models.TCCPrescription.DoesNotExist:
             raise exceptions.NotFound("Prescription with id '%s' does not exist or is inactive" % prescr_id)
 
         p_status = med_models.PrescriptionStatus.objects.get(name=med_const.PRESCRIPTION_STATUS__INACTIVE)
@@ -486,7 +485,7 @@ class PrescriptionAPIView(APIView, PaginationHandlerMixin):
             raise exceptions.BadRequest("Invalid data '%s'. Missing some of the required fields. Error: '%s' " % (request.data, msg))
         prescr = self._create_or_update(request, prescr_id, subject)
         # prepare object for response
-        prescr = med_models.Prescription.objects.get(pk=prescr.pk)
+        prescr = models.TCCPrescription.objects.get(pk=prescr.pk)
         serializer = self.serializer_class(prescr)
 
         return Response(serializer.data, status=status.HTTP_200_OK)
@@ -523,7 +522,7 @@ class PrescriptionAPIView(APIView, PaginationHandlerMixin):
         prescr_id = id
         prescr = self._create_or_update(request, prescr_id, subject)
         # prepare object for response
-        prescr = med_models.Prescription.objects.get(pk=prescr.pk)
+        prescr = models.TCCPrescription.objects.get(pk=prescr.pk)
         serializer = self.serializer_class(prescr)
 
         return Response(serializer.data, status=status.HTTP_200_OK)
@@ -536,6 +535,9 @@ class PrescriptionAPIView(APIView, PaginationHandlerMixin):
               'compound': request_data.get('compound', None),
               'reason': request_data.get('reason', ""),
               'hint': request_data.get('hint', ""),
+              'dosage': request_data.get('dosage', ""),
+              'unit': request_data.get('formulation', ""),
+              'strength': request_data.get('strength', ""),
               'medicationAdverseReactions': request_data.get("medicationAdverseReactions", ""),
               'medicationType': request_data.get('medicationType', None),
               'startDate': request_data.get('startDate', None),
@@ -551,8 +553,10 @@ class PrescriptionAPIView(APIView, PaginationHandlerMixin):
             raise exceptions.BadRequest("Invalid data. Missing compound id")
         taking_reason = processed_data.get('reason', "")
         taking_hint = processed_data.get('hint', "")
+        dosage = processed_data.get('dosage', "")
+        strength = processed_data.get('strength', "")
         active = processed_data.get('active', None)  
-        # med_reactions = processed_data.get("medicationAdverseReactions", "")
+        unit_value = processed_data.get('unit', None)
         medication_type = processed_data.get('medicationType', None)
         p_start = processed_data.get('startDate', None)
         p_end = processed_data.get('endDate', None)
@@ -572,11 +576,15 @@ class PrescriptionAPIView(APIView, PaginationHandlerMixin):
         elif not medication_type:
             raise exceptions.BadRequest("Invalid data '%s' for medicationType" % medication_type)
 
+        if not unit_value:
+            raise exceptions.BadRequest("Invalid data '%s' for unit" % unit)
+        unit, _ = med_models.TakingUnit.objects.get_or_create(name=unit_value)
+        
         if active is not None and type(active) != bool:
             raise exceptions.BadRequest("Invalid data '%s' " % processed_data)
         if prescr_id:
             try:
-                prescr = med_models.Prescription.objects.get(pk=prescr_id, status__name=med_const.PRESCRIPTION_STATUS__ACTIVE)
+                prescr = models.TCCPrescription.objects.get(pk=prescr_id, status__name=med_const.PRESCRIPTION_STATUS__ACTIVE)
                 
             except:
                 raise exceptions.BadRequest("Prescription with id '%s' does not exist or is inactive" % prescr_id)
@@ -587,7 +595,7 @@ class PrescriptionAPIView(APIView, PaginationHandlerMixin):
             with reversionrevisions.create_revision():
                 reversionrevisions.set_user(get_system_user())
 
-            update_or_create_med_type(request, medication_type, prescr)
+            med_type = models.MedicationType.objects.get(name=medication_type)
 
             start = prescr.prescriptionevent_set.filter(etype=med_models.PrescriptionEventType.objects.get(name=med_const.EVENT_TYPE__PRESCRIBED))[0]
             start.timepoint = start_date
@@ -599,7 +607,10 @@ class PrescriptionAPIView(APIView, PaginationHandlerMixin):
 
             prescr.taking_hint = taking_hint
             prescr.taking_reason =  taking_reason
-
+            prescr.dosage = dosage
+            prescr.strength =  strength
+            prescr.unit =  unit
+            prescr.medication_type = med_type
             if active is not None and active is False:
                 prescr_stauts_inactive = med_models.PrescriptionStatus.objects.get(name=med_const.PRESCRIPTION_STATUS__INACTIVE)
                 prescr.status = prescr_stauts_inactive
@@ -624,17 +635,19 @@ class PrescriptionAPIView(APIView, PaginationHandlerMixin):
                 if not compound:
                     raise exceptions.BadRequest("Compound with id '%s' does not exist" % compound_obj['id'])
 
-
-                prescr, replaced = med_models.Prescription.objects.prescribe(subject=subject,
+                med_type = models.MedicationType.objects.get(name=medication_type)
+                prescr, replaced = models.TCCPrescription.objects.prescribe(subject=subject,
                                                                           prescriber=request.user,
                                                                           compound=compound,
                                                                           reason=taking_reason,
                                                                           hint=taking_hint,
-                                                                          taking=med_utils.TakingSchemaText(""),
                                                                           start=start_date,
+                                                                          dosage=dosage,
+                                                                          strength=strength,
+                                                                          unit=unit,
+                                                                          med_type=med_type,
                                                                           end=end_date)
-
-            update_or_create_med_type(request, medication_type, prescr)
+            
 
         # save change history
         if processed_data.get('id', None) is None:
@@ -651,13 +664,6 @@ def update_or_create_med_adverse_reaction(request, reactions_str: str, compound:
         if exist == 0 and item != "":
             reaction_item, created = models.MedicationAdverseReaction.objects.get_or_create(
                 compound=compound, reaction_type=reaction_type, reactions=item, editor=request.user)
-
-def update_or_create_med_type(request, medication_type: str, prescription: med_models.Prescription):
-
-    prn, created = models.PrescriptionExtraInformation.objects.get_or_create(prescription=prescription, name=const.COMPOUND_EXTRA_INFO_NAME__MEDICATION_TYPE)
-    prn.value = medication_type
-    prn.save()
-    return prn
 
 def update_prescription_displayable_taking(prescription):
     takings = models.ScheduledTaking.objects.filter(takingschema__prescriptionschema__prescription=prescription, active=True)
@@ -700,7 +706,7 @@ class PrescriptionHistoryAPIView(APIView, PaginationHandlerMixin):
             raise exceptions.Forbidden("Unknown subject")
 
         try:
-            prescr = med_models.Prescription.objects.select_related('compound').get(pk=id, status__name=med_const.PRESCRIPTION_STATUS__ACTIVE)
+            prescr = models.TCCPrescription.objects.select_related('compound').get(pk=id, status__name=med_const.PRESCRIPTION_STATUS__ACTIVE)
         except Exception as err:
             print(err)
             raise exceptions.BadRequest("Prescription with id '%s' does not exist or is inactive" % id)
@@ -1084,7 +1090,7 @@ class TakingSchemaAPIView(APIView, PaginationHandlerMixin):
             reversionrevisions.set_user(get_system_user())
             taking.active = False
             taking.save()
-        prescr = med_models.Prescription.objects.get(pk=taking.prescr_id)
+        prescr = models.TCCPrescription.objects.get(pk=taking.prescr_id)
         update_prescription_displayable_taking(prescr)
         return Response({"id": taking_id}, status=status.HTTP_200_OK)
 
@@ -1122,8 +1128,7 @@ class TakingSchemaAPIView(APIView, PaginationHandlerMixin):
             end_date = data.get('endDate', None)
             dose = data['dosage']
             strength = data['strength']
-            # unit = data['formulation']
-            unit, created = med_models.TakingUnit.objects.get_or_create(name="Tablet") # temporary disable
+            unit = data['formulation']
             hint = data.get('hint', "")
 
         except: 
@@ -1140,7 +1145,6 @@ class TakingSchemaAPIView(APIView, PaginationHandlerMixin):
     @requires_api_login
     def put(self, request, subject_uid=None, id=None, *args, **kwargs):
         data = request.data
-        # taking_id = data.get('id', "")
 
         taking_id = id
         if not taking_id:
@@ -1163,8 +1167,7 @@ class TakingSchemaAPIView(APIView, PaginationHandlerMixin):
             end_date = data.get('endDate', None)
             dose = data['dosage']
             strength = data['strength']
-            # unit = data['formulation']
-            unit, created = med_models.TakingUnit.objects.get_or_create(name="Tablet") # temporary disable
+            unit = data['formulation']
             hint = data.get('hint', "")
 
         except: 
@@ -1188,7 +1191,7 @@ def process_taking_request(request, data, taking_id, prescr_id, schedule_type, s
                 raise exceptions.BadRequest("Taking with id '%s' does not exist " % taking_id)
 
         try:
-            prescr = med_models.Prescription.objects.get(pk=prescr_id, status__name=med_const.PRESCRIPTION_STATUS__ACTIVE)
+            prescr = models.TCCPrescription.objects.get(pk=prescr_id, status__name=med_const.PRESCRIPTION_STATUS__ACTIVE)
         except Exception as err:
             print(err)
             raise exceptions.BadRequest("Prescription with id '%s' does not exist or is inactive" % prescr_id)
@@ -1263,11 +1266,17 @@ def process_taking_request(request, data, taking_id, prescr_id, schedule_type, s
                 schema.save()
                 prescr_schema.taking_schema = schema
                 prescr_schema.save()
+                # for tcc prescription
+                prescr.takings.add(taking)
+                prescr.save()
             else:
                 schema = prescr_schema.taking_schema
                 ## FIXME: need to check if there is an existing taking for same prescr and timepoint?
                 med_models.OrderedTaking.objects.create(taking=taking, schema=schema)
                 schema.save()
+                # for tcc prescription
+                prescr.takings.add(taking)
+                prescr.save()
 
         update_prescription_displayable_taking(prescr)
 
@@ -1487,7 +1496,7 @@ class TCCPrescriptionView(kiola_views.KiolaSubjectView):
 
         if self.fid:
             kwargs["taking_form"] = forms.ScheduleTakingForm(initial={"prescription_id": self.fid})
-            prescription = med_models.Prescription.objects.get(pk=self.fid)
+            prescription = models.TCCPrescription.objects.get(pk=self.fid)
             subject = senses.Subject.objects.get(uuid=self.sid)
             active_takings = models.ScheduledTaking.objects.filter(takingschema__prescriptionschema__prescription__pk=self.fid, active=True)
             kwargs["active_takings"] = active_takings
@@ -1583,7 +1592,7 @@ class TakingSchemaResource(resource.Resource):
         except senses.Subject.DoesNotExist:
             raise exceptions.Forbidden("Unknown subject")
         try:
-            prescr = med_models.Prescription.objects.get(pk=prescr_id, status__name=med_const.PRESCRIPTION_STATUS__ACTIVE, subject=subject)
+            prescr = models.TCCPrescription.objects.get(pk=prescr_id, status__name=med_const.PRESCRIPTION_STATUS__ACTIVE, subject=subject)
         except:
             raise exceptions.BadRequest("Prescription with id '%s' does not exist or is inactive" % prescr_id)
 

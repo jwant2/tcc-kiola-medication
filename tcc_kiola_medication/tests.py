@@ -156,7 +156,7 @@ class MedicationTest(KiolaTest):
         self.assertEqual(content['previous'], None)
         self.assertEqual(type(content['results']), list)
         self.assertEqual(len(content['results']), 80)
-        self.assertEqual(content['count'], 115)
+        self.assertEqual(content['count'], 116)
  
         # test query page and limit
         url = reverse("tcc_med_api:compound", kwargs={"apiv":1})
@@ -309,6 +309,9 @@ class MedicationTest(KiolaTest):
             "compound": {
                 "id": "342225332"
             },
+            "dosage": "200",
+            "strength": "30 mg",
+            "formulation": "Solution",
             "startDate": "2020-01-01",
             "endDate": "2020-01-01",
             "reason": "test reason",
@@ -341,6 +344,8 @@ class MedicationTest(KiolaTest):
                       "abacavir"
                   ]
               },
+              "dosage": "200",
+              "strength": "30 mg",
               "formulation": "Solution",
               "schedule": [],
               "medicationType": "PRN",
@@ -362,6 +367,9 @@ class MedicationTest(KiolaTest):
             "compound": {
                 "id": "342225332"
             },
+            "dosage": "200",
+            "strength": "30 mg",
+            "formulation": "Solution",
             "startDate": "2020-01-01",
             "endDate": "2020-01-01",
             "reason": "test reason 1",
@@ -381,7 +389,6 @@ class MedicationTest(KiolaTest):
             accept="application/json")
 
         content = json.loads(response.content.decode("utf-8"))
-
         del content["startDate"]
         del content["endDate"]
         data = {
@@ -396,6 +403,8 @@ class MedicationTest(KiolaTest):
                   ]
               },
               "formulation": "Solution",
+              "dosage": "200",
+              "strength": "30 mg",
               "schedule": [],
               "medicationType": "PRN",
               "active": True,
@@ -407,6 +416,9 @@ class MedicationTest(KiolaTest):
             "compound": {
                 "id": "342283573"
             },
+            "dosage": "200",
+            "strength": "30 mg",
+            "formulation": "Solution",
             "startDate": "2020-01-01",
             "endDate": "2020-01-01",
             "reason": "test reason",
@@ -481,6 +493,8 @@ class MedicationTest(KiolaTest):
               },
               "formulation": "Solution",
               "schedule": [],
+              "dosage": "200",
+              "strength": "30 mg",
               "medicationType": "PRN",
               "active": True,
           }
@@ -495,6 +509,9 @@ class MedicationTest(KiolaTest):
             "compound": {
                 "id": "642059707"
             },
+            "dosage": "200",
+            "strength": "30 mg",
+            "formulation": "Solution",
             "startDate": "2020-01-01",
             "endDate": "2020-01-01",
             "reason": "test reason",
@@ -651,6 +668,9 @@ class MedicationTest(KiolaTest):
             "compound": {
                 "id": "342225332"
             },
+            "dosage": "200",
+            "strength": "30 mg",
+            "formulation": "Solution",
             "startDate": "2020-01-01",
             "endDate": "2020-01-01",
             "reason": "test reason",
@@ -700,7 +720,7 @@ class MedicationTest(KiolaTest):
             accept="application/json")
 
         data = {
-                  "id": "2",
+                  "id": "1",
                   "medicationId": "1",
                   "startDate": "2020-11-12",
                   "endDate": "2020-11-22",
@@ -734,7 +754,7 @@ class MedicationTest(KiolaTest):
             "type": "solar",
             "time": "noon"
         }
-        url = reverse("tcc_med_api:single-taking", kwargs={"apiv":1,"id":"2"})
+        url = reverse("tcc_med_api:single-taking", kwargs={"apiv":1,"id":"1"})
         signature_url = f'http://testserver{url}'
         method = "PUT"
         remote_access_id, signature, senddate = Device.objects.get_signature(signature_url, method, self.device, self.subject.login)
@@ -750,7 +770,7 @@ class MedicationTest(KiolaTest):
             accept_language=None,
             accept="application/json")
         data = {
-                "id": "2",
+                "id": "1",
                 "medicationId": "1",
                 "startDate": "2020-11-12",
                 "endDate": "2020-11-22",
@@ -768,6 +788,7 @@ class MedicationTest(KiolaTest):
 
             }
         content = json.loads(response.content.decode("utf-8"))
+        print('content', content)
         del content['createdAt']
         del content['updatedAt']
         self.assertEqual(content, data)
@@ -786,7 +807,7 @@ class MedicationTest(KiolaTest):
             "type": "solar",
             "time": "noon"
         }
-        url = reverse("tcc_med_api:single-taking", kwargs={"apiv":1,"id":"2"})
+        url = reverse("tcc_med_api:single-taking", kwargs={"apiv":1,"id":"1"})
         signature_url = f'http://testserver{url}'
         method = "PUT"
         remote_access_id, signature, senddate = Device.objects.get_signature(signature_url, method, self.device, self.subject.login)
@@ -814,7 +835,7 @@ class MedicationTest(KiolaTest):
             "type": "solar",
             "time": "noon"
         }
-        url = reverse("tcc_med_api:single-taking", kwargs={"apiv":1,"id":"2"})
+        url = reverse("tcc_med_api:single-taking", kwargs={"apiv":1,"id":"1"})
         signature_url = f'http://testserver{url}'
         method = "PUT"
         remote_access_id, signature, senddate = Device.objects.get_signature(signature_url, method, self.device, self.subject.login)
@@ -832,7 +853,7 @@ class MedicationTest(KiolaTest):
         self.assertEquals(response.status_code, 400)
 
         # test query single
-        url = reverse("tcc_med_api:single-taking", kwargs={"apiv":1,"id":"2"})
+        url = reverse("tcc_med_api:single-taking", kwargs={"apiv":1,"id":"1"})
         signature_url = f'http://testserver{url}'
         method = "GET"
         remote_access_id, signature, senddate = Device.objects.get_signature(signature_url, method, self.device, self.subject.login)
@@ -848,7 +869,7 @@ class MedicationTest(KiolaTest):
             accept_language=None,
             accept="application/json")
         data = {
-                "id": "2",
+                "id": "1",
                 "medicationId": "1",
                 "startDate": "2020-11-12",
                 "endDate": "2020-11-22",
@@ -918,7 +939,7 @@ class MedicationTest(KiolaTest):
 
         # test delete 
         param = {}
-        url = reverse("tcc_med_api:single-taking", kwargs={"apiv":1,"id":"2"})
+        url = reverse("tcc_med_api:single-taking", kwargs={"apiv":1,"id":"1"})
         signature_url = f'http://testserver{url}'
         method = "DELETE"
         remote_access_id, signature, senddate = Device.objects.get_signature(signature_url, method, self.device, self.subject.login)
@@ -954,7 +975,7 @@ class MedicationTest(KiolaTest):
         self.assertEqual(content["count"], 1)
 
         param = {}
-        url = reverse("tcc_med_api:single-taking", kwargs={"apiv":1,"id":"3"})
+        url = reverse("tcc_med_api:single-taking", kwargs={"apiv":1,"id":"2"})
         signature_url = f'http://testserver{url}'
         method = "DELETE"
         remote_access_id, signature, senddate = Device.objects.get_signature(signature_url, method, self.device, self.subject.login)
@@ -1005,7 +1026,10 @@ class MedicationTest(KiolaTest):
             "endDate": "2022-01-01",
             "reason": "test reason",
             "hint": "Allergy 123",
-            "medicationType": "PRN"   
+            "dosage": "200",
+            "strength": "30 mg",
+            "formulation": "Capsole",
+            "medicationType": "Regular"   
         }
         response = do_request(
             c,
@@ -1615,6 +1639,9 @@ class MedicationTest(KiolaTest):
             "compound": {
                 "id": "342225332"
             },
+            "dosage": "200",
+            "strength": "30 mg",
+            "formulation": "Solution",
             "startDate": "2020-01-01",
             "endDate": "2020-01-01",
             "reason": "test reason",
@@ -2074,6 +2101,9 @@ class MedicationTest(KiolaTest):
             "compound": {
                 "id": "342225332"
             },
+            "dosage": "200",
+            "strength": "30 mg",
+            "formulation": "Solution",
             "startDate": "2020-01-01",
             "endDate": "2022-01-01",
             "reason": "test reason",
@@ -2101,6 +2131,9 @@ class MedicationTest(KiolaTest):
             "compound": {
                 "id": "342283573"
             },
+            "dosage": "200",
+            "strength": "30 mg",
+            "formulation": "Solution",
             "startDate": "2020-01-01",
             "endDate": "2022-01-01",
             "reason": "test reason",

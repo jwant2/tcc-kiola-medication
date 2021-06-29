@@ -104,14 +104,16 @@ class MedicationAdverseReactionSerializer(serializers.ModelSerializer):
 class MedPrescriptionSerializer(serializers.ModelSerializer):
     id = serializers.CharField(source='pk')
     compound = serializers.SerializerMethodField()
-    formulation = serializers.CharField(source='compound.dosage_form')
+    formulation = serializers.CharField(source='unit.name')
     reason = serializers.CharField(source='taking_reason')
     hint = serializers.CharField(source='taking_hint')
     schedule = serializers.SerializerMethodField()
-    medicationType = serializers.SerializerMethodField()
+    medicationType = serializers.CharField(source='medication_type.name')
     startDate = serializers.SerializerMethodField()
     endDate = serializers.SerializerMethodField()
     active = serializers.SerializerMethodField()
+    dosage = serializers.CharField()
+    strength = serializers.CharField()
 
     def to_representation(self, instance):
         ret = super().to_representation(instance)
@@ -123,23 +125,6 @@ class MedPrescriptionSerializer(serializers.ModelSerializer):
             'name': obj.compound.name,
             'activeComponents': obj.compound.active_components.all().values_list('name', flat=True)
         }
-
-    def get_medicationType(self, obj):
-        extra_info = models.PrescriptionExtraInformation.objects\
-          .filter(prescription__pk=obj.pk, name=const.COMPOUND_EXTRA_INFO_NAME__MEDICATION_TYPE)\
-          .order_by('pk')\
-          .last()
-        if not extra_info:
-            extra_info = models.CompoundExtraInformation.objects\
-                .filter(compound=obj.compound, name=const.COMPOUND_EXTRA_INFO_NAME__MEDICATION_TYPE)\
-                .order_by('pk')\
-                .last()
-            if extra_info:
-                return extra_info.value
-            else:
-                return const.MEDICATION_TYPE_VALUE__PRN
-        else:
-            return extra_info.value
 
 
     def get_medicationAdverseReactions(self, obj):
@@ -177,7 +162,7 @@ class MedPrescriptionSerializer(serializers.ModelSerializer):
         return False
 
     class Meta:
-        model = med_models.Prescription
+        model = models.TCCPrescription
         fields = [
                     'id',
                     'reason',
@@ -187,6 +172,8 @@ class MedPrescriptionSerializer(serializers.ModelSerializer):
                     'schedule',
                     'startDate',
                     'endDate',
+                    'dosage',
+                    'strength',
                     'medicationType',
                     'active'
                  ]
