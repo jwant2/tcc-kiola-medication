@@ -112,7 +112,7 @@ class MedPrescriptionSerializer(serializers.ModelSerializer):
     startDate = serializers.SerializerMethodField()
     endDate = serializers.SerializerMethodField()
     active = serializers.SerializerMethodField()
-    dosage = serializers.CharField()
+    medicationDosage = serializers.CharField(source='dosage')
     strength = serializers.CharField()
 
     def to_representation(self, instance):
@@ -143,7 +143,7 @@ class MedPrescriptionSerializer(serializers.ModelSerializer):
     def get_schedule(self, obj):
         takings_ids = obj.prescriptionschema_set.all().values_list('taking_schema__takings__pk', flat=True)
         takings = models.ScheduledTaking.objects.filter(pk__in=takings_ids).annotate(
-            prescr_id=F('takingschema__prescriptionschema__prescription')
+            prescr_id=F('takings_set__id')
         )
         serializer = ScheduledTakingSerializer(takings, many=True)
         return serializer.data
@@ -172,7 +172,7 @@ class MedPrescriptionSerializer(serializers.ModelSerializer):
                     'schedule',
                     'startDate',
                     'endDate',
-                    'dosage',
+                    'medicationDosage',
                     'strength',
                     'medicationType',
                     'active'

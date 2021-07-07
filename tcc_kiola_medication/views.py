@@ -535,7 +535,7 @@ class PrescriptionAPIView(APIView, PaginationHandlerMixin):
               'compound': request_data.get('compound', None),
               'reason': request_data.get('reason', ""),
               'hint': request_data.get('hint', ""),
-              'dosage': request_data.get('dosage', ""),
+              'dosage': request_data.get('medicationDosage', ""),
               'unit': request_data.get('formulation', ""),
               'strength': request_data.get('strength', ""),
               'medicationAdverseReactions': request_data.get("medicationAdverseReactions", ""),
@@ -666,7 +666,7 @@ def update_or_create_med_adverse_reaction(request, reactions_str: str, compound:
                 compound=compound, reaction_type=reaction_type, reactions=item, editor=request.user)
 
 def update_prescription_displayable_taking(prescription):
-    takings = models.ScheduledTaking.objects.filter(takingschema__prescriptionschema__prescription=prescription, active=True)
+    takings = models.ScheduledTaking.objects.filter(takings_set__id=prescription.id, active=True)
     taking_strings = []
     for taking in takings:
         taking_strings.append(taking.get_displayable())
@@ -996,7 +996,7 @@ class TakingSchemaAPIView(APIView, PaginationHandlerMixin):
         if taking_id:
             try:
                 taking_item = models.ScheduledTaking.objects.annotate(prescr_id=
-                    F('takingschema__prescriptionschema__prescription')
+                    F('takings_set__id')
                 ).get(pk=taking_id)
             except Exception as err:
                 print(err)
@@ -1022,11 +1022,11 @@ class TakingSchemaAPIView(APIView, PaginationHandlerMixin):
 
             taking_qs = (
                 models.ScheduledTaking.objects.filter(
-                    takingschema__prescriptionschema__prescription__subject=subject,
-                    takingschema__prescriptionschema__prescription__status__name=med_const.PRESCRIPTION_STATUS__ACTIVE,
+                    takings_set__subject=subject,
+                    takings_set__status__name=med_const.PRESCRIPTION_STATUS__ACTIVE,
                 )
                 .annotate(prescr_id=
-                    F('takingschema__prescriptionschema__prescription')
+                    F('takings_set__id')
                 )
             )
             if start_date:
@@ -1082,7 +1082,7 @@ class TakingSchemaAPIView(APIView, PaginationHandlerMixin):
 
         taking = None
         try:
-            taking = models.ScheduledTaking.objects.annotate(prescr_id=F('takingschema__prescriptionschema__prescription')).get(pk=taking_id, active=True)
+            taking = models.ScheduledTaking.objects.annotate(prescr_id=F('takings_set__id')).get(pk=taking_id, active=True)
         except:
             raise exceptions.BadRequest("Taking with id '%s' does not exist or is inactive" % taking_id)
 
@@ -1137,7 +1137,7 @@ class TakingSchemaAPIView(APIView, PaginationHandlerMixin):
         taking = process_taking_request(request, data, None, prescr_id, schedule_type, schedule_time, frequency, reminder, start_date, end_date, dose, strength, unit, hint)
         
         serializer = self.serializer_class(models.ScheduledTaking.objects.annotate(prescr_id=
-                    F('takingschema__prescriptionschema__prescription')
+                    F('takings_set__id')
                 ).get(pk=taking.pk))
 
         return Response(serializer.data, status=status.HTTP_200_OK)
@@ -1176,7 +1176,7 @@ class TakingSchemaAPIView(APIView, PaginationHandlerMixin):
         taking = process_taking_request(request, data, taking_id, prescr_id, schedule_type, schedule_time, frequency, reminder, start_date, end_date, dose, strength, unit, hint)
         
         serializer = self.serializer_class(models.ScheduledTaking.objects.annotate(prescr_id=
-                    F('takingschema__prescriptionschema__prescription')
+                    F('takings_set__id')
                 ).get(pk=taking.pk))
 
         return Response(serializer.data, status=status.HTTP_200_OK)
@@ -1482,7 +1482,7 @@ class TCCPrescriptionListView(kiola_views.KiolaSubjectListView):
 
         # handling too many schedules for displayable_taking 
         for prescr in context["inactive_prescriptions"]:
-            takings = models.ScheduledTaking.objects.filter(takingschema__prescriptionschema__prescription=prescr, active=True)
+            takings = models.ScheduledTaking.objects.filter(takings_set__id=prescr.id, active=True)
             taking_strings = []
             for taking in takings:
                 taking_strings.append(taking.get_displayable())
@@ -1490,7 +1490,7 @@ class TCCPrescriptionListView(kiola_views.KiolaSubjectListView):
             displayable_taking = seperator.join(taking_strings)
             prescr.displayable_taking = displayable_taking
         for prescr in context["active_prescriptions"]:
-            takings = models.ScheduledTaking.objects.filter(takingschema__prescriptionschema__prescription=prescr, active=True)
+            takings = models.ScheduledTaking.objects.filter(takings_set__id=prescr.id, active=True)
             taking_strings = []
             for taking in takings:
                 taking_strings.append(taking.get_displayable())
@@ -1583,9 +1583,9 @@ class TCCPrescriptionView(kiola_views.KiolaSubjectView):
             })
             prescription = models.TCCPrescription.objects.get(pk=self.fid)
             subject = senses.Subject.objects.get(uuid=self.sid)
-            active_takings = models.ScheduledTaking.objects.filter(takingschema__prescriptionschema__prescription__pk=self.fid, active=True)
+            active_takings = models.ScheduledTaking.objects.filter(takings_set__id=self.fid, active=True)
             kwargs["active_takings"] = active_takings
-            inactive_takings = models.ScheduledTaking.objects.filter(takingschema__prescriptionschema__prescription__pk=self.fid, active=False)
+            inactive_takings = models.ScheduledTaking.objects.filter(takings_set__id=self.fid, active=False)
             kwargs["inactive_takings"] = inactive_takings
             reactions = models.MedicationAdverseReaction.objects.filter(compound=prescription.compound, editor=subject.login)
             kwargs["reactions"] = reactions
@@ -1623,7 +1623,7 @@ class TakingSchemaResource(resource.Resource):
         if taking_id:
             try:
                 taking_item = models.ScheduledTaking.objects.annotate(prescr_id=
-                    F('takingschema__prescriptionschema__prescription')
+                    F('takings_set__id')
                 ).get(pk=taking_id)
             except:
                 raise exceptions.BadRequest("ScheduledTaking with id '%s' does not exist" % taking_id)

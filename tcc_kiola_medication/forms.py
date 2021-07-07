@@ -295,6 +295,7 @@ class TCCPrescriptionForm(senses_forms.KiolaSubjectForm):
     def clean(self):
 
         cd = super(TCCPrescriptionForm, self).clean()
+        cd['unit'] = cd['unit'].strip()
         if len(cd.get("compound_id", "")) == 0:
             raise forms.ValidationError(_(u"Please select a compound"))
         return cd
@@ -438,7 +439,8 @@ class ScheduleTakingForm(ModelForm):
 
     def clean(self):
         if type(self.cleaned_data['unit']) is str:
-            unit, _= med_models.TakingUnit.objects.get_or_create(name=self.cleaned_data['unit'])
+            unit_value = self.cleaned_data['unit']
+            unit, _= med_models.TakingUnit.objects.get_or_create(name=unit_value.strip())
             self.cleaned_data['unit'] = unit
         return super().clean()
         

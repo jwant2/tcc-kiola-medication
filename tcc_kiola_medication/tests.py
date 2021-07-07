@@ -18,9 +18,10 @@ from django.utils import timezone
 
 from kiola.utils.tests import do_request, KiolaBaseTest
 from kiola.kiola_senses.tests import KiolaTest
+from kiola.kiola_senses import const as senses_const
 from kiola.utils.pyxtures import PyxtureLoader, SimpleAppConfig, ProjectPyxtureLoader
 from kiola.utils.commons import get_system_user
-from kiola.kiola_senses.models import Subject
+from kiola.kiola_senses.models import Subject, Status, SubjectStatus
 from kiola.utils.tests import KiolaTestClient
 from kiola.kiola_med import models as med_models
 from kiola.kiola_pharmacy import models as pharmacy_models
@@ -109,6 +110,10 @@ class MedicationTest(KiolaTest):
             Device.objects.create(name="Typewriter", category=category)
             self.subject = Subject.objects.register(username="test_patient", groups=[Group.objects.get(name="Users")])
             Device2User.objects.create(user=self.subject.login, device=self.device)
+            # subject status
+            status, _ = Status.objects.get_or_create(name=senses_const.SUBJECT_STATUS__ACTIVE, 
+                  defaults={'level': senses_const.SUBJECT_STATUS_LEVEL__ACTIVE})
+            _, created = SubjectStatus.objects.get_or_create(subject=self.subject, status=status)
 
     def clientLogin(self):
         client = self.client_class()
@@ -309,7 +314,7 @@ class MedicationTest(KiolaTest):
             "compound": {
                 "id": "342225332"
             },
-            "dosage": "200",
+            "medicationDosage": "200",
             "strength": "30 mg",
             "formulation": "Solution",
             "startDate": "2020-01-01",
@@ -344,7 +349,7 @@ class MedicationTest(KiolaTest):
                       "abacavir"
                   ]
               },
-              "dosage": "200",
+              "medicationDosage": "200",
               "strength": "30 mg",
               "formulation": "Solution",
               "schedule": [],
@@ -367,7 +372,7 @@ class MedicationTest(KiolaTest):
             "compound": {
                 "id": "342225332"
             },
-            "dosage": "200",
+            "medicationDosage": "200",
             "strength": "30 mg",
             "formulation": "Solution",
             "startDate": "2020-01-01",
@@ -403,7 +408,7 @@ class MedicationTest(KiolaTest):
                   ]
               },
               "formulation": "Solution",
-              "dosage": "200",
+              "medicationDosage": "200",
               "strength": "30 mg",
               "schedule": [],
               "medicationType": "PRN",
@@ -416,7 +421,7 @@ class MedicationTest(KiolaTest):
             "compound": {
                 "id": "342283573"
             },
-            "dosage": "200",
+            "medicationDosage": "200",
             "strength": "30 mg",
             "formulation": "Solution",
             "startDate": "2020-01-01",
@@ -493,7 +498,7 @@ class MedicationTest(KiolaTest):
               },
               "formulation": "Solution",
               "schedule": [],
-              "dosage": "200",
+              "medicationDosage": "200",
               "strength": "30 mg",
               "medicationType": "PRN",
               "active": True,
@@ -509,7 +514,7 @@ class MedicationTest(KiolaTest):
             "compound": {
                 "id": "642059707"
             },
-            "dosage": "200",
+            "medicationDosage": "200",
             "strength": "30 mg",
             "formulation": "Solution",
             "startDate": "2020-01-01",
@@ -668,7 +673,7 @@ class MedicationTest(KiolaTest):
             "compound": {
                 "id": "342225332"
             },
-            "dosage": "200",
+            "medicationDosage": "200",
             "strength": "30 mg",
             "formulation": "Solution",
             "startDate": "2020-01-01",
@@ -788,7 +793,7 @@ class MedicationTest(KiolaTest):
 
             }
         content = json.loads(response.content.decode("utf-8"))
-        print('content', content)
+
         del content['createdAt']
         del content['updatedAt']
         self.assertEqual(content, data)
@@ -1026,7 +1031,7 @@ class MedicationTest(KiolaTest):
             "endDate": "2022-01-01",
             "reason": "test reason",
             "hint": "Allergy 123",
-            "dosage": "200",
+            "medicationDosage": "200",
             "strength": "30 mg",
             "formulation": "Capsole",
             "medicationType": "Regular"   
@@ -1639,7 +1644,7 @@ class MedicationTest(KiolaTest):
             "compound": {
                 "id": "342225332"
             },
-            "dosage": "200",
+            "medicationDosage": "200",
             "strength": "30 mg",
             "formulation": "Solution",
             "startDate": "2020-01-01",
@@ -2101,7 +2106,7 @@ class MedicationTest(KiolaTest):
             "compound": {
                 "id": "342225332"
             },
-            "dosage": "200",
+            "medicationDosage": "200",
             "strength": "30 mg",
             "formulation": "Solution",
             "startDate": "2020-01-01",
@@ -2131,7 +2136,7 @@ class MedicationTest(KiolaTest):
             "compound": {
                 "id": "342283573"
             },
-            "dosage": "200",
+            "medicationDosage": "200",
             "strength": "30 mg",
             "formulation": "Solution",
             "startDate": "2020-01-01",
