@@ -380,8 +380,8 @@ class TCCPrescription(med_models.Prescription):
     priviledged = models.Manager()
 
     takings = models.ManyToManyField(ScheduledTaking, related_name='takings_set')
-    dosage = models.CharField(max_length=100)
-    strength = models.CharField(max_length=100)
+    dosage = models.TextField(blank=True)
+    strength = models.CharField(max_length=100, blank=True)
     unit = models.ForeignKey(med_models.TakingUnit, on_delete=models.PROTECT)
     medication_type = models.ForeignKey(MedicationType, on_delete=models.PROTECT)
 
