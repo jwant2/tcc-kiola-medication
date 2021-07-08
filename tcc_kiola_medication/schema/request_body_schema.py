@@ -38,7 +38,7 @@ CreateMedicationBody = {
         "startDate":{"type" : "string"},
         "endDate": {"type" : "string"},
     },
-    "required": ["compound", "startDate", "medicationType"]  
+    "required": ["compound", "medicationType"]  
 }
 
 CreateReactionBody = {
