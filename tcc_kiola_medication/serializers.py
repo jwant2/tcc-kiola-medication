@@ -74,7 +74,7 @@ class PharmacyProductSerializer(serializers.ModelSerializer):
 
 class PrescriptionSerializer(serializers.ModelSerializer):
     class Meta:
-        model =  med_models.Prescription
+        model =  models.TCCPrescription
         fields = ['taking_reason','taking_hint','displayable_taking','compound_id','subject_id']
 
 class PatientAdverseReactionSerializer(serializers.ModelSerializer):
