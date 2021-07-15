@@ -577,7 +577,8 @@ class PrescriptionAPIView(APIView, PaginationHandlerMixin):
             raise exceptions.BadRequest("Invalid data '%s' for medicationType" % medication_type)
 
         if not unit_value:
-            raise exceptions.BadRequest("Invalid data '%s' for unit" % unit_value)
+            # set default value for unit/formulation
+            unit_value = "Tablet"
         unit, _ = med_models.TakingUnit.objects.get_or_create(name=unit_value)
         
         if active is not None and type(active) != bool:
