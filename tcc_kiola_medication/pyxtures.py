@@ -201,4 +201,3 @@ class Pyxture(BasePyxture):
     def generate_default_medication_types(self):
         reg, _ = models.MedicationType.objects.get_or_create(name=const.MEDICATION_TYPE_VALUE__REGULAR, description="Regular medication")
         prn, _ = models.MedicationType.objects.get_or_create(name=const.MEDICATION_TYPE_VALUE__PRN, description="PRN medication")
-        wbc, _ = models.MedicationType.objects.get_or_create(name=const.MEDICATION_TYPE_VALUE__WEBSTERCARE, description="Medication registered from Webstercare ")
