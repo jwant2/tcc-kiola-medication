@@ -252,7 +252,7 @@ def filter_schedule_for_given_date(given_date, qs):
 
 
 
-def send_medication_reminder_notification(subject, taking, time, compound_name, title="TCC Cardiac - Medication Reminder"):
+def send_medication_reminder_notification(subject, taking, time, compound_name, title=const.DEFAULT_MEDICATION_REMINDER_TITLE):
     # send out medication reminder notification to patient
     feedback_body = const.MEDICATION_REMINDER__MESSAGE_BODY % (compound_name, time)
     message = hf_utils.create_feedback_FCM(get_system_user(), subject, feedback_body)

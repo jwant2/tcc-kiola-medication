@@ -235,11 +235,11 @@ class TCCPrescriptionForm(senses_forms.KiolaSubjectForm):
         self.fields["strength"] = forms.CharField(label=_("Strength *"),
                                                      required=True,
                                                      help_text="i.e. 200 mg",
-                                                     max_length=400)
+                                                     max_length=100)
         self.fields["unit"] = forms.CharField(label=_("Formulation *"),
                                                      required=True,
                                                      help_text="i.e. Tablet/Pill/Solution/etc..",
-                                                     max_length=400)
+                                                     max_length=30)
         unit_list = med_models.TakingUnit.objects.all().values_list("name", flat=True)
         self.fields['unit'].widget = ListTextWidget(data_list=unit_list, name='formulation_list')
         self.fields["taking_reason"] = forms.CharField(label=_("Reason of prescription"),
@@ -431,7 +431,7 @@ class ScheduleTakingForm(ModelForm):
         self.fields['dosage'].label += " *"
         self.fields["unit"] = forms.CharField(label=_("Formulation *"),
                                                     required=True,
-                                                    max_length=400)
+                                                    max_length=30)
         unit_list = med_models.TakingUnit.objects.all().values_list("name", flat=True)
         self.fields['unit'].widget = ListTextWidget(data_list=unit_list, name='formulation_list')
         self.fields['frequency'].label += " *"

@@ -1266,17 +1266,15 @@ def process_taking_request(request, data, taking_id, prescr_id, schedule_type, s
                 schema.save()
                 prescr_schema.taking_schema = schema
                 prescr_schema.save()
-                # for tcc prescription
-                prescr.takings.add(taking)
-                prescr.save()
             else:
                 schema = prescr_schema.taking_schema
                 ## FIXME: need to check if there is an existing taking for same prescr and timepoint?
                 med_models.OrderedTaking.objects.create(taking=taking, schema=schema)
                 schema.save()
-                # for tcc prescription
-                prescr.takings.add(taking)
-                prescr.save()
+
+            # for tcc prescription
+            prescr.takings.add(taking)
+            prescr.save()
 
         update_prescription_displayable_taking(prescr)
 
