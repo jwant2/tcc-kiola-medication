@@ -6,7 +6,7 @@ from django.utils import timezone
 from reversion import revisions as reversion
 from django_cron import CronJobBase, Schedule
 from django.utils.timezone import now, get_current_timezone, make_aware
-
+from django.apps import apps
 from kiola.utils.commons import get_system_user
 from kiola.kiola_senses import models as senses_models, const as senses_const
 from kiola.utils import logger
@@ -15,6 +15,11 @@ from kiola.utils import const as kiola_const
 from kiola.kiola_med import models as med_models, const as med_const
 from kiola.kiola_export import models as export_models, const as export_const
 from kiola.kiola_messaging import models as msg_models
+if apps.is_installed("django_dashmin"):
+    from django_dashmin.models import AdminNotification as BackendNotification
+else:
+    from kiola.kiola_admin.models import BackendNotification
+
 from . import const, utils, models
 
 log = logger.KiolaLogger(__name__).getLogger()
@@ -31,7 +36,7 @@ class ScheduleTakingReminderJob(CronJobBase):
         Check if it is time to send out medication reminder
         '''
         schedule_time = now.replace(hour=time.hour, minute=time.minute, second=time.second)
-        time_diff = (now - schedule_time).seconds / 60
+        time_diff = (now - schedule_time).total_seconds() / 60
         # skip checking 
         if time_diff < const.MEDICATION_REMINDER_TIME_MINUTES or time_diff > 60: return False
         text = const.MEDICATION_REMINDER__MESSAGE_BODY % (compound_name, time)
@@ -68,14 +73,15 @@ class ScheduleTakingReminderJob(CronJobBase):
                 Q(end_date__gte=now, start_date__lte=now) | Q(start_date__lte=now, end_date=None),
                 active=True,
                 reminder=True,
-                takingschema__prescriptionschema__prescription__status__name=med_const.PRESCRIPTION_STATUS__ACTIVE,
+                takings_set__status__name=med_const.PRESCRIPTION_STATUS__ACTIVE,
+                takings_set__subject__subjectstatus__status__level__gte=100 # active subject only
             ).annotate(prescr_id=
-                F('takingschema__prescriptionschema__prescription')
+                F('takings_set__id')
             )
             takings = utils.filter_schedule_for_given_date(now, schedule_takings)
             for taking in takings:
                 try:
-                    prescription = med_models.Prescription.objects.prefetch_related("subject", "compound").get(pk=taking.prescr_id)
+                    prescription = models.TCCPrescription.objects.prefetch_related("subject", "compound").get(pk=taking.prescr_id)
                     subject = prescription.subject
                     time = self._get_taking_time(subject, taking)
                     should_send = self._should_send_reminder(subject, prescription.compound.name, time, now)
@@ -83,19 +89,23 @@ class ScheduleTakingReminderJob(CronJobBase):
                     try:
                         utils.send_medication_reminder_notification(subject, taking, time, prescription.compound.name)
                     except Exception as error:
-                        self.err_str += f" failed to send medication reminder {str(taking)} - {str(error)} \n"
-                        print(f" failed to send medication reminder {str(taking)} - {str(error)}", error)
+                        err_msg= f" failed to send medication reminder {str(taking)} - {str(error)}"
+                        self.err_str += err_msg + "\n"
+                        print(err_msg, error)
                         import traceback
 
                         self.err_str += "" + traceback.format_exc()
                         print(traceback.format_exc())
+                        BackendNotification.objects.create_backend_notification(get_system_user(), err_msg, traceback.format_exc())
 
                 except Exception as error:
-                    self.err_str += f" failed to process medication reminder {str(taking)} - {str(error)} \n"
-                    print(f" failed to process medication reminder {str(taking)} - {str(error)}", error)
+                    err_msg = f" failed to process medication reminder {str(taking)} - {str(error)}"
+                    self.err_str += err_msg+ "\n"
+                    print(err_msg, error)
                     import traceback
 
                     self.err_str += "" + traceback.format_exc()
                     print(traceback.format_exc())
+                    BackendNotification.objects.create_backend_notification(get_system_user(), err_msg, traceback.format_exc())
 
         return self.err_str

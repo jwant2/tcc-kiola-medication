@@ -29,7 +29,7 @@ from kiola.utils import serializer
 from kiola.kiola_charts import utils as charts_utils
 from kiola.kiola_charts import const as charts_const
 from kiola.kiola_med import const as med_const, models as med_models
-from . import const
+from . import const, models
 
 
 class TCCMedicationComplianceChart(cares_charts.ChartBase):
@@ -140,8 +140,8 @@ class TCCMedicationComplianceChart(cares_charts.ChartBase):
             chart_data = []
             for observation in observations:
                 try: 
-                    compound = med_models.Prescription.objects.get(pk=observation.prescr_id).compound.name
-                except med_models.Prescription.DoesNotExist:
+                    compound = models.TCCPrescription.objects.get(pk=observation.prescr_id).compound.name
+                except models.TCCPrescription.DoesNotExist:
                     compound = None # this means observation data is invalid
                 pointdata = {"x": observation.parent.started.replace(hour=0, minute=0, second=0),
                              "y": observation.parent.started,

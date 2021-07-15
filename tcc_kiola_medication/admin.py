@@ -87,3 +87,12 @@ class TakingFrequencyAdmin(KIOLAAdmin):
     list_display = ["name", "description"]
 
 admin.site.register(models.TakingFrequency, TakingFrequencyAdmin)
+
+class MedicationTypeAdmin(KIOLAAdmin):
+    list_display = ["name", "description"]
+
+admin.site.register(models.MedicationType, MedicationTypeAdmin)
+
+class TCCPrescriptionAdmin(KIOLAAdmin):
+    list_display = ('subject', 'compound', 'displayable_taking', 'status', 'medication_type')
+admin.site.register(models.TCCPrescription, TCCPrescriptionAdmin)

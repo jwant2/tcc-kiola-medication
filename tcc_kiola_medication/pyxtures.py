@@ -17,12 +17,14 @@ class Pyxture(BasePyxture):
         self.create_patient_enter_compound_source()
         self.create_default_medication_list()
         self.set_up_extra_meds()
+        self.generate_default_medication_types()
 
     def dev(self):
         self.setup_medication_observation_profile()
         self.create_patient_enter_compound_source()
         self.create_default_medication_list()
         self.set_up_extra_meds()
+        self.generate_default_medication_types()
 
     def setup_medication_observation_profile(self):
 
@@ -195,3 +197,7 @@ class Pyxture(BasePyxture):
         if created:
             prn.value = 'Regular'
             prn.save()
+
+    def generate_default_medication_types(self):
+        reg, _ = models.MedicationType.objects.get_or_create(name=const.MEDICATION_TYPE_VALUE__REGULAR, description="Regular medication")
+        prn, _ = models.MedicationType.objects.get_or_create(name=const.MEDICATION_TYPE_VALUE__PRN, description="PRN medication")

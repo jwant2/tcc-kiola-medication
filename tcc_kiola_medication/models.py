@@ -12,8 +12,11 @@ from django_auditor.auditor import sudo
 from django.contrib.contenttypes.models import ContentType
 from django.contrib.contenttypes.fields import GenericForeignKey
 from django.utils.translation import ugettext_lazy as _, ugettext_noop, get_language
+from django.utils.timezone import now
+from django.utils import formats
 
-from kiola.kiola_med import models as med_models
+from kiola.kiola_med import models as med_models, const as med_const
+from kiola.kiola_med import utils as med_utils
 from kiola.utils.authorization import track_model
 from kiola.kiola_senses import models as senses
 from kiola.utils import service_providers
@@ -188,14 +191,6 @@ class UserPreferenceConfig(models.Model):
 
 track_model(UserPreferenceConfig)
 
-# class TccPrescriptionManager(PermissionModelManager):
-
-#     # def prescribe(self, subject, prescriber, compound, reason, hint, taking, start,
-#     #               end=None):
-#     def prescribe(self):
-#         print('htest')
-#         return True
-
 class CompoundExtraInformation(models.Model):
     
     compound = models.ForeignKey(med_models.Compound, on_delete=models.CASCADE)
@@ -322,3 +317,72 @@ def drug_search(q,by_id=False):
     return data
 
 service_providers.service_registry.register(name="drug_search",function=drug_search)
+
+class MedicationType(models.Model):
+    name = models.CharField(max_length=50)
+    description = models.TextField()
+
+class TCCPrescriptionManager(PermissionModelManager):
+
+    def prescribe(self, subject, prescriber, compound, reason, hint, start,
+                  dosage, strength, unit, med_type, end=None):
+
+        # check if prescription exists (respect status active only)
+        # set it to inactive/replaced
+        replaced = None
+        existing = self.filter(subject=subject,
+                               compound=compound,
+                               status__name=med_const.PRESCRIPTION_STATUS__ACTIVE)
+        if len(existing) > 0:
+            existing = existing[0]
+            med_models.PrescriptionEvent.objects.create(prescription=existing,
+                                             timepoint=now(),
+                                             etype=med_models.PrescriptionEventType.objects.get(name=med_const.EVENT_TYPE__REPLACED))
+            existing.status = med_models.PrescriptionStatus.objects.get(name=med_const.PRESCRIPTION_STATUS__INACTIVE)
+            replaced = existing
+
+        prescription = self.create(compound=compound,
+                                   status=med_models.PrescriptionStatus.objects.get(name=med_const.PRESCRIPTION_STATUS__ACTIVE),
+                                   subject=subject,
+                                   taking_reason=reason,
+                                   taking_hint=hint,
+                                   dosage=dosage,
+                                   strength=strength,
+                                   unit=unit,
+                                   medication_type=med_type)
+        prescription.save()
+
+        # add start end stop event
+        med_models.PrescriptionEvent.objects.create(prescription=prescription,
+                                         timepoint=start,
+                                         etype=med_models.PrescriptionEventType.objects.get(name=med_const.EVENT_TYPE__PRESCRIBED))
+        # add the original create time
+        med_models.PrescriptionEvent.objects.create(prescription=prescription,
+                                         timepoint=now(),
+                                         etype=med_models.PrescriptionEventType.objects.get(name=med_const.EVENT_TYPE__ADDED))
+        if end:
+            med_models.PrescriptionEvent.objects.create(prescription=prescription,
+                                             timepoint=end,
+                                             etype=med_models.PrescriptionEventType.objects.get(name=med_const.EVENT_TYPE__END))
+
+        med_models.PrescriptionSchema.objects.create(taking_schema=med_models.TakingSchema.objects.create(), prescription=prescription)
+        prescription.save()
+
+        if replaced:
+            replaced.replaced = True
+            replaced.save()
+            med_models.PrescriptionProfileRelation.objects.remove_and_update(remove=replaced, replaceby=prescription)
+
+        return prescription, replaced
+
+class TCCPrescription(med_models.Prescription):
+    objects = TCCPrescriptionManager()
+    priviledged = models.Manager()
+
+    takings = models.ManyToManyField(ScheduledTaking, related_name='takings_set')
+    dosage = models.TextField(blank=True)
+    strength = models.CharField(max_length=100, blank=True)
+    unit = models.ForeignKey(med_models.TakingUnit, on_delete=models.PROTECT)
+    medication_type = models.ForeignKey(MedicationType, on_delete=models.PROTECT)
+
+track_model(TCCPrescription)           

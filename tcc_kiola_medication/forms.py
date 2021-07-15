@@ -170,7 +170,7 @@ class TCCPrescriptionDataLoader(kiola_forms.InitialDataLoader):
         data = {}
         if fid is not None:
             subject = senses_models.Subject.objects.get(uuid=request.subject_uid)
-            prescription = med_models.Prescription.objects.get(pk=fid, subject=subject)
+            prescription = models.TCCPrescription.objects.get(pk=fid, subject=subject)
             data["status"] = prescription.status.id
             data["compound_id"] = prescription.compound.uid
             data["compound_source"] = str(prescription.compound.source.pk)
@@ -183,13 +183,10 @@ class TCCPrescriptionDataLoader(kiola_forms.InitialDataLoader):
             data["taking_reason"] = prescription.taking_reason
             schema = prescription.prescriptionschema_set.all()[0]
             takings = schema.taking_schema.takings.all()
-            data["taking__unit"] = None
-            prn = models.PrescriptionExtraInformation.objects.filter(prescription=prescription, name=const.COMPOUND_EXTRA_INFO_NAME__MEDICATION_TYPE).last()
-            if not prn:
-                prn = models.CompoundExtraInformation.objects.filter(compound=prescription.compound, name=const.COMPOUND_EXTRA_INFO_NAME__MEDICATION_TYPE).last()
-
-            data["med_type"] = prn.value if prn else None
-            
+            data["unit"] = prescription.unit.name
+            data["dosage"] = prescription.dosage
+            data["strength"] = prescription.strength
+            data["med_type"] = prescription.medication_type.name
         else:
             # FIXME:cgo: this should be configurable to support different data sources
             try:
@@ -213,8 +210,6 @@ class TCCPrescriptionForm(senses_forms.KiolaSubjectForm):
         }
 
     def __init__(self, *args, **kwargs):
-
-
         super(TCCPrescriptionForm, self).__init__(*args, **kwargs)
 
         date_options = signal_registry.send_to_category("request_datetime_field_options", self, {"fieldtype": "date"})[0][1][0][1]
@@ -233,7 +228,20 @@ class TCCPrescriptionForm(senses_forms.KiolaSubjectForm):
 
         self.fields["compound_id"] = forms.CharField(widget=forms.HiddenInput(), required=True)
         self.fields["compound_source"] = forms.CharField(widget=forms.HiddenInput(), required=True)
-
+        self.fields["dosage"] = forms.CharField(label=_("Dosage *"),
+                                                     required=True,
+                                                     help_text="i.e. 4 pills",
+                                                     max_length=400)
+        self.fields["strength"] = forms.CharField(label=_("Strength *"),
+                                                     required=True,
+                                                     help_text="i.e. 200 mg",
+                                                     max_length=100)
+        self.fields["unit"] = forms.CharField(label=_("Formulation *"),
+                                                     required=True,
+                                                     help_text="i.e. Tablet/Pill/Solution/etc..",
+                                                     max_length=30)
+        unit_list = med_models.TakingUnit.objects.all().values_list("name", flat=True)
+        self.fields['unit'].widget = ListTextWidget(data_list=unit_list, name='formulation_list')
         self.fields["taking_reason"] = forms.CharField(label=_("Reason of prescription"),
                                                        required=False,
                                                        max_length=100)
@@ -287,6 +295,7 @@ class TCCPrescriptionForm(senses_forms.KiolaSubjectForm):
     def clean(self):
 
         cd = super(TCCPrescriptionForm, self).clean()
+        cd['unit'] = cd['unit'].strip()
         if len(cd.get("compound_id", "")) == 0:
             raise forms.ValidationError(_(u"Please select a compound"))
         return cd
@@ -298,18 +307,22 @@ class TCCPrescriptionForm(senses_forms.KiolaSubjectForm):
         adapter = med_models.Compound.objects.get_adapter(cd["compound_source"])
         compound, created = adapter.get_or_create(cd["compound_id"])
 
-        prescription, replaced = med_models.Prescription.objects.prescribe(subject=subject,
+
+        medication_type = models.MedicationType.objects.get(name=cd["med_type"])
+        unit, created = med_models.TakingUnit.objects.get_or_create(name=cd['unit'])
+        prescription, replaced = models.TCCPrescription.objects.prescribe(subject=subject,
                                                                        prescriber=request.user,
                                                                        compound=compound,
                                                                        reason=cd["taking_reason"],
                                                                        hint=cd["taking_hint"],
-                                                                       taking=med_utils.TakingSchemaText(""),
                                                                        start=cd["ev__prescription_startdate"],
+                                                                       dosage=cd['dosage'],
+                                                                       strength=cd['strength'],
+                                                                       unit=unit,
+                                                                       med_type=medication_type,
                                                                        end=cd.get("ev__prescription_enddate", None))
 
-        prn, created = models.PrescriptionExtraInformation.objects.get_or_create(prescription=prescription, name=const.COMPOUND_EXTRA_INFO_NAME__MEDICATION_TYPE)
-        prn.value = cd["med_type"]
-        prn.save()
+
         if not self.fid:
             self.fid = prescription.pk
 
@@ -322,12 +335,13 @@ class TCCPrescriptionForm(senses_forms.KiolaSubjectForm):
     def update_or_create(self, request):
         cd = self.cleaned_data
 
-        prescription = med_models.Prescription.objects.get(pk=self.fid)
+        prescription = models.TCCPrescription.objects.get(pk=self.fid)
         compound = prescription.compound
 
         prescription.taking_hint = cd["taking_hint"]
         prescription.taking_reason = cd["taking_reason"]
-
+        medication_type = models.MedicationType.objects.get(name=cd["med_type"])
+        unit, created = med_models.TakingUnit.objects.get_or_create(name=cd['unit'])
         start = prescription.prescriptionevent_set.filter(etype=med_models.PrescriptionEventType.objects.get(name=med_const.EVENT_TYPE__PRESCRIBED))[0]
         start.timepoint = cd["ev__prescription_startdate"]
         start.save()
@@ -341,10 +355,11 @@ class TCCPrescriptionForm(senses_forms.KiolaSubjectForm):
                                                 timepoint=cd["ev__prescription_enddate"],
                                                 etype=med_models.PrescriptionEventType.objects.get(name=med_const.EVENT_TYPE__END))
 
-        prn, created = models.PrescriptionExtraInformation.objects.get_or_create(prescription=prescription, name=const.COMPOUND_EXTRA_INFO_NAME__MEDICATION_TYPE)
-        prn.value = cd["med_type"]
-        prn.save()
-
+        
+        prescription.medication_type = medication_type
+        prescription.dosage = cd["dosage"]
+        prescription.strength = cd["strength"]
+        prescription.unit = unit
         prescription.save()
         messages.success(request, _("Prescription saved: {compound}").format(compound=compound.name))
 
@@ -401,7 +416,6 @@ class ScheduleTakingForm(ModelForm):
             'autocomplete': 'off',
             'placeholder': 'DD/MM/YYYY'
         })
-
         self.fields["end_date"] = forms.DateField(
             label=_(u"End date of taking medication"),
             required=False,
@@ -415,6 +429,33 @@ class ScheduleTakingForm(ModelForm):
         self.fields["hint"].required = False
         self.fields['strength'].label += " *"
         self.fields['dosage'].label += " *"
-        self.fields['unit'].label = "Fomulation *"
+        self.fields["unit"] = forms.CharField(label=_("Formulation *"),
+                                                    required=True,
+                                                    max_length=30)
+        unit_list = med_models.TakingUnit.objects.all().values_list("name", flat=True)
+        self.fields['unit'].widget = ListTextWidget(data_list=unit_list, name='formulation_list')
         self.fields['frequency'].label += " *"
         self.fields['timepoint'].label += " *"
+
+    def clean(self):
+        if type(self.cleaned_data['unit']) is str:
+            unit_value = self.cleaned_data['unit']
+            unit, _= med_models.TakingUnit.objects.get_or_create(name=unit_value.strip())
+            self.cleaned_data['unit'] = unit
+        return super().clean()
+        
+class ListTextWidget(forms.TextInput):
+    def __init__(self, data_list, name, *args, **kwargs):
+        super(ListTextWidget, self).__init__(*args, **kwargs)
+        self._name = name
+        self._list = data_list
+        self.attrs.update({'list':'list__%s' % self._name})
+
+    def render(self, name, value, attrs=None, renderer=None):
+        text_html = super(ListTextWidget, self).render(name, value, attrs=attrs)
+        data_list = '<datalist id="list__%s">' % self._name
+        for item in self._list:
+            data_list += '<option value="%s">' % item
+        data_list += '</datalist>'
+
+        return (text_html + data_list)
