@@ -279,13 +279,14 @@ class MedicationRelatedHistoryData(models.Model):
                                                    force_text(self.created))
 track_model(MedicationRelatedHistoryData)                                             
 
-def drug_search(q,by_id=False):
+def drug_search(q,by_id=False, source=None):
     imports = pharmacy_models.ImportHistory.objects.all().order_by("-pk")
     if len(imports)>0:
         if imports[0].status != "C":
             raise service_providers.ServiceNotAvailable()
     data=[]
-    source = med_models.CompoundSource.objects.get(default=True)
+    if not source:
+        source = med_models.CompoundSource.objects.get(default=True)
     # only returns current version of compounds
     filter_params = [Q(meta_data__contains = f'"version": "{source.version}"')]
     if ( by_id ):
