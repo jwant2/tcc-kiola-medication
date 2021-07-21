@@ -3,7 +3,6 @@ import os
 import glob
 import shutil
 from setuptools import find_packages, Command
-from django.core.management.base import BaseCommand, CommandError
 from setuptools import setup
 from os.path import normpath, abspath, dirname, join
 here = normpath(abspath(dirname(__file__)))
