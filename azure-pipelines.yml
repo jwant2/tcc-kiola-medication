@@ -1,0 +1,36 @@
+variables:
+  ARTIFACT_FEED: kiola
+
+pr: none
+
+trigger:
+  branches:
+    include:
+      - refs/tags/*
+
+pool:
+  vmImage: ubuntu-latest
+
+steps:
+  - task: UsePythonVersion@0
+    inputs:
+      versionSpec: "3.6"
+      addToPath: true
+      architecture: "x64"
+
+  - script: |
+      set -ex;
+      python -m pip install --upgrade pip setuptools wheel;
+      python -m pip install twine;
+    displayName: Install
+
+  - script: python setup.py bdist_wheel;
+    displayName: Build
+
+  - task: TwineAuthenticate@1
+    inputs:
+      artifactFeed: $(ARTIFACT_FEED)
+    displayName: Authenticate
+
+  - script: twine upload -r $(ARTIFACT_FEED) --config-file $(PYPIRC_PATH) dist/*
+    displayName: Publish
