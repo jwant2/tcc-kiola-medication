@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+### [0.7.3](https://bitbucket.org/teleclinicalcare/tcc-kiola-medication/compare/v0.7.2...v0.7.3) (2021-07-21)
+
+
+### Bug Fixes
+
+* setup.py ([9078d03](https://bitbucket.org/teleclinicalcare/tcc-kiola-medication/commit/9078d031852652d1a22464f171775298cf48202c))
+
 ### [0.7.2](https://bitbucket.org/teleclinicalcare/tcc-kiola-medication/compare/v0.7.1...v0.7.2) (2021-07-21)
 
 
