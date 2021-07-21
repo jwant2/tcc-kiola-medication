@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+### [0.7.2](https://bitbucket.org/teleclinicalcare/tcc-kiola-medication/compare/v0.7.1...v0.7.2) (2021-07-21)
+
+
+### Bug Fixes
+
+* add extra kwargs source to drug_search ([0599699](https://bitbucket.org/teleclinicalcare/tcc-kiola-medication/commit/05996992e4102529d0fd43665899ff097cdfd804))
+
 ### [0.7.1](https://bitbucket.org/teleclinicalcare/tcc-kiola-medication/compare/v0.7.0...v0.7.1) (2021-07-15)
 
 
