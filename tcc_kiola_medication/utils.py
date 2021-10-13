@@ -199,8 +199,7 @@ class TCCAdapter(med_utils.CompoundAdapterBase):
 
             for unique_id, comp in product["active_components"].items():
                 if comp:
-                    active_component, created = med_models.ActiveComponent.objects.get_or_create(name=comp,
-                                                                                             name_ref=compound_id)
+                    active_component, created = med_models.ActiveComponent.objects.get_or_create(name=comp)
                     compound.active_components.add(active_component)
 
             # store PRN data
