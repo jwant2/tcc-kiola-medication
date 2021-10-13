@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+### [0.7.4](https://bitbucket.org/teleclinicalcare/tcc-kiola-medication/compare/v0.7.3...v0.7.4) (2021-10-13)
+
+
+### Bug Fixes
+
+* remove name_ref from ActiveComponent ([5cd2aca](https://bitbucket.org/teleclinicalcare/tcc-kiola-medication/commit/5cd2aca47ed4ab331b0d9cc14bf709240721063f))
+
 ### [0.7.3](https://bitbucket.org/teleclinicalcare/tcc-kiola-medication/compare/v0.7.2...v0.7.3) (2021-07-21)
 
 
