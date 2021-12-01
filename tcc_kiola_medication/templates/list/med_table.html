@@ -1,0 +1,52 @@
+{% load i18n %} 
+{% load admin_static %}
+{% load high_charts %}
+{% load common_filters %}
+{% load tz %}
+{% load defer %}
+{% block extrahead%}
+<style>
+td.border-style {
+  border-right: 2px dashed lightgrey;
+  border-bottom: 1px solid lightgrey;
+}
+th.border-style {
+  border-right: 2px dashed lightgrey;
+  border-bottom: 1px solid lightgrey;
+}
+</style>
+{% endblock%}
+<div>
+    <div class="text-center">
+        <h4>{{title}}</h4>
+    </div>
+    <div>
+        <table class="table table-hover">
+            <thead>
+                <tr>
+                    {% for cell in headers %}
+                        {% if forloop.counter == 1 %} 
+                            <th  class="cell-size text-left border-style">{{ cell }}</th>
+                        {% else %}
+                            <th  class="cell-size text-center border-style">{{ cell }}</th>
+                        {% endif %}
+                    {% endfor %}
+                </tr>
+            </thead>
+            <tbody>
+                {% for row in data %}
+                <tr>
+                    {% for cell in row %}
+                        {% if forloop.counter == 1 %} 
+                            <td  class="{{cell.color_class}} text-left border-style">{{ cell.value }}</td>
+                        {% else %}
+                            <td  class="{{cell.color_class}} text-center border-style">{{ cell.value }}</td>
+                        {% endif %}
+                    {% endfor %}
+
+                <tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
