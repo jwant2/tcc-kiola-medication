@@ -3,44 +3,6 @@
 {% load common_tags %}
 {% load defer %}
 
- {% comment %} <div class="widget-box widget-color-green patientlist">
-        <div class="widget-header">
-            <h4 class="widget-title bigger lighter">
-                <i class="ace-icon fa fa-users"></i>{% trans title %}
-            </h4>
-            
-            {% if patientlists %}
-                <div class="widget-toolbar no-border">
-                    <div class="widget-menu visible-xs">
-                        <a data-toggle="dropdown" data-action="settings" href="#" aria-expanded="false">
-                        <i class="ace-icon fa fa-bars"></i>
-                        </a>
-                        <ul class="dropdown-menu dropdown-menu-right dropdown-light-blue dropdown-caret dropdown-closer">
-                            {% for patientlist in patientlists %}
-                            <li>
-                                <a href="#{{patientlist.table_id}}" 
-                                data-target="#{{patientlist.table_id}}, #{{patientlist.table_id}}_description"
-                                data-toggle="tab">{{patientlist.title|safe}} <span class="{{patientlist.table_id}}-tab-rowcount"></span> </a>
-                            </li>
-                            {% endfor %}
-                        </ul>
-                    </div>
-                    <ul class="nav nav-tabs hidden-xs">
-                        {% for patientlist in patientlists %}
-                            <li {% if patientlist.table_id == cares_patlist_module_table %}class="active"{% endif %}>
-                                <a data-toggle="tab" href="#{{patientlist.table_id}}"
-                                   data-target="#{{patientlist.table_id}}, #{{patientlist.table_id}}_description"
-                                >{{patientlist.title|safe}}<span class="{{patientlist.table_id}}-tab-rowcount"></span></a>
-                            </li>
-                        {% endfor %}
-                    </ul>
-                </div>
-            {% else %}
-            <div class="widget-toolbar no-border">
-                <strong>{% trans 'No patient lists available' %}</strong>
-            </div>
-            {% endif %}
-        </div> {% endcomment %}
         
   <div class="widget-box {{module_name}}">
         <div class="widget-header widget-header-flat">
