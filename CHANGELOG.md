@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+### [0.7.5](https://bitbucket.org/teleclinicalcare/tcc-kiola-medication/compare/v0.7.4...v0.7.5) (2021-12-02)
+
+
+### Features
+
+* add table view for medicaiton observations ([4df57c5](https://bitbucket.org/teleclinicalcare/tcc-kiola-medication/commit/4df57c581ecabda900eb3d6cf405d9de1f8bc7e2))
+
 ### [0.7.4](https://bitbucket.org/teleclinicalcare/tcc-kiola-medication/compare/v0.7.3...v0.7.4) (2021-10-13)
 
 
