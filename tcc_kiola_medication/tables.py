@@ -24,7 +24,7 @@ from . import const, models
 
 class MedicationAdherenceOverview(object):
     model = senses_models.Observation
-    title = _("Medication adherence overview")
+    title = _("Medication taken")
     template_name = "list/med_table.html"
     use_full_objects = True
 
