@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+### [0.7.6](https://bitbucket.org/teleclinicalcare/tcc-kiola-medication/compare/v0.7.5...v0.7.6) (2021-12-07)
+
+
+### Bug Fixes
+
+* schedule column should not be updated by obs data ([fbaf6c2](https://bitbucket.org/teleclinicalcare/tcc-kiola-medication/commit/fbaf6c2a8f3fa488ab3d6187a39ec1a7e8cbc6ec))
+
 ### [0.7.5](https://bitbucket.org/teleclinicalcare/tcc-kiola-medication/compare/v0.7.4...v0.7.5) (2021-12-02)
 
 
