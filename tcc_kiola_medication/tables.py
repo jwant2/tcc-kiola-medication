@@ -82,6 +82,9 @@ class MedicationAdherenceOverview(object):
         if value_date < self.start.date() or value_date > self.stop.date():
             return -1
         index = (value_date - self.start.date()).days
+        # first column reserve for schedule info
+        if index <= 0: 
+            return -1 
         return index
 
     def _get_active_schedule(self, request, count_only=False, **kwargs):
