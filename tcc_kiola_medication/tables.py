@@ -97,6 +97,7 @@ class MedicationAdherenceOverview(object):
         schedules = models.ScheduledTaking.objects.prefetch_related("takings_set", "takings_set__compound").filter(
             takings_set__subject__uuid=subject_uid,
             takings_set__status__name=med_const.PRESCRIPTION_STATUS__ACTIVE,
+            active=True
         ).annotate(prescr_id=F('takings_set__id')).annotate(compound_name=F('takings_set__compound__name'))
         return schedules
 
