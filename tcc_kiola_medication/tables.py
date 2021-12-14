@@ -62,9 +62,14 @@ class MedicationAdherenceOverview(object):
                 idx = self._check_date_index(item.action_date)
                 if idx < 0: continue
                 cell_color = self.field_colors.get(item.action, "")
+                # format action time format, or use parent.started for morning/afternoon/etc..
+                try:
+                    time = parser.parse(item.action_time).time().strftime("%H:%M")
+                except:
+                    time = item.parent.started.astimezone(get_current_timezone()).time().strftime("%H:%M")
                 row_data[idx] = dict(
                     color_class=f"{cell_color} col-md-1",
-                    value=item.action_time[0:5] if item.action != "undo" else "-"
+                    value=time if item.action != "undo" else "-"
                 )
             data.append(row_data)
         
@@ -106,6 +111,7 @@ class MedicationAdherenceOverview(object):
                 subject__uuid=subject_uid,
                 value=schedule_id
             )
+            .select_related("parent")
             .order_by("started")
             .annotate(
                 schedule_time=Subquery(
