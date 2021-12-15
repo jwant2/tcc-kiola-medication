@@ -2,6 +2,14 @@
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+### [0.7.7](https://bitbucket.org/teleclinicalcare/tcc-kiola-medication/compare/v0.7.6...v0.7.7) (2021-12-15)
+
+
+### Bug Fixes
+
+* filter inactive schedules ([01e3314](https://bitbucket.org/teleclinicalcare/tcc-kiola-medication/commit/01e33146e8dc13947ef9bd5171231c500cd5e4a4))
+* update time formatting for medication table ([84c137b](https://bitbucket.org/teleclinicalcare/tcc-kiola-medication/commit/84c137b33b5dbdc967dd5a3491cc13fce64d0cac))
+
 ### [0.7.6](https://bitbucket.org/teleclinicalcare/tcc-kiola-medication/compare/v0.7.5...v0.7.6) (2021-12-07)
 
 
