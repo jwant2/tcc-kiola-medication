@@ -6,8 +6,10 @@ from django.db import migrations
 def setup_med_obs_profile(apps, schema_editor):
     from django.contrib.auth.models import Group
     from reversion import revisions as reversion
-    from kiola.utils.commons import get_system_user
+
     from kiola.kiola_senses import const
+    from kiola.utils.commons import get_system_user
+
     from .. import pyxtures
 
     if Group.objects.filter(name=const.USER_GROUP__DEVICE_MANAGERS).count() > 0:
@@ -19,20 +21,24 @@ def setup_med_obs_profile(apps, schema_editor):
 def add_patient_compound_source(apps, schema_editor):
 
     from reversion import revisions as reversion
-    from kiola.utils.commons import get_system_user
+
     from kiola.kiola_senses import const
+    from kiola.utils.commons import get_system_user
+
     from .. import pyxtures
 
     pyxtures.Pyxture().create_patient_enter_compound_source()
 
+
 def undo_noop(apps, schema_editor):
     pass
+
 
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('tcc_kiola_medication', '0003_add_timepoint_frequency_values_20201119_2003'),
-        ('kiola_senses', '0076_auto_20200319_1051'),
+        ("tcc_kiola_medication", "0003_add_timepoint_frequency_values_20201119_2003"),
+        ("kiola_senses", "0076_auto_20200319_1051"),
     ]
 
     operations = [

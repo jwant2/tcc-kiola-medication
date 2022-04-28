@@ -6,18 +6,18 @@ from django.db import migrations, models
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('tcc_kiola_medication', '0009_auto_20210617_1757'),
+        ("tcc_kiola_medication", "0009_auto_20210617_1757"),
     ]
 
     operations = [
         migrations.AlterField(
-            model_name='tccprescription',
-            name='dosage',
+            model_name="tccprescription",
+            name="dosage",
             field=models.TextField(blank=True),
         ),
         migrations.AlterField(
-            model_name='tccprescription',
-            name='strength',
+            model_name="tccprescription",
+            name="strength",
             field=models.CharField(blank=True, max_length=100),
         ),
     ]
