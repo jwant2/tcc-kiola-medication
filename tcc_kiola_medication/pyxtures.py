@@ -1,3 +1,5 @@
+from email.policy import default
+
 from diplomat.models import ISOCountry, ISOLanguage
 from reversion import revisions as reversionrevisions
 
@@ -8,9 +10,10 @@ from kiola.kiola_med import const as med_const
 from kiola.kiola_med import models as med_models
 from kiola.kiola_senses import const as senses_const
 from kiola.kiola_senses import models as senses_models
+from kiola.utils.commons import get_system_user
 from kiola.utils.pyxtures import Pyxture as BasePyxture
 
-from . import const, models
+from . import const, models, utils
 
 
 class Pyxture(BasePyxture):
@@ -167,14 +170,27 @@ class Pyxture(BasePyxture):
         )
 
     def create_patient_enter_compound_source(self):
+
+        if utils.check_django_version():
+            params = dict(
+                defaults={
+                    "language": "en",
+                    "country": "AU",
+                },
+            )
+        else:
+            params = dict(
+                language=ISOLanguage.objects.get(alpha2="en"),
+                country=ISOCountry.objects.get(alpha2="AU"),
+            )
+
         source, created = med_models.CompoundSource.objects.get_or_create(
             name=const.COMPOUND_SOURCE_NAME__TCC,
             version=const.COMPOUND_SOURCE_VERSION__PATIENT,
             description=const.COMPOUND_SOURCE_DESCRIPTION__PATIENT_ENTERED,
-            language=ISOLanguage.objects.get(alpha2="en"),
-            country=ISOCountry.objects.get(alpha2="AU"),
             group="TCC",
             default=False,
+            **params,
         )
 
     def create_default_medication_list(self):

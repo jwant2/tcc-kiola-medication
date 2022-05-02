@@ -1,19 +1,29 @@
+import json
 from datetime import datetime
 
+from django import get_version
 from django.core import exceptions as djexceptions
 from django.db.models import F
 from django.utils.encoding import force_text
-from tcc_hf import utils as hf_utils
 
+from kiola.cares import utils as cares_utils
 from kiola.kiola_clients import signals
 from kiola.kiola_med import models as med_models
 from kiola.kiola_med import utils as med_utils
 from kiola.kiola_med.templatetags import med as med_tags
+from kiola.kiola_messaging import const as messaging_const
+from kiola.kiola_messaging import models as messaging
 from kiola.utils import const as kiola_const
-from kiola.utils import service_providers
+from kiola.utils import serializer, service_providers
 from kiola.utils.commons import get_system_user
 
 from . import const, models
+
+
+def check_django_version():
+    if get_version() > "3.0.0":
+        return True
+    return False
 
 
 def value_is_not_none(item):
@@ -315,7 +325,7 @@ def send_medication_reminder_notification(
 ):
     # send out medication reminder notification to patient
     feedback_body = const.MEDICATION_REMINDER__MESSAGE_BODY % (compound_name, time)
-    message = hf_utils.create_feedback_FCM(get_system_user(), subject, feedback_body)
+    message = create_feedback_FCM(get_system_user(), subject, feedback_body)
     data = {"type": "feedback", "feedbackId": message.id, "text": feedback_body}
     signal_results = signals.sensor_event_created.send_robust(
         taking,
@@ -326,3 +336,64 @@ def send_medication_reminder_notification(
         backend="FCM_NO_ENCRYPTION",
         mime_type=kiola_const.MIME_TYPE__APPLICATION_JSON,
     )
+
+
+def create_feedback_FCM(
+    user,
+    subject,
+    body,
+    subject_text="Feedback",
+    content_type="text/html",
+    status_name=None,
+):
+    message = cares_utils.add_feedback(
+        body,
+        user,
+        [
+            subject.login,
+        ],
+        mime_type_name=content_type,
+        status=status_name,
+        subject_text=subject_text,
+    )
+
+    if message.status.name in [
+        messaging_const.MESSAGE_STATUS__NEW,
+    ]:
+        send_feedback_created_signal_FCM(message)
+    return message
+
+
+def send_feedback_created_signal_FCM(message, **kwargs):
+    # AZi: This method does not send a GCM simultanously with the created feedback
+    signal_results = None
+    user_kwargs = {}
+    user_kwargs.update(kwargs)
+    # if GCM backend is deactivated, do nothing (by now)
+
+    if messaging.NotificationBackend.objects.filter(
+        name=messaging_const.NOTIFICATION_BACKEND__GCM, active=True
+    ):
+        for recipient in message.recipients.all():
+            device_kmc = cares_utils.get_active_kmc(recipient.user)
+
+            # check if user has kmc client
+            # should we check the device settings here? or in notification strategy?
+            if device_kmc:
+                backend_name = messaging_const.NOTIFICATION_BACKEND__GCM
+            else:
+                backend_name = messaging_const.NOTIFICATION_BACKEND__IGNORE
+
+            user_kwargs["backend"] = backend_name
+            data = cares_utils.status.feedback_status_handler.as_dict(
+                message=message, user=recipient.user, use_container=True
+            )
+
+            if "subject" not in user_kwargs:
+                #    user_kwargs["subject"] = _("Feedback").translate(get_language())
+                user_kwargs["subject"] = "Feedback"
+            if "subject" not in data:
+                data["subject"] = user_kwargs["subject"]
+            data = json.dumps(data, cls=serializer.ExtendedJSONEncoder)
+
+    return signal_results

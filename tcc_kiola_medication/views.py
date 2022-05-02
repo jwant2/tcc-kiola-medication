@@ -27,8 +27,6 @@ from django.utils.encoding import force_text
 from django.utils.translation import get_language
 from django.utils.translation import ugettext_lazy as _
 from django.views import generic
-from drf_yasg import openapi
-from drf_yasg.utils import swagger_auto_schema, swagger_serializer_method
 from jsonschema import validate
 from rest_framework import generics, mixins
 from rest_framework import serializers as drf_serializers
@@ -63,16 +61,11 @@ from kiola.utils.commons import get_system_user, http_client_codes
 from kiola.utils.decorators.api import requires, returns
 from kiola.utils.drf import KiolaAuthentication
 
-from . import const, docs, forms, models
+from . import const, forms, models
 from . import serializers as tcc_serializers
 from . import utils
 from .schema import request_body_schema as request_schema
 from .utils import PaginationHandlerMixin, set_default_user_pref_med_time_values
-
-# import rest_framework.pagination #? FIXME:
-
-# from .models import MedCompound
-
 
 get_for_model = ContentType.objects.get_for_model
 
@@ -89,12 +82,6 @@ class CompoundAPIView(APIView, PaginationHandlerMixin):
         KiolaAuthentication,
     ]
 
-    @swagger_auto_schema(
-        tags=["Compound"],
-        operation_description="GET /prescription/compound/",
-        operation_summary="Query Compound resources",
-        responses={"200": docs.compound_res, "400": "Bad Request"},
-    )
     @requires_api_login
     def get(self, request, subject_uid=None, id=None, default=None, *args, **kwargs):
 
@@ -185,12 +172,6 @@ class CompoundAPIView(APIView, PaginationHandlerMixin):
                 serializer = self.serializer_class(qs, many=True)
         return Response(serializer.data, status=status.HTTP_200_OK)
 
-    @swagger_auto_schema(
-        tags=["Compound"],
-        operation_description="POST /prescription/compound/",
-        operation_summary="Create Compound resources",
-        responses={"200": docs.compound_res, "400": "Bad Request"},
-    )
     @requires_api_login
     def post(self, request, subject_uid=None, id=None, *args, **kwargs):
         try:
@@ -287,41 +268,6 @@ class MedObservationProfileAPIView(APIView):
         JSONRenderer,
     ]
 
-    @swagger_auto_schema(
-        tags=["MedicationObservationProfile"],
-        operation_description="GET /prescription/med_obs_profiles/",
-        operation_summary="Query Medication observation profiles",
-        responses={
-            "200": openapi.Schema(
-                type=openapi.TYPE_ARRAY,
-                items=openapi.Schema(
-                    type=openapi.TYPE_OBJECT,
-                    properties={
-                        "id": openapi.Schema(
-                            type=openapi.TYPE_NUMBER,
-                            description="Root observation profile Id",
-                        ),
-                        "children": openapi.Schema(
-                            type=openapi.TYPE_ARRAY,
-                            items=openapi.Schema(
-                                type=openapi.TYPE_OBJECT,
-                                properties={
-                                    "id": openapi.Schema(
-                                        type=openapi.TYPE_NUMBER,
-                                        description="Prescription related observation profile Id",
-                                    ),
-                                },
-                                description="Prescription related observation profile",
-                            ),
-                            description="Prescription related observation profiles",
-                        ),
-                    },
-                ),
-                description="Root observation profiles",
-            ),
-            "400": "Bad Request",
-        },
-    )
     @requires_api_login
     def get(self, request, subject_uid=None, uid=None, *args, **kwargs):
         try:
@@ -361,12 +307,6 @@ class PrescriptionAPIView(APIView, PaginationHandlerMixin):
     ]
     serializer_class = tcc_serializers.MedPrescriptionSerializer
 
-    @swagger_auto_schema(
-        tags=["Medication"],
-        operation_description="GET /prescription/medication/",
-        operation_summary="Query medication",
-        responses={"200": docs.prescr_res, "400": "Bad Request"},
-    )
     @requires_api_login
     def get(self, request, subject_uid=None, id=None, *args, **kwargs):
 
@@ -521,12 +461,20 @@ class PrescriptionAPIView(APIView, PaginationHandlerMixin):
 
             with reversionrevisions.create_revision():
                 reversionrevisions.set_user(get_system_user())
+            if utils.check_django_version():
+                params = dict(
+                    triggered_by=get_system_user(),
+                )
+            else:
+                params = dict()
+
             med_models.PrescriptionEvent.objects.create(
                 prescription=prescription,
                 timepoint=timezone.now(),
                 etype=med_models.PrescriptionEventType.objects.get(
                     name=med_const.EVENT_TYPE__CANCELED
                 ),
+                **params,
             )
             prescription.status = p_status
             prescription.save()
@@ -562,13 +510,6 @@ class PrescriptionAPIView(APIView, PaginationHandlerMixin):
 
         return Response(serializer.data, status=status.HTTP_200_OK)
 
-    @swagger_auto_schema(
-        tags=["Medication"],
-        operation_description="POST /prescription/medication/",
-        operation_summary="Create/update medication",
-        request_body=docs.prescr_req,
-        responses={"200": docs.prescr_res, "400": "Bad Request"},
-    )
     @requires_api_login
     def post(self, request, subject_uid=None, id=None, *args, **kwargs):
         if id is not None:
@@ -825,12 +766,6 @@ class PrescriptionHistoryAPIView(APIView, PaginationHandlerMixin):
     ]
     serializer_class = tcc_serializers.MedPrescriptionSerializer
 
-    @swagger_auto_schema(
-        tags=["Medication"],
-        operation_description="GET /prescription/medication/{id}/histroy/",
-        operation_summary="Query prescription history",
-        responses={"200": docs.prescr_history_res, "400": "Bad request"},
-    )
     @requires_api_login
     def get(self, request, subject_uid=None, id=None, *args, **kwargs):
         try:
@@ -901,12 +836,6 @@ class MedicationAdverseReactionAPIView(APIView, PaginationHandlerMixin):
     ]
     serializer_class = tcc_serializers.MedicationAdverseReactionSerializer
 
-    @swagger_auto_schema(
-        tags=["Reaction"],
-        operation_description="GET /prescription/reaction/",
-        operation_summary="Query Reaction",
-        responses={"200": docs.adverse_reaction_res, "400": "Bad Request"},
-    )
     @requires_api_login
     def get(self, request, subject_uid=None, id=None, *args, **kwargs):
         try:
@@ -1032,13 +961,6 @@ class MedicationAdverseReactionAPIView(APIView, PaginationHandlerMixin):
 
         return Response(serializer.data, status=status.HTTP_200_OK)
 
-    @swagger_auto_schema(
-        tags=["Reaction"],
-        operation_description="POST /prescription/reaction/",
-        operation_summary="Create/Update Reaction",
-        request_body=docs.adverse_reaction_req,
-        responses={"200": docs.adverse_reaction_res, "400": "Bad Request"},
-    )
     @requires_api_login
     def post(self, request, subject_uid=None, id=None, *args, **kwargs):
         if id is not None:
@@ -1118,7 +1040,11 @@ class MedicationAdverseReactionAPIView(APIView, PaginationHandlerMixin):
 
         else:
             try:
-                source = med_models.CompoundSource.objects.get_default()
+                if utils.check_django_version():
+                    params = [""]
+                else:
+                    params = []
+                source = med_models.CompoundSource.objects.get_default(*params)
                 adapter = med_models.Compound.objects.get_adapter(source.pk)
                 compound, created = adapter.get_or_create(compound_id)
             except:
@@ -1161,12 +1087,6 @@ class TakingSchemaAPIView(APIView, PaginationHandlerMixin):
     ]
     serializer_class = tcc_serializers.ScheduledTakingSerializer
 
-    @swagger_auto_schema(
-        tags=["Schedule"],
-        operation_description="GET /prescription/schedule/",
-        operation_summary="Query Schedule",
-        responses={"200": docs.taking_res, "400": "Bad Request"},
-    )
     @requires_api_login
     def get(self, request, subject_uid=None, id=None, *args, **kwargs):
 
@@ -1294,13 +1214,6 @@ class TakingSchemaAPIView(APIView, PaginationHandlerMixin):
         update_prescription_displayable_taking(prescr)
         return Response({"id": taking_id}, status=status.HTTP_200_OK)
 
-    @swagger_auto_schema(
-        tags=["Schedule"],
-        operation_description="POST /prescription/schedule/",
-        operation_summary="Create/Update Schedule",
-        request_body=docs.taking_req,
-        responses={"200": docs.taking_res, "400": "Bad Request"},
-    )
     @requires_api_login
     def post(self, request, subject_uid=None, id=None, *args, **kwargs):
         if id is not None:
@@ -1565,12 +1478,6 @@ class UserPreferenceConfigAPIView(APIView, PaginationHandlerMixin):
         JSONRenderer,
     ]
 
-    @swagger_auto_schema(
-        tags=["UserPreferenceConfig"],
-        operation_description="GET /prescription/user_preference_config/",
-        operation_summary="Query User Preference Config resources",
-        responses={"200": docs.user_pref_res, "400": "Bad Request"},
-    )
     @requires_api_login
     def get(self, request, *args, **kwargs):
         try:
@@ -1601,38 +1508,6 @@ class UserPreferenceConfigAPIView(APIView, PaginationHandlerMixin):
 
         return Response(config_data, status=status.HTTP_200_OK)
 
-    # @swagger_auto_schema(
-    #     tags=['UserPreferenceConfig'],
-    #     operation_description="POST /prescription/user_preference_config/",
-    #     operation_summary="Create/replace UserPreferenceConfig",
-    #     request_body=docs.user_pref_res,
-    #     responses={
-    #         '200': docs.user_pref_res,
-    #         '400': "Bad Request"
-    #     }
-    # )
-    # @requires_api_login
-    # def post(self, request, *args, **kwargs):
-    #     try:
-    #         subject = senses.Subject.objects.get(login=request.user)
-    #     except senses.Subject.DoesNotExist:
-    #         raise exceptions.Forbidden("Unknown subject")
-
-    #     data = request.data
-    #     med_pref_data = data.get('data', None)
-    #     config_data = {}
-    #     for item in med_pref_data:
-    #         config_data[f'{const.USER_PREFERENCE_CONFIG_PREFIX}{item["type"].lower()}'] = item
-    #     result = models.UserPreferenceConfig.objects.set_value(const.USER_PREFERENCE_KEY__MEDICATION_TIMES, config_data, request.user)
-    #     return Response({"msg": "Success"}, status=status.HTTP_200_OK)
-
-    @swagger_auto_schema(
-        tags=["UserPreferenceConfig"],
-        operation_description="PUT /prescription/user_preference_config/",
-        operation_summary="Update UserPreferenceConfig",
-        request_body=docs.user_pref_res,
-        responses={"200": "Success", "400": "Bad Request"},
-    )
     @requires_api_login
     def put(self, request, *args, **kwargs):
         try:
@@ -1709,7 +1584,12 @@ class TCCPrescriptionListView(kiola_views.KiolaSubjectListView):
     @property
     def addurl_name(self):
         try:
-            if med_models.CompoundSource.objects.get_default():
+            if utils.check_django_version():
+                params = [""]
+            else:
+                params = []
+            compound_source = med_models.CompoundSource.objects.get_default(*params)
+            if compound_source:
                 return "med:prescription_add"
         except ValueError:
             pass
@@ -1889,12 +1769,17 @@ class TCCPrescriptionView(kiola_views.KiolaSubjectView):
                 .order_by("pk")[0]
                 .language.terminology[:2]
             )
-        except IndexError:
+        except Exception as err:
             language_code = settings.LANGUAGE_CODE[0:2]
 
+        # handle kiola version difference
+        if utils.check_django_version():
+            params = [""]
+        else:
+            params = []
         kwargs[
             "current_compound_source"
-        ] = med_models.CompoundSource.objects.get_default()
+        ] = med_models.CompoundSource.objects.get_default(*params)
 
         pill_translated = (
             _(med_const.TAKING_UNIT__PILL).translate(language_code).lower()

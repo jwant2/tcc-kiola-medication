@@ -17,6 +17,8 @@ from kiola.utils import logger
 from kiola.utils.commons import get_system_user
 from kiola.utils.signals import signal_registry
 
+from .. import utils
+
 
 class BaseParser(object):
     source_file = None
@@ -43,13 +45,22 @@ class TCCMosParser(BaseParser):
             reversion.set_user(get_system_user())
             print("Creating data source ...")
             # create new compound source
+            if utils.check_django_version():
+                params = dict(
+                    defaults={"language": "en", "country": "AU"},
+                )
+            else:
+                params = dict(
+                    language=ISOLanguage.objects.get(alpha2="en"),
+                    country=ISOCountry.objects.get(alpha2="AU"),
+                )
+
             source, created = med_models.CompoundSource.objects.get_or_create(
                 name=const.COMPOUND_SOURCE_NAME__TCC,
                 version=self.version,
-                language=ISOLanguage.objects.get(alpha2="en"),
-                country=ISOCountry.objects.get(alpha2="AU"),
                 group="TCC",
                 default=True,
+                **params
             )
 
             formulations = {}
@@ -172,13 +183,22 @@ class TCCMGenericParser(BaseParser):
             reversion.set_user(get_system_user())
             print("Creating data source ...")
             # create new compound source
+            if utils.check_django_version():
+                params = dict(
+                    defaults={"language": "en", "country": "AU"},
+                )
+            else:
+                params = dict(
+                    language=ISOLanguage.objects.get(alpha2="en"),
+                    country=ISOCountry.objects.get(alpha2="AU"),
+                )
+
             source, created = med_models.CompoundSource.objects.get_or_create(
                 name=const.COMPOUND_SOURCE_NAME__TCC,
                 version=self.version,
-                language=ISOLanguage.objects.get(alpha2="en"),
-                country=ISOCountry.objects.get(alpha2="AU"),
                 group="TCC",
                 default=True,
+                **params
             )
 
             formulations = {}

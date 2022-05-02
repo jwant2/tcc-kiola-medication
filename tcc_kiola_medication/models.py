@@ -23,6 +23,7 @@ from kiola.kiola_pharmacy import models as pharmacy_models
 from kiola.kiola_senses import models as senses
 from kiola.utils import service_providers
 from kiola.utils.authorization import track_model
+from kiola.utils.commons import get_system_user
 
 from . import const, utils
 
@@ -417,6 +418,7 @@ class TCCPrescriptionManager(PermissionModelManager):
             med_models.PrescriptionEvent.objects.create(
                 prescription=existing,
                 timepoint=now(),
+                triggered_by=get_system_user(),
                 etype=med_models.PrescriptionEventType.objects.get(
                     name=med_const.EVENT_TYPE__REPLACED
                 ),
@@ -441,29 +443,43 @@ class TCCPrescriptionManager(PermissionModelManager):
         )
         prescription.save()
 
+        if utils.check_django_version():
+            params = dict(
+                triggered_by=get_system_user(),
+            )
+        else:
+            params = dict()
         # add start end stop event
+
         med_models.PrescriptionEvent.objects.create(
             prescription=prescription,
             timepoint=start,
             etype=med_models.PrescriptionEventType.objects.get(
                 name=med_const.EVENT_TYPE__PRESCRIBED
             ),
+            **params,
         )
+
         # add the original create time
+
         med_models.PrescriptionEvent.objects.create(
             prescription=prescription,
             timepoint=now(),
             etype=med_models.PrescriptionEventType.objects.get(
                 name=med_const.EVENT_TYPE__ADDED
             ),
+            **params,
         )
+
         if end:
+
             med_models.PrescriptionEvent.objects.create(
                 prescription=prescription,
                 timepoint=end,
                 etype=med_models.PrescriptionEventType.objects.get(
                     name=med_const.EVENT_TYPE__END
                 ),
+                **params,
             )
 
         med_models.PrescriptionSchema.objects.create(

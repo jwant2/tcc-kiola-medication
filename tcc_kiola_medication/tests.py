@@ -33,25 +33,39 @@ from kiola.utils.commons import get_system_user
 from kiola.utils.pyxtures import ProjectPyxtureLoader, PyxtureLoader, SimpleAppConfig
 from kiola.utils.tests import KiolaBaseTest, KiolaTestClient, do_request
 
-from . import const, cron, models
+from . import const, cron, models, utils
 
 # Create your tests here.
 from .forms import CompoundImportHistoryForm, ScheduleTakingForm
+
+
+def get_app_configs(exclude=None):
+    app_configs = apps.get_app_configs()
+    if exclude:
+        is_included = lambda app: app.name not in exclude
+        app_configs = filter(is_included, app_configs)
+    return list(app_configs)
 
 
 class MedicationTest(KiolaTest):
     @classmethod
     def setUpClass(cls):
         super(MedicationTest, cls).setUpClass()
-        try:
-            del apps.app_configs["services"]
-        except Exception as err:
-            pass
 
-        apps_list = apps.get_app_configs()
         with reversion.create_revision():
             reversion.set_user(get_system_user())
-            ProjectPyxtureLoader().load(apps=apps_list)
+            try:
+                ProjectPyxtureLoader().load(
+                    app_configs=get_app_configs(exclude=["relief.services"])
+                )
+            except Exception as err:
+                try:
+                    del apps.app_configs["services"]
+                except Exception as err:
+                    pass
+
+                apps_list = apps.get_app_configs()
+                ProjectPyxtureLoader().load(apps=apps_list)
         module_dir = os.path.dirname(__file__)  # get current directory
         file_path = os.path.join(module_dir, "datafiles/test/mos_rx_300_rows.csv")
         with reversion.create_revision():
@@ -113,14 +127,26 @@ class MedicationTest(KiolaTest):
             models.AdverseReactionType.objects.get_or_create(
                 name=const.ADVERSE_REACTION_TYPE__UNKNOWN
             )
+            if utils.check_django_version():
+                params = dict(
+                    defaults={
+                        "language": "en",
+                        "country": "AU",
+                    },
+                )
+            else:
+                params = dict(
+                    language=ISOLanguage.objects.get(alpha2="en"),
+                    country=ISOCountry.objects.get(alpha2="AU"),
+                )
+
             source, created = med_models.CompoundSource.objects.get_or_create(
                 name=const.COMPOUND_SOURCE_NAME__TCC,
                 version=const.COMPOUND_SOURCE_VERSION__PATIENT,
                 description=const.COMPOUND_SOURCE_DESCRIPTION__PATIENT_ENTERED,
-                language=ISOLanguage.objects.get(alpha2="en"),
-                country=ISOCountry.objects.get(alpha2="AU"),
                 group="TCC",
                 default=False,
+                **params,
             )
 
     def setUp(self):

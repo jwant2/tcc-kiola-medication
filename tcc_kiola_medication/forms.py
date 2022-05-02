@@ -26,9 +26,10 @@ from kiola.kiola_senses import forms as senses_forms
 from kiola.kiola_senses import models as senses_models
 from kiola.themes import widgets as themes_widgets
 from kiola.utils import forms as kiola_forms
+from kiola.utils.commons import get_system_user
 from kiola.utils.signals import signal_registry
 
-from . import const, models
+from . import const, models, utils
 
 
 class CompoundImportHistoryForm(ModelForm):
@@ -107,13 +108,22 @@ class CompoundImportHistoryForm(ModelForm):
             )
 
         # create new compound source
+        if utils.check_django_version():
+            params = dict(
+                defaults={"language": "en", "country": "AU"},
+            )
+        else:
+            params = dict(
+                language=ISOLanguage.objects.get(alpha2="en"),
+                country=ISOCountry.objects.get(alpha2="AU"),
+            )
+
         source, created = med_models.CompoundSource.objects.get_or_create(
             name=const.COMPOUND_SOURCE_NAME__TCC,
             version=version,
-            language=ISOLanguage.objects.get(alpha2="en"),
-            country=ISOCountry.objects.get(alpha2="AU"),
             group="TCC",
             default=True,
+            **params,
         )
 
         formulations = {}
@@ -464,12 +474,20 @@ class TCCPrescriptionForm(senses_forms.KiolaSubjectForm):
                 end[0].timepoint = cd["ev__prescription_enddate"]
                 end[0].save()
             else:
+                if utils.check_django_version():
+                    params = dict(
+                        triggered_by=get_system_user(),
+                    )
+                else:
+                    params = dict()
+
                 med_models.PrescriptionEvent.objects.create(
                     prescription=prescription,
                     timepoint=cd["ev__prescription_enddate"],
                     etype=med_models.PrescriptionEventType.objects.get(
                         name=med_const.EVENT_TYPE__END
                     ),
+                    **params,
                 )
 
         prescription.medication_type = medication_type
