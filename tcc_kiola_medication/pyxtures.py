@@ -171,18 +171,7 @@ class Pyxture(BasePyxture):
 
     def create_patient_enter_compound_source(self):
 
-        if utils.check_django_version():
-            params = dict(
-                defaults={
-                    "language": "en",
-                    "country": "AU",
-                },
-            )
-        else:
-            params = dict(
-                language=ISOLanguage.objects.get(alpha2="en"),
-                country=ISOCountry.objects.get(alpha2="AU"),
-            )
+        params = utils.compound_source__params()
 
         source, created = med_models.CompoundSource.objects.get_or_create(
             name=const.COMPOUND_SOURCE_NAME__TCC,

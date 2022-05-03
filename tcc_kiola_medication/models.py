@@ -443,12 +443,7 @@ class TCCPrescriptionManager(PermissionModelManager):
         )
         prescription.save()
 
-        if utils.check_django_version():
-            params = dict(
-                triggered_by=get_system_user(),
-            )
-        else:
-            params = dict()
+        params = utils.prescription_event__params()
         # add start end stop event
 
         med_models.PrescriptionEvent.objects.create(

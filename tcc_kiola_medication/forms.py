@@ -108,15 +108,7 @@ class CompoundImportHistoryForm(ModelForm):
             )
 
         # create new compound source
-        if utils.check_django_version():
-            params = dict(
-                defaults={"language": "en", "country": "AU"},
-            )
-        else:
-            params = dict(
-                language=ISOLanguage.objects.get(alpha2="en"),
-                country=ISOCountry.objects.get(alpha2="AU"),
-            )
+        params = utils.compound_source__params()
 
         source, created = med_models.CompoundSource.objects.get_or_create(
             name=const.COMPOUND_SOURCE_NAME__TCC,
@@ -474,13 +466,8 @@ class TCCPrescriptionForm(senses_forms.KiolaSubjectForm):
                 end[0].timepoint = cd["ev__prescription_enddate"]
                 end[0].save()
             else:
-                if utils.check_django_version():
-                    params = dict(
-                        triggered_by=get_system_user(),
-                    )
-                else:
-                    params = dict()
 
+                params = utils.prescription_event__params()
                 med_models.PrescriptionEvent.objects.create(
                     prescription=prescription,
                     timepoint=cd["ev__prescription_enddate"],

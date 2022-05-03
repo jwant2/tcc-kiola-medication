@@ -1,6 +1,7 @@
 import json
 from datetime import datetime
 
+from diplomat.models import ISOCountry, ISOLanguage
 from django import get_version
 from django.core import exceptions as djexceptions
 from django.db.models import F
@@ -24,6 +25,37 @@ def check_django_version():
     if get_version() > "3.0.0":
         return True
     return False
+
+
+def compound_source__params():
+    if check_django_version():
+        params = dict(
+            defaults={"language": "en", "country": "AU"},
+        )
+    else:
+        params = dict(
+            language=ISOLanguage.objects.get(alpha2="en"),
+            country=ISOCountry.objects.get(alpha2="AU"),
+        )
+    return params
+
+
+def prescription_event__params():
+    if check_django_version():
+        params = dict(
+            triggered_by=get_system_user(),
+        )
+    else:
+        params = dict()
+    return params
+
+
+def default_compound_source__params():
+    if check_django_version():
+        params = [""]
+    else:
+        params = []
+    return params
 
 
 def value_is_not_none(item):

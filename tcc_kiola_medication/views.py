@@ -461,12 +461,7 @@ class PrescriptionAPIView(APIView, PaginationHandlerMixin):
 
             with reversionrevisions.create_revision():
                 reversionrevisions.set_user(get_system_user())
-            if utils.check_django_version():
-                params = dict(
-                    triggered_by=get_system_user(),
-                )
-            else:
-                params = dict()
+            params = utils.prescription_event__params()
 
             med_models.PrescriptionEvent.objects.create(
                 prescription=prescription,
@@ -1040,10 +1035,7 @@ class MedicationAdverseReactionAPIView(APIView, PaginationHandlerMixin):
 
         else:
             try:
-                if utils.check_django_version():
-                    params = [""]
-                else:
-                    params = []
+                params = utils.default_compound_source__params()
                 source = med_models.CompoundSource.objects.get_default(*params)
                 adapter = med_models.Compound.objects.get_adapter(source.pk)
                 compound, created = adapter.get_or_create(compound_id)
@@ -1584,10 +1576,7 @@ class TCCPrescriptionListView(kiola_views.KiolaSubjectListView):
     @property
     def addurl_name(self):
         try:
-            if utils.check_django_version():
-                params = [""]
-            else:
-                params = []
+            params = utils.default_compound_source__params()
             compound_source = med_models.CompoundSource.objects.get_default(*params)
             if compound_source:
                 return "med:prescription_add"
@@ -1773,10 +1762,7 @@ class TCCPrescriptionView(kiola_views.KiolaSubjectView):
             language_code = settings.LANGUAGE_CODE[0:2]
 
         # handle kiola version difference
-        if utils.check_django_version():
-            params = [""]
-        else:
-            params = []
+        params = utils.default_compound_source__params()
         kwargs[
             "current_compound_source"
         ] = med_models.CompoundSource.objects.get_default(*params)
