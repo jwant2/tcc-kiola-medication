@@ -22,6 +22,7 @@ def addAdverseReactionTypes(apps, schema_editor):
         name=const.ADVERSE_REACTION_TYPE__UNKNOWN
     )
 
+
 def undo_noop(apps, schema_editor):
     pass
 
@@ -29,7 +30,7 @@ def undo_noop(apps, schema_editor):
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('tcc_kiola_medication', '0001_initial'),
+        ("tcc_kiola_medication", "0001_initial"),
     ]
 
     operations = [

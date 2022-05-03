@@ -1,8 +1,9 @@
 # -*- coding: utf-8 -*-
 import os.path
+
+from appconf import AppConf
 from django.apps import AppConfig, apps
 from django.conf import settings
-from appconf import AppConf
 
 from kiola.utils import logger
 
@@ -12,6 +13,7 @@ log = logger.KiolaLogger(__name__).getLogger()
 class SiteAppConf(AppConf):
     TEMPLATE_DIRS = []
     TEMPLATES = []
+
     def _get_template_dirs(self):
 
         try:
@@ -32,26 +34,24 @@ class SiteAppConf(AppConf):
         return templates
 
     class Meta:
-        prefix = ''
-
-
-
+        prefix = ""
 
 
 class TccKiolaMedicationConfig(AppConfig):
-    name = 'tcc_kiola_medication'
+    name = "tcc_kiola_medication"
     verbose_name = "TCC Kiola Medications"
 
     def ready(self):
         from kiola.kiola_med import models as med_models
+
         from . import utils
 
         med_models.CompoundManager.adapters["TCC"] = utils.TCCAdapter
         settings.LOGGING["loggers"].update(
             {
                 "tcc_kiola_medication": {
-                    'handlers': ['syslog'],
-                    'level': 'INFO',
+                    "handlers": ["syslog"],
+                    "level": "INFO",
                 }
             }
         )
