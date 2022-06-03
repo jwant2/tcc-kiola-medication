@@ -152,6 +152,7 @@ class MedPrescriptionSerializer(serializers.ModelSerializer):
     endDate = serializers.SerializerMethodField()
     active = serializers.SerializerMethodField()
     medicationDosage = serializers.CharField(source="dosage")
+    editor = serializers.CharField()
     strength = serializers.CharField()
 
     def to_representation(self, instance):
@@ -224,6 +225,7 @@ class MedPrescriptionSerializer(serializers.ModelSerializer):
             "strength",
             "medicationType",
             "active",
+            "editor",
         ]
 
 
