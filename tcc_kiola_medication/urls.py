@@ -12,6 +12,11 @@ from . import views
 
 urlpatterns = [
     url(
+        r"api/v(?P<apiv>[0-9\.]+)/prescr/(?P<fid>\d+)/status/$",
+        views.TCCPrescriptionStatusResource.as_view(),
+        name="prescription_status",
+    ),
+    url(
         r"^m/p/(?P<sid>[a-zA-Z2-9]{21,23})/prescr/$",
         permission_required_annotated(perm="kiola_med.view_index")(
             views.TCCPrescriptionListView.as_view()

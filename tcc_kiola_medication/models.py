@@ -440,6 +440,7 @@ class TCCPrescriptionManager(PermissionModelManager):
             strength=strength,
             unit=unit,
             medication_type=med_type,
+            editor=prescriber,
         )
         prescription.save()
 
@@ -496,12 +497,13 @@ class TCCPrescriptionManager(PermissionModelManager):
 class TCCPrescription(med_models.Prescription):
     objects = TCCPrescriptionManager()
     priviledged = models.Manager()
-
+    editor = models.ForeignKey(get_user_model(), on_delete=models.CASCADE)
     takings = models.ManyToManyField(ScheduledTaking, related_name="takings_set")
     dosage = models.TextField(blank=True)
     strength = models.CharField(max_length=100, blank=True)
     unit = models.ForeignKey(med_models.TakingUnit, on_delete=models.PROTECT)
     medication_type = models.ForeignKey(MedicationType, on_delete=models.PROTECT)
+    updated_at = models.DateTimeField(auto_now=True, null=False, blank=False)
 
 
 track_model(TCCPrescription)

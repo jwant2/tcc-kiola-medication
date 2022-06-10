@@ -24,6 +24,7 @@ from django.template.response import TemplateResponse
 from django.urls import reverse
 from django.utils import timezone
 from django.utils.encoding import force_text
+from django.utils.http import is_safe_url
 from django.utils.translation import get_language
 from django.utils.translation import ugettext_lazy as _
 from django.views import generic
@@ -472,6 +473,7 @@ class PrescriptionAPIView(APIView, PaginationHandlerMixin):
                 **params,
             )
             prescription.status = p_status
+            prescription.editor = request.user
             prescription.save()
 
         return Response({"id": prescr_id}, status=status.HTTP_200_OK)
@@ -654,6 +656,7 @@ class PrescriptionAPIView(APIView, PaginationHandlerMixin):
                     name=med_const.PRESCRIPTION_STATUS__INACTIVE
                 )
                 prescr.status = prescr_stauts_inactive
+            prescr.editor = request.user
             prescr.save()
 
         else:
@@ -1706,7 +1709,7 @@ class TCCPrescriptionListView(kiola_views.KiolaSubjectListView):
 class TCCPrescriptionView(kiola_views.KiolaSubjectView):
     fid = None
     sid = None
-    template_name = "list/tcc_prescription.html"
+    template_name = "lists/tcc_prescription.html"
 
     def get(self, request, *args, **kwargs):
         self.fid = kwargs.get("fid", None)
@@ -2039,3 +2042,59 @@ class TCCAutocompleteResource(resource.Resource):
         )
         html = html + "".join(results)
         return http.HttpResponse(html, content_type="text/html")
+
+
+# replace the original prescrition status enpoint for saving request.user as editor
+class TCCPrescriptionStatusResource(resource.Resource):
+
+    allowed_status_changes = [
+        med_const.PRESCRIPTION_STATUS__INACTIVE,
+        med_const.PRESCRIPTION_STATUS__HIDDEN,
+    ]
+
+    @authentication.requires_api_login
+    def post(self, request, fid, **kwargs):
+        sid = request.POST.get("sid")
+        subject = senses.Subject.objects.get(uuid=sid)
+        try:
+            prescription = models.TCCPrescription.objects.get(subject=subject, pk=fid)
+        except models.TCCPrescription.DoesNotExist:
+            raise exceptions.NotFound("prescription not found")
+        try:
+            status = request.POST["status"]
+        except KeyError:
+            raise exceptions.BadRequest("no status given")
+        if status not in self.allowed_status_changes:
+            raise exceptions.BadRequest("illegal status given")
+        try:
+            status = med_models.PrescriptionStatus.objects.get(name=status)
+        except med_models.PrescriptionStatus.DoesNotExist:
+            raise exceptions.BadRequest("unknown status given")
+
+        target_location = request.POST.get("target_location", None)
+        if target_location is None:
+            # if target location is None assume ajax_request and no redirect is required
+            raise NotImplementedError("")
+        else:
+            if not is_safe_url(
+                url=target_location, allowed_hosts=(request.get_host(),)
+            ):
+                raise exceptions.UnsafeLocation()
+        try:
+            with transaction.atomic():
+                med_models.PrescriptionEvent.objects.create(
+                    prescription=prescription,
+                    timepoint=datetime.now(),
+                    etype=med_models.PrescriptionEventType.objects.get(
+                        name=med_const.EVENT_TYPE__CANCELED
+                    ),
+                )
+                prescription.status = status
+                ## saving request.user as editor
+                prescription.editor = request.user
+                prescription.save()
+                messages.success(request, _("Status changed"))
+        except BaseException as err:
+            print(err)
+            messages.error(request, _("Unable to set status"))
+        return http.HttpResponseRedirect(target_location)

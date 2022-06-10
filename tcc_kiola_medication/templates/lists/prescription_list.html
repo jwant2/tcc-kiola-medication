@@ -1,0 +1,397 @@
+{% extends override_base|default:"frontend/base.html" %}
+{% comment %} copied from kiola_med.prescription_list.html to display Updated By(prescr.editor) field {% endcomment %}
+{% load admin_static %}
+{% load i18n %}
+{% load l10n %}
+{% load tz %}
+{% load defer %}
+{% block title %}{% block page_title %}{% trans view.title %}{% endblock %}{% endblock %}
+
+{% block extrastyle %}{{form.media.css}}{% endblock %}
+
+{% block extrajs_top %}{{form.media.js}}{% endblock %}
+
+{% block content %}
+
+<div id="list-content" class="row">
+    <div class="col-sm-12">
+        <div class="panel panel-default">
+            <div class="panel-heading">
+                <div class="row">
+                <div class="col-sm-3">
+                    <h4>{% trans "Active prescriptions" %}</h4>
+                </div>
+                <div class="col-sm-9"> 
+                    <div class="clearfix">
+                    {% if active_prescriptions %}
+                    {% include "lists/list_buttons.html" with location="header" extra_button_template="lists/medplancreate_button.html"%}
+                    {% else %}
+                    {% include "lists/list_buttons.html" with location="header" %}
+                    {% endif %}
+                    </div>
+                </div>
+                </div>
+            </div>
+            <div class="panel-body no-padding">            
+                <table class="table table-bordered table-striped no-margin prescriptions">
+                    <thead class="thin-border-bottom">
+                    {% if prescription_profiles_active and active_prescriptions %}
+                        <tr>
+                            <th colspan="7">
+                                <form method="post" class="form-inline profileform" action="{% url 'med_api:prescription_profile' '1' %}">
+                                    {% csrf_token %} 
+                                    <input type="hidden" name="sid" value="{{ request.subject_uid }}" />
+                                    <input type="hidden" name="target_location" value="{% url 'med:prescription_index'  request.subject_uid %}"/>
+                                    <button id="btn_update_compliance" data-clicked="0" class="btn btn-danger btn-create" type="button" ><i class="fa fa-eye"></i> {% trans 'Update compliance monitoring' %}</button>
+                                    {% for id in active_profile_ids %}
+                                    <input type="hidden" name="as_profile" value="{{ id }}" />
+                                    {% endfor %}
+                                </form>
+                            </th>
+                        </tr>
+                    {% endif %}
+                        <tr>
+                        {% if prescription_profiles_active and active_prescriptions %}
+                            <th><label class="inline"><input type="checkbox" class="ace" id="select_all" name="select_all" {% if active_profile_ids|length == active_prescriptions|length %}checked="checked"{% endif %} /><span class="lbl"></span></label></th>
+                        {% endif %}
+                            <th>{% trans 'Compound' %}</th>
+                            <th>{% trans 'Dosage' %}</th>
+                            <th>{% trans 'Taking hint' %}</th>
+                            <th>{% trans 'Reason' %}</th>
+                            <th>{% trans 'Prescribed at/take until' %}</th>
+                            {% comment %} new column {% endcomment %}
+                            <th>{% trans 'Updated By' %}</th>
+                            <th>{% trans 'Action'%}</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for obj in active_prescriptions %}
+                
+                        <tr>
+                        {% if prescription_profiles_active and active_prescriptions %}
+                            <td>
+                            <form>
+                            <input type="checkbox" class="ace" name="as_profile" value="{{obj.pk}}" {% if obj.pk in active_profile_ids %}checked="checked"{% endif %} />
+                            <span class="lbl"></span>
+                            </form>
+                            </td>
+                        {% endif %}
+                            <td>
+                                <a href="{{obj.pk}}/"><strong>{{ obj.compound.name }}</strong></a><br/>
+                                {% with obj.compound.indications.all as indications %}
+                                {% if indications %}<dd><i>{% trans 'Indication' %}:</i> {{indications|join:", "}}</dd>{% endif%}
+                                {% endwith %}
+                                <dd><i>{% trans 'Active components' %}:</i> {{obj.compound.active_components.all|join:", "}}</dd>
+                                <dd><i>{% trans 'Dosage form' %}:</i> {{obj.compound.dosage_form}}</dd>
+                            </td>
+                            <td>{{obj.displayable_taking}}</td>
+                            <td>{{obj.taking_hint|linebreaks}}</td>
+                            <td>{{obj.taking_reason}}</td>
+                            <td>{{obj.prescriptionevent_set.all.0.timepoint|localtime|date:"SHORT_DATE_FORMAT"}} / <br/>
+                                {% if obj.prescriptionevent_set.all.1.etype.name == enddatekey %}
+                                <i>{{obj.prescriptionevent_set.all.1.timepoint|localtime|date:"SHORT_DATE_FORMAT"}}</i>
+                                {% else %}
+                                <i>{% trans 'no end date given' %}</i>
+                                {% endif %}
+                                <br/>({% trans 'valid since' %}: {{obj.added_on.0.timepoint|localtime|localize}})
+                            </td>
+                            {% comment %} new field for prescr.editor {% endcomment %}
+                            <td>{{obj.editor}} <br/> ({{obj.updated_at}})</td>
+                            <td>
+                                <div class="action-buttons">
+                                    <form class="no-padding no-margin form-confirm" action="{% url 'med_api:prescription_status' '1' obj.pk %}" onsubmit="return window.confirm('{% trans 'Remove prescription ?'%}')" method="post">
+                                        {% csrf_token %} 
+                                        <input type="hidden" name="target_location" value="{% url 'med:prescription_index'  request.subject_uid %}"/>
+                                        <input type="hidden" name="sid" value="{{ request.subject_uid }}" />
+                                        <input type="hidden" name="status" value="{{status.inactive}}"/>
+                                        <button type="submit" class="btn btn-xs btn-danger remove_active">
+                                            <i class="fa fa-trash-o bigger-130"></i>
+                                        </button>
+                                    </form>
+                                 </div>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                        {% if not active_prescriptions %}
+                        <tr>
+                        <td colspan="6">{% trans 'No active prescriptions found' %}</td>
+                        </tr>
+                        {% endif %}
+                    </tbody>
+                </table>
+            </div><!-- /.panel-body -->
+            <div class="panel-footer">
+                 {% include "lists/list_footer.html" %}
+            </div><!-- /panel-footer -->
+        </div><!--/panel-->
+        <div class="panel panel-default">
+            <div class="panel-heading">
+                <h4>{% trans "Inactive prescriptions" %}</h4> 
+            </div>
+            <div class="panel-body no-padding">
+                <table class="table table-bordered table-striped no-margin prescriptions">
+                    <thead class="thin-border-bottom">
+                        <tr>
+                            <th>{% trans 'Compound' %}</th>
+                            <th>{% trans 'Dosage' %}</th>
+                            <th>{% trans 'Taking hint' %}</th>
+                            <th>{% trans 'Reason' %}</th>
+                            <th>{% trans 'Validity period' %}</th>
+                            <th>{% trans 'Updated By' %}</th>
+                            <th>{% trans 'Action'%}</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for obj in inactive_prescriptions %}
+                        <tr>
+                            <td>
+                                <a href="{{obj.pk}}/"><strong>{{ obj.compound.name }}</strong></a><br/>
+                                {% with obj.compound.indications.all as indications %}
+                                {% if indications %}<dd><i>{% trans 'Indication' %}:</i> {{indications|join:", "}}</dd>{% endif%}
+                                {% endwith %}
+                                <dd><i>{% trans 'Active components' %}:</i> {{obj.compound.active_components.all|join:", "}}</dd>
+                                <dd><i>{% trans 'Dosage form' %}:</i> {{obj.compound.dosage_form}}</dd>
+                            </td>
+                            <td>{{obj.displayable_taking}}</td>
+                            <td>{{obj.taking_hint|linebreaks}}</td>
+                            <td>{{obj.taking_reason}}</td>
+                            <td>
+                                {{obj.prescriptionevent_set.all.0.timepoint|localtime|localize}} {% trans 'until' %} 
+                                {% if obj.prescriptionevent_set.all.2 %}
+                                {{obj.prescriptionevent_set.all.2.timepoint|localtime|localize}}
+                                {% else %}
+                                {{obj.prescriptionevent_set.all.1.timepoint|localtime|localize}}
+                                {% endif %}
+                                <br/>
+                                ({% trans 'Prescribed on' %}: {{obj.prescribed_info.0.timepoint|localtime|date:"SHORT_DATE_FORMAT"}} )
+                            </td>
+                            {% comment %} new field for prescr.editor {% endcomment %}
+                            <td>{{obj.editor}} <br/> ({{obj.updated_at}})</td>
+                            <td>
+                                <div class="action-buttons">
+                                    <form class="no-padding no-margin form-confirm" action="{% url 'med_api:prescription_status' '1' obj.pk %}" onsubmit="return window.confirm('{% trans 'Remove prescription ?'%}')" method="post">
+                                        {% csrf_token %} 
+                                        <input type="hidden" name="target_location" value="{% url 'med:prescription_index'  request.subject_uid %}"/>
+                                        <input type="hidden" name="status" value="{{status.hidden}}"/>
+                                        <input type="hidden" name="sid" value="{{ request.subject_uid }}" />
+                                        <button type="submit" class="btn btn-xs btn-danger remove_inactive">
+                                            <i class="fa fa-trash-o bigger-130"></i>
+                                        </button>
+                                    </form>
+                                </div>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                        {% if not inactive_prescriptions %}
+                        <tr>
+                            <td colspan="6">{% trans 'No inactive prescriptions found' %}</td>
+                        </tr>
+                        {% endif %}
+                    </tbody>
+                </table>
+              </div><!-- /.panel-body -->
+            <div class="panel-footer">
+                 &nbsp;
+            </div><!-- /panel-footer -->
+        </div><!--/panel-->
+    </div><!--/.col-sm-12-->
+</div><!--/.list-content-->
+
+{% defer_html %}
+<script type="text/javascript">
+
+
+$("#btn_update_compliance").hide();
+
+$("#btn_update_compliance").on("click", function() {
+    $(this).data("clicked", "1");
+});
+
+var initial_cbs = []
+$("input[type=checkbox][name='as_profile']:checked").each(function() {
+     initial_cbs.push($(this).val());
+});
+        
+        
+$('table.prescriptions tr td:not(:last-child)').click(function ()    {
+	 location.href = $(this).parent().find('td a').attr('href');
+	});
+
+$('table.prescriptions tr td:not(:last-child)').hover(function() {
+	 $(this).css('cursor','pointer');
+	  }, function() {
+	   $(this).css('cursor','auto');
+	});
+
+$(function () {
+	if ($('table.prescriptions tr td:first-child').find('input[type=checkbox]')){
+		$('table.prescriptions tr td:first-child').unbind("click");
+		$('table.prescriptions tr td:first-child').unbind('mouseenter mouseleave');
+	}
+})
+
+
+$('.form-confirm').removeAttr('onsubmit');
+$(".remove_active").prop('type', 'button');
+$(".remove_inactive").prop('type', 'button');
+$(function () {
+$(".remove_active").on(ace.click_event, function(e) {
+	e.preventDefault();
+	var source=$(this);
+    bootbox.confirm("{% trans 'Remove prescription ?'%}", function(result) {
+        if(result) {
+            source[0].form.submit()
+        }
+    });
+});
+});
+$(function () {
+$(".remove_inactive").on(ace.click_event, function(e) {
+    e.preventDefault();
+    var source=$(this);
+    bootbox.confirm("{% trans 'Remove prescription ?'%}", function(result) {
+        if(result) {
+            source[0].form.submit()
+        }
+    });
+});
+});
+
+
+var spin_opts = {
+          lines: 7, // The number of lines to draw
+          length: 2, // The length of each line
+          width: 3, // The line thickness
+          radius: 5, // The radius of the inner circle
+          corners: 1, // Corner roundness (0..1)
+          rotate: 0, // The rotation offset
+          direction: 1, // 1: clockwise, -1: counterclockwise
+          color: '#000', // #rgb or #rrggbb or array of colors
+          speed: 1, // Rounds per second
+          trail: 60, // Afterglow percentage
+          shadow: false, // Whether to render a shadow
+          hwaccel: false, // Whether to use hardware acceleration
+          className: 'spinner', // The CSS class to assign to the spinner
+          zIndex: 2e9, // The z-index (defaults to 2000000000)
+          top: '20px', // Top position relative to parent in px
+          left: '20px' // Left position relative to parent in px
+        };
+        
+
+jQuery(function($) {
+    $('.btn-create').on(ace.click_event, function (evt) {
+        var btn = $(this);
+        btn.button('loading')
+        var children = btn.html(); 
+        var spinner = new Spinner(spin_opts).spin();
+        btn.prop("disabled",true);
+        btn.append(spinner.el);
+
+        setTimeout(function () {
+            spinner.stop();
+            btn.button('reset')
+            btn.prop("disabled",false);
+        }, 1000)
+    });
+});
+
+
+$(".docform").click(function(e)
+        {
+            var postData = $(this).serializeArray();
+            var formURL = $(this).attr("action");
+            e.preventDefault(); //STOP default action
+            $.ajax(
+            {
+                url : formURL,
+                type: "POST",
+                data : postData,
+                success:function(data, textStatus, jqXHR)
+                {
+                    //data: return data from server
+                    window.location.href=data["location"]+"?a=1";
+                },
+                error: function(jqXHR, textStatus, errorThrown)
+                {
+                    //if fails     
+                }
+            });
+            
+        });
+
+$("#select_all").click(function(e){
+	$("input[type=checkbox][name='as_profile']").each(function(index) {
+        $(this).prop('checked',$("#select_all").prop('checked'))
+    });
+    var current_cbs = []
+    $("input[type=checkbox][name='as_profile']:checked").each(function() {
+         current_cbs.push($(this).val());
+    });        
+    var equal = (current_cbs.length == initial_cbs.length) && current_cbs.every(function(element, index) {
+        return element === initial_cbs[index]; 
+    });        
+    if (!equal) {
+        $("#btn_update_compliance").show();
+    }
+    else {
+        $("#btn_update_compliance").hide();
+    }    
+})
+
+jQuery(function($) {
+    $("input[type=checkbox][name='as_profile']").on(ace.click_event,function(e){
+        if ($(this).prop("checked") == false){
+        	$("#select_all").prop('checked', false);
+        }
+                
+        var current_cbs = []
+        $("input[type=checkbox][name='as_profile']:checked").each(function() {
+             current_cbs.push($(this).val());
+        });        
+        var equal = (current_cbs.length == initial_cbs.length) && current_cbs.every(function(element, index) {
+            return element === initial_cbs[index]; 
+        });        
+        if (!equal) {
+            $("#btn_update_compliance").show();
+        }
+        else {
+            $("#btn_update_compliance").hide();
+        }
+    })        
+});
+
+
+
+window.onbeforeunload = function() {
+    if ($("#btn_update_compliance").is(":visible") && ($("#btn_update_compliance").data("clicked") == "0")) {
+        $("#btn_update_compliance").data("clicked", "0");
+        return '{% trans "Configuration of medication has changed and not been saved. Do you want to leave the page?" %}';
+    }
+}
+
+$("form.profileform button").click(function(e){
+	
+	//remove all hidden inputs from form
+	$("form.profileform input[name='as_profile']").remove();
+	
+	//add the new ones
+	$("input[type=checkbox][name='as_profile']:checked").each(		
+		function( index ) {
+            $('<input />',{
+                type: 'hidden',
+                name: 'as_profile',
+                value: $(this).val()
+            }).appendTo($("form.profileform"))
+		}
+        );
+    //submit form    
+    $("form.profileform").submit();
+        
+})
+
+</script>
+{% end_defer_html %}
+
+
+{% endblock %}
+

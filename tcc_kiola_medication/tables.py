@@ -25,7 +25,7 @@ from . import const, models
 class MedicationAdherenceOverview(object):
     model = senses_models.Observation
     title = _("Medication taken")
-    template_name = "list/med_table.html"
+    template_name = "lists/med_table.html"
     use_full_objects = True
 
     field_colors = {

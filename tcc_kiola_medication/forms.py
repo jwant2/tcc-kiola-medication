@@ -481,6 +481,7 @@ class TCCPrescriptionForm(senses_forms.KiolaSubjectForm):
         prescription.dosage = cd["dosage"]
         prescription.strength = cd["strength"]
         prescription.unit = unit
+        prescription.editor = request.user
         prescription.save()
         messages.success(
             request, _("Prescription saved: {compound}").format(compound=compound.name)
