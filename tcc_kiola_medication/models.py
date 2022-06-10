@@ -503,6 +503,7 @@ class TCCPrescription(med_models.Prescription):
     strength = models.CharField(max_length=100, blank=True)
     unit = models.ForeignKey(med_models.TakingUnit, on_delete=models.PROTECT)
     medication_type = models.ForeignKey(MedicationType, on_delete=models.PROTECT)
+    updated_at = models.DateTimeField(auto_now=True, null=False, blank=False)
 
 
 track_model(TCCPrescription)

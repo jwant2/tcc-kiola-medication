@@ -96,7 +96,7 @@
                                 <br/>({% trans 'valid since' %}: {{obj.added_on.0.timepoint|localtime|localize}})
                             </td>
                             {% comment %} new field for prescr.editor {% endcomment %}
-                            <td>{{obj.editor}}</td>
+                            <td>{{obj.editor}} <br/> ({{obj.updated_at}})</td>
                             <td>
                                 <div class="action-buttons">
                                     <form class="no-padding no-margin form-confirm" action="{% url 'med_api:prescription_status' '1' obj.pk %}" onsubmit="return window.confirm('{% trans 'Remove prescription ?'%}')" method="post">
@@ -166,7 +166,7 @@
                                 ({% trans 'Prescribed on' %}: {{obj.prescribed_info.0.timepoint|localtime|date:"SHORT_DATE_FORMAT"}} )
                             </td>
                             {% comment %} new field for prescr.editor {% endcomment %}
-                            <td>{{obj.editor}}</td>
+                            <td>{{obj.editor}} <br/> ({{obj.updated_at}})</td>
                             <td>
                                 <div class="action-buttons">
                                     <form class="no-padding no-margin form-confirm" action="{% url 'med_api:prescription_status' '1' obj.pk %}" onsubmit="return window.confirm('{% trans 'Remove prescription ?'%}')" method="post">
