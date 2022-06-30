@@ -53,6 +53,14 @@ class MedicationAdherenceOverview(object):
         data = []
         for schedule in schedules:
             row_data = []
+            schedule_data = self._get_obs_data(
+                self.request, schedule.pk, self.start, self.stop
+            )
+
+            # only show inactive schedules if they have an observation
+            if schedule.active is False and not schedule_data:
+                continue
+
             row_data.append(
                 dict(
                     value=(
@@ -63,9 +71,6 @@ class MedicationAdherenceOverview(object):
             )
             for i in range(0, days):
                 row_data.append(dict(color_class="", value=""))
-            schedule_data = self._get_obs_data(
-                self.request, schedule.pk, self.start, self.stop
-            )
             for item in schedule_data:
                 idx = self._check_date_index(item.action_date)
                 if idx < 0:
@@ -114,8 +119,10 @@ class MedicationAdherenceOverview(object):
             )
             .filter(
                 takings_set__subject__uuid=subject_uid,
-                takings_set__status__name=med_const.PRESCRIPTION_STATUS__ACTIVE,
-                active=True,
+                takings_set__status__name__in=[
+                    med_const.PRESCRIPTION_STATUS__ACTIVE,
+                    med_const.PRESCRIPTION_STATUS__INACTIVE,
+                ],
             )
             .annotate(prescr_id=F("takings_set__id"))
             .annotate(compound_name=F("takings_set__compound__name"))
