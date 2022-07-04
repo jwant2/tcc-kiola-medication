@@ -50,9 +50,8 @@ class MedicationAdherenceOverview(object):
         headers = [""]
         for i in range(0, days):
             headers.append((self.start + timedelta(days=i + 1)).strftime("%d/%m"))
-        data = []
-        active_count = 0
-        inactive_count = 0
+        active_data = []
+        inactive_data = []
 
         for schedule in schedules:
             row_data = []
@@ -60,13 +59,9 @@ class MedicationAdherenceOverview(object):
                 self.request, schedule.pk, self.start, self.stop
             )
 
-            if schedule.active is not True:
-                # only show inactive schedules if they have an observatio
-                if not schedule_data:
-                    continue
-                inactive_count += 1
-            else:
-                active_count += 1
+            # only show inactive schedules if they have an observatio
+            if schedule.active is not True and not schedule_data:
+                continue
 
             row_data.append(
                 dict(
@@ -97,34 +92,35 @@ class MedicationAdherenceOverview(object):
                     color_class=f"{cell_color} {muted_color} col-md-1",
                     value=time if item.action != "undo" else "-",
                 )
-            data.append(row_data)
 
-        if active_count > 0:
-            data.insert(
-                0,
+            if schedule.active:
+                active_data.append(row_data)
+            else:
+                inactive_data.append(row_data)
+
+        # append data rows
+        data = []
+        if active_data and inactive_data:
+            data.append(
                 [
-                    dict(
-                        color_class="",
-                        value="",
-                    ),
+                    dict(),
                     dict(
                         color_class="", value="Active Schedules", colspan=len(headers)
                     ),
-                ],
+                ]
             )
-        if inactive_count > 0:
-            data.insert(
-                active_count + 1,
+        if active_data:
+            data.extend(active_data)
+        if inactive_data:
+            data.append(
                 [
-                    dict(
-                        color_class="",
-                        value="",
-                    ),
+                    dict(),
                     dict(
                         color_class="", value="Inactive Schedules", colspan=len(headers)
                     ),
                 ],
             )
+            data.extend(inactive_data)
 
         c = Context(
             dict(
