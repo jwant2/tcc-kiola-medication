@@ -50,9 +50,19 @@ class MedicationAdherenceOverview(object):
         headers = [""]
         for i in range(0, days):
             headers.append((self.start + timedelta(days=i + 1)).strftime("%d/%m"))
-        data = []
+        active_data = []
+        inactive_data = []
+
         for schedule in schedules:
             row_data = []
+            schedule_data = self._get_obs_data(
+                self.request, schedule.pk, self.start, self.stop
+            )
+
+            # only show inactive schedules if they have an observatio
+            if schedule.active is not True and not schedule_data:
+                continue
+
             row_data.append(
                 dict(
                     value=(
@@ -63,14 +73,12 @@ class MedicationAdherenceOverview(object):
             )
             for i in range(0, days):
                 row_data.append(dict(color_class="", value=""))
-            schedule_data = self._get_obs_data(
-                self.request, schedule.pk, self.start, self.stop
-            )
             for item in schedule_data:
                 idx = self._check_date_index(item.action_date)
                 if idx < 0:
                     continue
                 cell_color = self.field_colors.get(item.action, "")
+                muted_color = "" if schedule.active else "muted_bs_color"
                 # format action time format, or use parent.started for morning/afternoon/etc..
                 try:
                     time = parser.parse(item.action_time).time().strftime("%H:%M")
@@ -81,10 +89,38 @@ class MedicationAdherenceOverview(object):
                         .strftime("%H:%M")
                     )
                 row_data[idx] = dict(
-                    color_class=f"{cell_color} col-md-1",
+                    color_class=f"{cell_color} {muted_color} col-md-1",
                     value=time if item.action != "undo" else "-",
                 )
-            data.append(row_data)
+
+            if schedule.active:
+                active_data.append(row_data)
+            else:
+                inactive_data.append(row_data)
+
+        # append data rows
+        data = []
+        if active_data and inactive_data:
+            data.append(
+                [
+                    dict(),
+                    dict(
+                        color_class="", value="Active Schedules", colspan=len(headers)
+                    ),
+                ]
+            )
+        if active_data:
+            data.extend(active_data)
+        if inactive_data:
+            data.append(
+                [
+                    dict(),
+                    dict(
+                        color_class="", value="Inactive Schedules", colspan=len(headers)
+                    ),
+                ],
+            )
+            data.extend(inactive_data)
 
         c = Context(
             dict(
@@ -110,12 +146,15 @@ class MedicationAdherenceOverview(object):
         subject_uid = self.request.subject_uid
         schedules = (
             models.ScheduledTaking.objects.prefetch_related(
-                "takings_set", "takings_set__compound"
+                "taking_time__hour", "takings_set", "takings_set__compound"
             )
+            .order_by("-active", "taking_time__hour")
             .filter(
                 takings_set__subject__uuid=subject_uid,
-                takings_set__status__name=med_const.PRESCRIPTION_STATUS__ACTIVE,
-                active=True,
+                takings_set__status__name__in=[
+                    med_const.PRESCRIPTION_STATUS__ACTIVE,
+                    med_const.PRESCRIPTION_STATUS__INACTIVE,
+                ],
             )
             .annotate(prescr_id=F("takings_set__id"))
             .annotate(compound_name=F("takings_set__compound__name"))
