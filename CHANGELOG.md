@@ -2,6 +2,14 @@
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+### [0.7.11](https://bitbucket.org/teleclinicalcare/tcc-kiola-medication/compare/v0.7.10...v0.7.11) (2022-07-05)
+
+
+### Bug Fixes
+
+* remove depreciated tag that raised error on django3 ([c54281f](https://bitbucket.org/teleclinicalcare/tcc-kiola-medication/commit/c54281fae7db764fe295c4a317e79209ba986170))
+* replace user query with 1 ([a6056ed](https://bitbucket.org/teleclinicalcare/tcc-kiola-medication/commit/a6056eda3ea198c802a0cbe1b9ba8fa2766f3b2a))
+
 ### [0.7.10](https://bitbucket.org/teleclinicalcare/tcc-kiola-medication/compare/v0.7.9...v0.7.10) (2022-07-05)
 
 
