@@ -2,6 +2,19 @@
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+### [0.7.9](https://bitbucket.org/teleclinicalcare/tcc-kiola-medication/compare/v0.7.8...v0.7.9) (2022-07-05)
+
+
+### Features
+
+* added editor field to TCCPrescription for tracking who is the last editor ([dcffb92](https://bitbucket.org/teleclinicalcare/tcc-kiola-medication/commit/dcffb92541f45fb6d5a294400f8434568cf49d10))
+* seperative active and inactive medications in table ([a76df3f](https://bitbucket.org/teleclinicalcare/tcc-kiola-medication/commit/a76df3faef764e9d1d7d32df3214f0b7063dc695))
+
+
+### Bug Fixes
+
+* show inactive medications that have been taken ([b1f7ae2](https://bitbucket.org/teleclinicalcare/tcc-kiola-medication/commit/b1f7ae2d51f4cd303dde7a2475265eea5c19b083))
+
 ### [0.7.8](https://bitbucket.org/teleclinicalcare/tcc-kiola-medication/compare/v0.7.7...v0.7.8) (2022-05-12)
 
 
