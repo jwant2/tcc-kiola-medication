@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+### [0.7.10](https://bitbucket.org/teleclinicalcare/tcc-kiola-medication/compare/v0.7.9...v0.7.10) (2022-07-05)
+
+
+### Bug Fixes
+
+* update 0011_update_tccprescription_20220610_1451 to solve model.objects blocking the main function ([1754e1a](https://bitbucket.org/teleclinicalcare/tcc-kiola-medication/commit/1754e1af6c50375fde67099e5e2ed33833a811b1))
+
 ### [0.7.9](https://bitbucket.org/teleclinicalcare/tcc-kiola-medication/compare/v0.7.8...v0.7.9) (2022-07-05)
 
 
