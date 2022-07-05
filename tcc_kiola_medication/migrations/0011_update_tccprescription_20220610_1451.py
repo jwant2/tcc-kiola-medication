@@ -18,7 +18,7 @@ class Migration(migrations.Migration):
             model_name="tccprescription",
             name="editor",
             field=models.ForeignKey(
-                default=get_user_model().priviledged.first().pk,
+                default=1,
                 on_delete=django.db.models.deletion.CASCADE,
                 to=settings.AUTH_USER_MODEL,
             ),
