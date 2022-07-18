@@ -3,42 +3,43 @@
 {% load common_tags %}
 {% load defer %}
 
-        
+
   <div class="widget-box {{module_name}}">
         <div class="widget-header widget-header-flat">
             <h4 class="widget-title lighter">
                 <i class="ace-icon fa fa-table"></i>
                 {% trans 'Tables' %}
-            </h4>        
-            <div class="widget-toolbar">        
+            </h4>
+            <div class="widget-toolbar">
                 <a class="orange2" data-action="fullscreen" href="#">
                     <i class="ace-icon fa fa-expand bigger-125"></i>
-                </a>        
+                </a>
                 <a data-action="collapse" href="#">
                     <i class="1 ace-icon fa fa-chevron-up bigger-125"></i>
-                </a>            
-            </div>                 
+                </a>
+            </div>
         </div><!--  /widget-header -->
 
-        
+
         <div class="widget-body">
-        
+
         <div class="widget-toolbox">
             {% if can_register_patients %}
             <div style="padding:2px">
                   <a href="/m/u/wizards/register/">
                       <button class="btn btn-success">{{register_new_subject}}</button>
                     </a>
-                 </div> 
+                 </div>
             {% endif %}
         </div>
-        
+
         <div class="widget-toolbox">
         <div class=" padding-2">
-{% for patientlist in patientlists %}
-{% if patientlist.description %}
-            <div id="{{patientlist.table_id}}_description" class="">      
-                      {{patientlist.description}}
+
+{% for tablelist in tablelists %}
+{% if tablelist.description %}
+            <div id="{{tablelist.table_id}}_description" class="">
+                      {{tablelist.description}}
             </div>
 {% endif %}
 {% endfor %}
@@ -46,12 +47,12 @@
         </div> <!-- /widget-toolbox -->
 
             <div class="widget-main padding-2">
-                <div class="">              
-                    {% for patientlist in patientlists %}
-                    <div id="{{patientlist.table_id}}" class=" ">                        
-                        {{patientlist.render}}
+                <div class="">
+                    {% for tablelist in tablelists %}
+                    <div id="{{tablelist.table_id}}" class=" ">
+                        {{tablelist.render}}
                         <!-- legend start -->
-                        {% try_to_include "modules/includes/"|add:patientlist.class_name|add:"_footer.html" %}
+                        {% try_to_include "modules/includes/"|add:tablelist.class_name|add:"_footer.html" %}
                         <!-- legend end -->
                     </div>
                     {%  endfor%}
@@ -63,15 +64,15 @@
 {% defer_html %}
 <script type="text/javascript">
 $(function() {
-    $('.patientlist a[data-toggle="tab"]').on('shown.bs.tab', function (e) {  
+    $('.tablelist a[data-toggle="tab"]').on('shown.bs.tab', function (e) {
          var table_id = $(e.target).attr("href").replace("#", "");
-         Cookies.set("cares_patlist_module_table", table_id, {path: '/m', {% if request.is_secure %} secure : true {% endif %}} ); 
+         Cookies.set("cares_patlist_module_table", table_id, {path: '/m', {% if request.is_secure %} secure : true {% endif %}} );
     })
-    {% for patientlist in patientlists %}
-    $("#grid_{{patientlist.table_id}}").on("loaded.rs.jquery.bootgrid", function (e)
-        {   
+    {% for tablelist in tablelists %}
+    $("#grid_{{tablelist.table_id}}").on("loaded.rs.jquery.bootgrid", function (e)
+        {
             var table$ = $(this);
-            $(".{{patientlist.table_id}}-tab-rowcount").each(function() {
+            $(".{{tablelist.table_id}}-tab-rowcount").each(function() {
                 $(this).html(" (" + table$.bootgrid("getTotalRowCount") + ")" )
             })
         })
