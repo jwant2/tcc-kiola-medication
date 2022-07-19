@@ -18,7 +18,7 @@ class TablesModule(DashboardModule):
     title = _("Tables")
     template = "modules/tablelist.html"
     link = ""
-    name = "tablesmodule"
+    name = "tablelistmodule"
     permissions = []
 
     class Media:
@@ -40,11 +40,8 @@ class TablesModule(DashboardModule):
         }
 
     def prepare(self):
-        self.vars["patientlists"] = [tables.MedicationAdherenceOverview(self.request)]
+        self.vars["tablelists"] = [tables.MedicationAdherenceOverview(self.request)]
         self.vars["title"] = self.title
-
-
-module_registry.register(TablesModule)
 
 
 class PatientHelpdeskDashboard(cares_modules.PatientHelpdeskDashboard):
@@ -52,7 +49,7 @@ class PatientHelpdeskDashboard(cares_modules.PatientHelpdeskDashboard):
 
     def init_with_context(self, context):
         super().init_with_context(context)
-        self.modules.insert(1, module_registry.modules["tablesmodule"])
+        self.modules.insert(1, module_registry.modules["tablelistmodule"])
 
 
 del dashboard_registry.dashboards[cares_const.DASHBOARD__CARES_PATIENT_HELPDESK]
@@ -68,10 +65,15 @@ class PatientAdminDashboard(cares_modules.PatientHelpdeskDashboard):
 
     def init_with_context(self, context):
         super(PatientAdminDashboard, self).init_with_context(context)
-        self.modules.insert(1, module_registry.modules["tablesmodule"])
+        self.modules.insert(1, module_registry.modules["tablelistmodule"])
 
 
 del dashboard_registry.dashboards[cares_const.DASHBOARD__CARES_PATIENT_ADMIN]
 dashboard_registry.register(
     PatientHelpdeskDashboard, name=cares_const.DASHBOARD__CARES_PATIENT_ADMIN
 )
+
+
+def register_tablelist_module():
+    if TablesModule.name not in list(module_registry.modules):
+        module_registry.register(TablesModule)
