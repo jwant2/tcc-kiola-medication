@@ -44,9 +44,6 @@ class TablesModule(DashboardModule):
         self.vars["title"] = self.title
 
 
-module_registry.register(TablesModule)
-
-
 class PatientHelpdeskDashboard(cares_modules.PatientHelpdeskDashboard):
     """This Dashboard is the main patient dashboard"""
 
@@ -75,3 +72,8 @@ del dashboard_registry.dashboards[cares_const.DASHBOARD__CARES_PATIENT_ADMIN]
 dashboard_registry.register(
     PatientHelpdeskDashboard, name=cares_const.DASHBOARD__CARES_PATIENT_ADMIN
 )
+
+
+def register_tablelist_module():
+    if TablesModule.name not in list(module_registry.modules):
+        module_registry.register(TablesModule)

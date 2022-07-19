@@ -44,7 +44,7 @@ class TccKiolaMedicationConfig(AppConfig):
     def ready(self):
         from kiola.kiola_med import models as med_models
 
-        from . import utils
+        from . import modules, utils
 
         med_models.CompoundManager.adapters["TCC"] = utils.TCCAdapter
         settings.LOGGING["loggers"].update(
@@ -55,3 +55,5 @@ class TccKiolaMedicationConfig(AppConfig):
                 }
             }
         )
+
+        modules.register_tablelist_module()
