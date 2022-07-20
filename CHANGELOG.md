@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+### [0.7.12](https://bitbucket.org/teleclinicalcare/tcc-kiola-medication/compare/v0.7.11...v0.7.12) (2022-07-20)
+
+
+### Bug Fixes
+
+* only add tables module if it does not already exist ([49bad52](https://bitbucket.org/teleclinicalcare/tcc-kiola-medication/commit/49bad525da23487ee6f11193799d6a2bc5d6e915))
+
 ### [0.7.11](https://bitbucket.org/teleclinicalcare/tcc-kiola-medication/compare/v0.7.10...v0.7.11) (2022-07-05)
 
 
