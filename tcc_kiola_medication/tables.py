@@ -209,7 +209,10 @@ class MedicationAdherenceOverview(object):
             )
         )
         if start and stop:
-            observations.filter(parent__started__range=[start, stop])
+            observations = observations.filter(
+                action_date__gt=str(start.date()),
+                action_date__lte=str(stop.date())
+            )
         if count_only:
             return observations.count()
         return observations
