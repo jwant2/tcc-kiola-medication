@@ -1,20 +1,16 @@
 import json
 import os
 from datetime import datetime
-from typing import Tuple
 
-import pytz
-from diplomat.models import ISOCountry, ISOLanguage
 from django.apps import apps
-from django.conf import settings
-from django.contrib.auth.models import Group, Permission, User
+from django.contrib.auth.models import Group
 from django.core.files.uploadedfile import SimpleUploadedFile
-from django.test import TestCase
-from django.urls import resolve, reverse
+from django.urls import reverse
 from django.utils import timezone
 from django_cron import CronJobManager
 from freezegun import freeze_time
 from reversion import revisions as reversion
+from tcc_kiola_common.utils.debug import debug_this_fn
 from tcc_kiola_notification import models as notif_models
 
 from kiola.cares.const import USER_GROUP__COORDINATORS
@@ -398,6 +394,7 @@ class MedicationTest(KiolaTest):
         }
         self.assertEqual(content, data)
 
+    # @debug_this_fn(5678)
     def test_prescription_api(self):
         c = self.client
 
@@ -435,6 +432,7 @@ class MedicationTest(KiolaTest):
         content = json.loads(response.content.decode("utf-8"))
         del content["startDate"]
         del content["endDate"]
+        del content["updatedAt"]
         data = {
             "id": "1",
             "reason": "test reason",
@@ -450,7 +448,11 @@ class MedicationTest(KiolaTest):
             "schedule": [],
             "medicationType": "PRN",
             "active": True,
+            "editor": "test_patient",
         }
+        print(
+            1111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111
+        )
         self.assertEqual(content, data)
         # # test if compound created
         # compound_exist = med_models.Compound.objects.filter(uid="342225332", source__version="test").count() == 1
@@ -492,6 +494,7 @@ class MedicationTest(KiolaTest):
         content = json.loads(response.content.decode("utf-8"))
         del content["startDate"]
         del content["endDate"]
+        del content["updatedAt"]
         data = {
             "id": "1",
             "reason": "test reason 1",
@@ -507,6 +510,7 @@ class MedicationTest(KiolaTest):
             "schedule": [],
             "medicationType": "PRN",
             "active": True,
+            "editor": "test_patient",
         }
         self.assertEqual(content, data)
 
@@ -580,6 +584,7 @@ class MedicationTest(KiolaTest):
         content = json.loads(response.content.decode("utf-8"))
         del content["startDate"]
         del content["endDate"]
+        del content["updatedAt"]
         data = {
             "id": "1",
             "reason": "test reason 1",
@@ -595,6 +600,7 @@ class MedicationTest(KiolaTest):
             "strength": "30 mg",
             "medicationType": "PRN",
             "active": True,
+            "editor": "test_patient",
         }
         self.assertEqual(content, data)
 
