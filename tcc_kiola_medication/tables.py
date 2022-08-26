@@ -28,7 +28,7 @@ from . import const, models
 class MedicationAdherenceOverview(BaseTable):
     model = senses_models.Observation
     title = _("Medication taken")
-    # template_name = "lists/med_table.html"
+    template_name = "lists/med_table.html"
     use_full_objects = True
     id = "Medication_Adherence_Overview"
     field_colors = {
@@ -36,7 +36,6 @@ class MedicationAdherenceOverview(BaseTable):
         "not_take": "danger",  # red
         "undo": "warning",  # yellow
     }
-
 
     def render(self, **kwargs):
         try:
@@ -141,7 +140,7 @@ class MedicationAdherenceOverview(BaseTable):
             return -1
         return index
 
-    def _get_active_schedule(self, request,  subject_uid, count_only=False, **kwargs):
+    def _get_active_schedule(self, request, subject_uid, count_only=False, **kwargs):
 
         schedules = (
             models.ScheduledTaking.objects.prefetch_related(
@@ -161,7 +160,14 @@ class MedicationAdherenceOverview(BaseTable):
         return schedules
 
     def _get_obs_data(
-        self, request, schedule_id, subject_uid, start=None, stop=None, count_only=False, **kwargs
+        self,
+        request,
+        schedule_id,
+        subject_uid,
+        start=None,
+        stop=None,
+        count_only=False,
+        **kwargs,
     ):
         observations = (
             senses_models.TextObservation.objects.filter(
@@ -213,6 +219,3 @@ class MedicationAdherenceOverview(BaseTable):
         if count_only:
             return observations.count()
         return observations
-
-
-tablelist_registry.register(MedicationAdherenceOverview)

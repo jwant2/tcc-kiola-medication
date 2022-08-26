@@ -20,23 +20,15 @@ th.border-style {
 .cell-size {
     max-width: 70px;
 }
+.row-head {
+    max-width:100%;
+    white-space:nowrap;
+}
 </style>
 {% endblock%}
 <div>
-    <div class="text-center">
-        <h4>{{title}}</h4>
-    </div>
-    <div>
+    <div class="table-frame">
         <table class="table table-hover">
-            <colgroup>
-                {% for cell in headers %}
-                    {% if forloop.counter == 1 %} 
-                        <col id="row-head">
-                    {% else %}
-                        <col id="row-cell" class="cell-size">
-                    {% endif %}
-                {% endfor %}
-            </colgroup>
             <thead>
                 <tr>
                     {% for cell in headers %}
@@ -53,7 +45,7 @@ th.border-style {
                 <tr>
                     {% for cell in row %}
                         {% if forloop.counter == 1 %} 
-                            <td colspan="{{cell.colspan}}" class="{{cell.color_class}} text-left border-style">{{ cell.value }}</td>
+                            <td colspan="{{cell.colspan}}" class="{{cell.color_class}} row-head text-left border-style">{{ cell.value }}</td>
                         {% else %}
                             <td colspan="{{cell.colspan}}" class="{{cell.color_class}} text-center border-style">{{ cell.value }}</td>
                         {% endif %}
