@@ -1,5 +1,5 @@
 {% load i18n %} 
-{% load admin_static %}
+{% load static %}
 {% load high_charts %}
 {% load common_filters %}
 {% load tz %}
@@ -17,6 +17,9 @@ th.border-style {
 .muted_bs_color {
     opacity: 50%;
 }
+.cell-size {
+    max-width: 70px;
+}
 </style>
 {% endblock%}
 <div>
@@ -25,11 +28,20 @@ th.border-style {
     </div>
     <div>
         <table class="table table-hover">
+            <colgroup>
+                {% for cell in headers %}
+                    {% if forloop.counter == 1 %} 
+                        <col id="row-head">
+                    {% else %}
+                        <col id="row-cell" class="cell-size">
+                    {% endif %}
+                {% endfor %}
+            </colgroup>
             <thead>
                 <tr>
                     {% for cell in headers %}
                         {% if forloop.counter == 1 %} 
-                            <th  class="cell-size text-left border-style">{{ cell }}</th>
+                            <th  class="text-left border-style">{{ cell }}</th>
                         {% else %}
                             <th  class="cell-size text-center border-style">{{ cell }}</th>
                         {% endif %}

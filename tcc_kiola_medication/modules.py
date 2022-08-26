@@ -73,7 +73,13 @@ dashboard_registry.register(
     PatientHelpdeskDashboard, name=cares_const.DASHBOARD__CARES_PATIENT_ADMIN
 )
 
+print("register_tablelist_module")
+
 
 def register_tablelist_module():
+    print(
+        "TablesModule.name not in list(module_registry.modules):",
+        TablesModule.name not in list(module_registry.modules),
+    )
     if TablesModule.name not in list(module_registry.modules):
         module_registry.register(TablesModule)
