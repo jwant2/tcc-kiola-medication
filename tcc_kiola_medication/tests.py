@@ -450,9 +450,6 @@ class MedicationTest(KiolaTest):
             "active": True,
             "editor": "test_patient",
         }
-        print(
-            1111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111
-        )
         self.assertEqual(content, data)
         # # test if compound created
         # compound_exist = med_models.Compound.objects.filter(uid="342225332", source__version="test").count() == 1
