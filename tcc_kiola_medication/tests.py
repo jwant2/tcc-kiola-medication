@@ -2270,8 +2270,8 @@ class MedicationTest(KiolaTest):
 
         # test put with duplicate type
         param = [
-            {"type": "fornight", "actualTime": "11:00"},
-            {"type": "fornight", "actualTime": "12:00"},
+            {"type": "morning", "actualTime": "11:00"},
+            {"type": "morning", "actualTime": "12:00"},
         ]
         url = reverse("tcc_med_api:user_preference_config", kwargs={"apiv": 1})
         signature_url = f"http://testserver{url}"
@@ -2296,7 +2296,7 @@ class MedicationTest(KiolaTest):
 
         # test put with invalid time
         param = [
-            {"type": "fornight", "actualTime": "11:00"},
+            {"type": "morning", "actualTime": "11:00"},
             {"type": "afternoon", "actualTime": "12:00 pm"},
         ]
         url = reverse("tcc_med_api:user_preference_config", kwargs={"apiv": 1})
