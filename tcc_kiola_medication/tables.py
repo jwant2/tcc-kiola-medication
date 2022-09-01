@@ -16,36 +16,34 @@ if apps.is_installed("django_bootgrid"):
 else:
     import kiola.kiola_bootgrid.bootgrid as bootgrid
 
+from tcc_kiola_common.modules import tablelist_registry
+from tcc_kiola_common.tables import BaseTable
+
 from kiola.kiola_med import const as med_const
 from kiola.kiola_senses import models as senses_models
 
 from . import const, models
 
 
-class MedicationAdherenceOverview(object):
+class MedicationAdherenceOverview(BaseTable):
     model = senses_models.Observation
     title = _("Medication taken")
     template_name = "lists/med_table.html"
     use_full_objects = True
-
+    id = "Medication_Adherence_Overview"
     field_colors = {
         "take": "success",  # green
         "not_take": "danger",  # red
         "undo": "warning",  # yellow
     }
 
-    def __init__(self, request, start=None, stop=None):
-        self.request = request
-        if start and stop:
-            self.start = start
-            self.stop = stop
-        else:
-            self.stop = datetime.now().astimezone(get_current_timezone())
-            self.start = self.stop - timedelta(days=7)
-
-    def render(self):
+    def render(self, **kwargs):
+        try:
+            subject_uid = kwargs["sid"]
+        except Exception:
+            subject_uid = self.request.subject_uid
         t = loader.get_template(self.template_name)
-        schedules = self._get_active_schedule(self.request)
+        schedules = self._get_active_schedule(self.request, subject_uid)
         days = (self.stop - self.start).days
         headers = [""]
         for i in range(0, days):
@@ -56,7 +54,7 @@ class MedicationAdherenceOverview(object):
         for schedule in schedules:
             row_data = []
             schedule_data = self._get_obs_data(
-                self.request, schedule.pk, self.start, self.stop
+                self.request, schedule.pk, subject_uid, self.start, self.stop
             )
 
             # only show inactive schedules if they have an observatio
@@ -142,8 +140,8 @@ class MedicationAdherenceOverview(object):
             return -1
         return index
 
-    def _get_active_schedule(self, request, count_only=False, **kwargs):
-        subject_uid = self.request.subject_uid
+    def _get_active_schedule(self, request, subject_uid, count_only=False, **kwargs):
+
         schedules = (
             models.ScheduledTaking.objects.prefetch_related(
                 "taking_time__hour", "takings_set", "takings_set__compound"
@@ -162,9 +160,15 @@ class MedicationAdherenceOverview(object):
         return schedules
 
     def _get_obs_data(
-        self, request, schedule_id, start=None, stop=None, count_only=False, **kwargs
+        self,
+        request,
+        schedule_id,
+        subject_uid,
+        start=None,
+        stop=None,
+        count_only=False,
+        **kwargs,
     ):
-        subject_uid = self.request.subject_uid
         observations = (
             senses_models.TextObservation.objects.filter(
                 parent__profile__name=const.MDC_DEV_SPEC_PROFILE_TCC_MED_PRESCRIPTION_OBSERVATION,
@@ -210,8 +214,7 @@ class MedicationAdherenceOverview(object):
         )
         if start and stop:
             observations = observations.filter(
-                action_date__gt=str(start.date()),
-                action_date__lte=str(stop.date())
+                action_date__gt=str(start.date()), action_date__lte=str(stop.date())
             )
         if count_only:
             return observations.count()
