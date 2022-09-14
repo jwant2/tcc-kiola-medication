@@ -18,8 +18,9 @@ class BaseParser(object):
     source_file = None
     version = "1.0"
 
-    def __init__(self, source_file, version):
+    def __init__(self, source_file, version, source_type="N/A"):
         self.source_file = source_file
+        self.source_type = source_type
         self.version = version
         self.error_logs = []
 
@@ -99,6 +100,7 @@ class TCCMosParser(BaseParser):
                         defaults={
                             "title": column[1],
                             "unique_id": column[4],
+                            "source_type": self.source_type,
                             "meta_data": '{"active_components": {"1":"'
                             + column[0]
                             + '"}, "SCH/PRN": "'
@@ -214,6 +216,7 @@ class TCCMGenericParser(BaseParser):
                         defaults={
                             "title": name,
                             "unique_id": uid,
+                            "source_type": self.source_type,
                             "meta_data": '{"active_components": {"1":"'
                             + name
                             + '"}, "SCH/PRN": "N/A", "source": {"name": "'
@@ -257,4 +260,4 @@ class MedicationDataImportParser(object):
         ## check source type and select parser
         return {"TCC": TCCMosParser, "TCC-Generic": TCCMGenericParser,}.get(
             source_type
-        )(source_file, version)
+        )(source_file, version, source_type=source_type)

@@ -339,51 +339,6 @@ class MedicationRelatedHistoryData(models.Model):
 track_model(MedicationRelatedHistoryData)
 
 
-def drug_search(q, by_id=False, source=None):
-    imports = pharmacy_models.ImportHistory.objects.all().order_by("-pk")
-    if len(imports) > 0:
-        if imports[0].status != "C":
-            raise service_providers.ServiceNotAvailable()
-    data = []
-    if not source:
-        source = med_models.CompoundSource.objects.get(default=True)
-    # only returns current version of compounds
-    filter_params = [Q(meta_data__contains=f'"version": "{source.version}"')]
-    if by_id:
-        q = q.strip().lower()
-        filter_params = [Q(unique_id=q)]
-    else:
-        q = q.strip().lower()
-        if len(q) == 0:
-            return []
-        qparts = q.split(" ")
-        for qpart in qparts:
-            qpart = qpart.strip()
-            if qpart != "":
-                filter_params.append(Q(title__icontains=qpart))
-    count = 1
-    for product in pharmacy_models.Product.objects.filter(*filter_params):
-        meta = json.loads(product.meta_data)
-
-        data.append(
-            {
-                "title": product.title,
-                "unique_id": product.unique_id,
-                "main_indications": meta.get("main_indication", {"1": None}),
-                "active_components": meta.get("active_components", "-"),
-                "dosage_form": meta.get("dosage_form", "-"),
-                "source": meta.get("source", None),
-                "SCH/PRN": meta.get("SCH/PRN", None),
-                "count": count,
-            }
-        )
-        count += 1
-    return data
-
-
-service_providers.service_registry.register(name="drug_search", function=drug_search)
-
-
 class MedicationType(models.Model):
     name = models.CharField(max_length=50)
     description = models.TextField()
