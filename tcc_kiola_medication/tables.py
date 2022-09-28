@@ -219,3 +219,6 @@ class MedicationAdherenceOverview(BaseTable):
         if count_only:
             return observations.count()
         return observations
+
+
+tablelist_registry.register(MedicationAdherenceOverview)
