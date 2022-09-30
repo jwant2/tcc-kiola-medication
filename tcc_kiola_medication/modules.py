@@ -44,36 +44,6 @@ class TablesModule(DashboardModule):
         self.vars["title"] = self.title
 
 
-class PatientHelpdeskDashboard(cares_modules.PatientHelpdeskDashboard):
-    """This Dashboard is the main patient dashboard"""
-
-    def init_with_context(self, context):
-        super().init_with_context(context)
-        self.modules.insert(1, module_registry.modules["tablelistmodule"])
-
-
-del dashboard_registry.dashboards[cares_const.DASHBOARD__CARES_PATIENT_HELPDESK]
-dashboard_registry.register(
-    PatientHelpdeskDashboard, name=cares_const.DASHBOARD__CARES_PATIENT_HELPDESK
-)
-
-
-class PatientAdminDashboard(cares_modules.PatientHelpdeskDashboard):
-    """This Dashboard is used to extend the PatientDashboard for Users
-    with access to the Kiola Admin Backend (staff users)
-    """
-
-    def init_with_context(self, context):
-        super(PatientAdminDashboard, self).init_with_context(context)
-        self.modules.insert(1, module_registry.modules["tablelistmodule"])
-
-
-del dashboard_registry.dashboards[cares_const.DASHBOARD__CARES_PATIENT_ADMIN]
-dashboard_registry.register(
-    PatientHelpdeskDashboard, name=cares_const.DASHBOARD__CARES_PATIENT_ADMIN
-)
-
-
 def register_tablelist_module():
     if TablesModule.name not in list(module_registry.modules):
         module_registry.register(TablesModule)
