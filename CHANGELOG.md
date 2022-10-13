@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+### [0.7.17](https://github.com/unsw-gsbme/tcc-kiola-medication/compare/v0.7.16...v0.7.17) (2022-10-13)
+
+
+### Bug Fixes
+
+* update date range calculation ([#1](https://github.com/unsw-gsbme/tcc-kiola-medication/issues/1)) ([47b6873](https://github.com/unsw-gsbme/tcc-kiola-medication/commit/47b687345e5ed10eea42e0aa5fdc3c2f1f663bbd))
+
 ### [0.7.16](https://bitbucket.org/teleclinicalcare/tcc-kiola-medication/compare/v0.7.15...v0.7.16) (2022-10-04)
 
 ### [0.7.15](https://bitbucket.org/teleclinicalcare/tcc-kiola-medication/compare/v0.7.14...v0.7.15) (2022-09-14)
