@@ -44,10 +44,10 @@ class MedicationAdherenceOverview(BaseTable):
             subject_uid = self.request.subject_uid
         t = loader.get_template(self.template_name)
         schedules = self._get_active_schedule(self.request, subject_uid)
-        days = (self.stop - self.start).days
+        days = (self.stop - self.start).days + 1
         headers = [""]
         for i in range(0, days):
-            headers.append((self.start + timedelta(days=i + 1)).strftime("%d/%m"))
+            headers.append((self.start + timedelta(days=i)).strftime("%d/%m"))
         active_data = []
         inactive_data = []
 
