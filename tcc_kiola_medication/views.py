@@ -2082,12 +2082,14 @@ class TCCPrescriptionStatusResource(resource.Resource):
                 raise exceptions.UnsafeLocation()
         try:
             with transaction.atomic():
+                params = utils.prescription_event__params()
                 med_models.PrescriptionEvent.objects.create(
                     prescription=prescription,
                     timepoint=datetime.now(),
                     etype=med_models.PrescriptionEventType.objects.get(
                         name=med_const.EVENT_TYPE__CANCELED
                     ),
+                    **params,
                 )
                 prescription.status = status
                 ## saving request.user as editor
