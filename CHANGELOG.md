@@ -2,6 +2,18 @@
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+### [0.7.18](https://github.com/unsw-gsbme/tcc-kiola-medication/compare/v0.7.16...v0.7.18) (2022-10-25)
+
+
+### Features
+
+* medication entry export ([#3](https://github.com/unsw-gsbme/tcc-kiola-medication/issues/3)) ([25b54ee](https://github.com/unsw-gsbme/tcc-kiola-medication/commit/25b54ee5c7ffffe743bef6c142fa44dda4053926))
+
+
+### Bug Fixes
+
+* update date range calculation ([#1](https://github.com/unsw-gsbme/tcc-kiola-medication/issues/1)) ([47b6873](https://github.com/unsw-gsbme/tcc-kiola-medication/commit/47b687345e5ed10eea42e0aa5fdc3c2f1f663bbd))
+
 ### [0.7.17](https://github.com/unsw-gsbme/tcc-kiola-medication/compare/v0.7.16...v0.7.17) (2022-10-13)
 
 
